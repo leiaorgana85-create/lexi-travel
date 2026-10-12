@@ -2,44 +2,72 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 21px;
+  top: 20px;
   width: auto;
-  height: 14px;
+  min-height: 24px;
   margin: 0;
-  padding: 0 1px;
+  padding: 2px 1px;
   border-radius: 0;
   font-size: 8px;
-  line-height: 1.15;
+  line-height: 1.05;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
+  white-space: normal;
+}
+
+.day-event-time,
+.day-event-title {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.day-event-time {
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.day-event-title {
+  margin-top: 1px;
+  font-size: 8px;
 }
 
 .day-event:nth-of-type(2) {
-  top: 35px;
+  top: 46px;
 }
 
 .day-more {
   position: absolute;
   left: 1px;
   right: 1px;
-  top: 49px;
+  top: 70px;
   margin: 0;
 }
 
 @media (min-width: 700px) {
   .day-event {
-    top: 25px;
-    height: 16px;
+    top: 24px;
+    min-height: 28px;
+  }
+
+  .day-event-time {
+    font-size: 8px;
+  }
+
+  .day-event-title {
     font-size: 9px;
   }
 
   .day-event:nth-of-type(2) {
-    top: 41px;
+    top: 54px;
   }
 
   .day-more {
-    top: 57px;
+    top: 82px;
   }
 }

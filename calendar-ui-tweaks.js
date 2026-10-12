@@ -3,13 +3,14 @@
   const summary = paneHead?.querySelector('.day-pane-summary');
   const paneDetails = document.getElementById('paneDayDetails');
   const title = document.getElementById('paneDayTitle');
+  const location = document.getElementById('paneDayLocation');
   const addBtn = document.getElementById('calendarAddEventBtn');
   const syncStatus = document.getElementById('calendarSyncStatus');
   const paneActions = paneHead?.querySelector('.calendar-pane-actions');
 
-  if (!paneHead || !summary || !paneDetails || !title || !addBtn || !syncStatus || !paneActions) return;
+  if (!paneHead || !summary || !paneDetails || !title || !location || !addBtn || !syncStatus || !paneActions) return;
 
-  // Keep primary day actions on the same top row.
+  // Keep + before the date, and Edit at the far right after the location.
   summary.insertBefore(addBtn, title);
 
   const editBtn = document.createElement('button');
@@ -19,20 +20,17 @@
   editBtn.textContent = 'Edit';
   editBtn.setAttribute('aria-label', 'Edit event');
   editBtn.hidden = true;
-  summary.insertBefore(editBtn, title.nextSibling);
+  summary.append(editBtn);
 
   let clearTimer = null;
-  let chooseTimer = null;
+  let choosingEvent = false;
 
   function eventRows() {
     return [...paneDetails.querySelectorAll('.pane-event[data-event-id]')];
   }
 
   function clearChooseMode() {
-    if (chooseTimer) {
-      clearTimeout(chooseTimer);
-      chooseTimer = null;
-    }
+    choosingEvent = false;
     paneDetails.querySelectorAll('.calendar-edit-choice').forEach(row => {
       row.classList.remove('calendar-edit-choice');
     });
@@ -62,24 +60,33 @@
 
     if (rows.length === 1) {
       clearChooseMode();
-      rows[0].click();
+      const id = rows[0].dataset.eventId || '';
+      if (id && typeof window.lexiCalendarEditEvent === 'function') {
+        window.lexiCalendarEditEvent(id);
+      }
       return;
     }
 
-    clearChooseMode();
+    choosingEvent = true;
     rows.forEach(row => row.classList.add('calendar-edit-choice'));
     editBtn.textContent = 'Choose';
     editBtn.setAttribute('aria-label', 'Choose an event to edit');
-
-    chooseTimer = setTimeout(() => {
-      clearChooseMode();
-    }, 5000);
   });
 
   paneDetails.addEventListener('click', event => {
+    if (!choosingEvent) return;
+
     const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest('.pane-event[data-event-id]')) {
-      clearChooseMode();
+    const row = target?.closest('.pane-event[data-event-id]');
+    if (!row) return;
+
+    const id = row.dataset.eventId || '';
+    clearChooseMode();
+
+    if (id && typeof window.lexiCalendarEditEvent === 'function') {
+      event.preventDefault();
+      event.stopPropagation();
+      window.lexiCalendarEditEvent(id);
     }
   }, true);
 
@@ -91,7 +98,6 @@
       clearTimer = null;
     }
 
-    // Do not permanently display a success state; saving/errors remain visible.
     if (/^synced$/i.test(text)) {
       clearTimer = setTimeout(() => {
         syncStatus.textContent = '';

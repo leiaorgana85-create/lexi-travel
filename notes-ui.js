@@ -116,11 +116,14 @@
   function localRefresh() {
     mergeLocalState();
     const currentLoader = loadAllData;
+    const previousSuppressFastClick = suppressFastClick;
+    suppressFastClick = true;
     loadAllData = async () => true;
     try {
       notesTab.click();
     } finally {
       loadAllData = currentLoader;
+      suppressFastClick = previousSuppressFastClick;
     }
   }
 

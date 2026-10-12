@@ -33,8 +33,8 @@
         if (category.includes('flight') && routeMatch && timeParts.length === 2) {
           const origin = routeMatch[1].toUpperCase();
           const destination = routeMatch[2].toUpperCase();
-          appendLine(label, `${compactTime(timeParts[0])} ${origin}→`, 'day-event-flight-line');
-          appendLine(label, `${compactTime(timeParts[1])} ${destination}`, 'day-event-flight-line');
+          appendLine(label, `${compactTime(timeParts[0])}-${compactTime(timeParts[1])}`, 'day-event-flight-time');
+          appendLine(label, `${origin}→${destination}`, 'day-event-flight-route');
           return;
         }
 

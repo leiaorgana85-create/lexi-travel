@@ -66,6 +66,14 @@
   line-height: 1.1;
 }
 
+/* Use a neutral focus state; iOS was drawing a distracting blue ring. */
+.calendar-editor-field input:focus,
+.calendar-editor-field textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: #bfc7d2 !important;
+}
+
 .calendar-editor-field input {
   height: 29px;
   min-height: 29px;
@@ -102,7 +110,11 @@
 
 .calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
   min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
   text-align: left;
+  padding: 0;
 }
 
 .calendar-editor-pair {
@@ -112,6 +124,29 @@
 
 .calendar-event-editor {
   gap: 4px;
+}
+
+/* Make the edit affordance visible without adding visual weight. */
+.pane-event-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pane-event-summary-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pane-event-edit {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  padding: 1px 2px;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 650;
 }
 
 /* Keep iPhone from auto-zooming focused controls while making the controls
@@ -148,5 +183,12 @@
     min-height: 34px;
     padding-top: 0;
     padding-bottom: 0;
+  }
+
+  .calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    line-height: 34px;
   }
 }

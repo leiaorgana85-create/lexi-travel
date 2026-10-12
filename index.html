@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <title>LEXI Travel</title>
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
   <link rel="stylesheet" href="calendar-fixes.css?v=12">
 </head>
 <body>
@@ -42,12 +42,33 @@
       </section>
 
       <section id="notesView" class="view" aria-label="Notes">
-        <div class="section-head left">
-          <h2>Notes</h2>
-        </div>
-        <div class="placeholder">
-          <strong>Notes shell ready</strong>
-          <span>List + notepad editor comes after the calendar foundation.</span>
+        <div id="notesLayout" class="notes-layout">
+          <aside class="notes-sidebar" aria-label="Note list">
+            <div class="notes-sidebar-head">
+              <strong>Notes</strong>
+              <button id="notesCloseBtn" class="notes-close-btn" type="button" aria-label="Close note list">×</button>
+            </div>
+            <div id="notesList" class="notes-list"></div>
+          </aside>
+
+          <article class="note-workspace" aria-label="Selected note">
+            <div class="note-toolbar">
+              <button id="notesListBtn" class="notes-list-btn" type="button" aria-label="Open note list">☰</button>
+              <div class="note-title-wrap">
+                <h2 id="noteTitle" class="note-title">Notes</h2>
+                <input id="noteTitleInput" class="note-title-input" type="text" aria-label="Note title" hidden>
+              </div>
+              <div class="note-actions">
+                <button id="noteEditBtn" class="note-action-btn" type="button">Edit</button>
+                <button id="noteCancelBtn" class="note-action-btn" type="button" hidden>Cancel</button>
+                <button id="noteSaveBtn" class="note-action-btn primary" type="button" hidden>Save</button>
+              </div>
+            </div>
+            <div id="noteSaveStatus" class="note-save-status" aria-live="polite"></div>
+            <div id="noteBody" class="note-body">
+              <div class="note-empty">Open Notes to load your saved notes.</div>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -94,7 +115,7 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
   <script src="calendar-fixes.js?v=8"></script>
   <script src="split-view.js?v=1"></script>
 </body>

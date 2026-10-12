@@ -47,7 +47,7 @@
       appData.notes.push({
         ID: id,
         Title: 'New Note',
-        Body: JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '• ' }] }),
+        Body: '- ',
         Pinned: false,
         'Sort Order': 9999,
         Archived: false,
@@ -196,7 +196,7 @@
     newBtn.disabled = true;
 
     const id = `local-note-${Date.now()}`;
-    const body = JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '• ' }] });
+    const body = '- ';
     const note = {
       ID: id,
       Title: 'New Note',

@@ -8,10 +8,10 @@
   padding: 0;
   border-radius: 0;
   font-size: 8px;
-  line-height: 1.05;
+  line-height: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   justify-content: flex-start;
   text-align: center;
   white-space: normal;
@@ -41,18 +41,20 @@
 .day-event-flight-line {
   font-size: 7.5px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-kerning: normal;
 }
 
 .day-event:nth-of-type(2) {
-  top: 38px;
+  top: 36px;
 }
 
 .day-more {
   position: absolute;
   left: 1px;
   right: 1px;
-  top: 58px;
+  top: 54px;
   margin: 0;
 }
 
@@ -71,10 +73,10 @@
   }
 
   .day-event:nth-of-type(2) {
-    top: 44px;
+    top: 42px;
   }
 
   .day-more {
-    top: 66px;
+    top: 62px;
   }
 }

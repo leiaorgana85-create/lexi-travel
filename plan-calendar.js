@@ -57,9 +57,15 @@
     paneDetails.querySelectorAll('.pane-plan-todo').forEach(node => node.remove());
 
     const dateKey = selectedDateKey();
-    if (!dateKey) return;
+    const empty = paneDetails.querySelector('.pane-empty');
+
+    if (!dateKey) {
+      if (empty) empty.style.display = '';
+      return;
+    }
 
     const items = itemsForDate(dateKey);
+    if (empty) empty.style.display = items.length ? 'none' : '';
     if (!items.length) return;
 
     items.forEach(item => {

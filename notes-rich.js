@@ -345,21 +345,22 @@
       body: editor.value.replace(/\r/g, '').replace(/\n+$/, ''),
       previousDraft: readDrafts()[id] || null
     };
-
-    setTimeout(() => {
-      if (!saveContext || saveContext.id !== id) return;
-      const drafts = readDrafts();
-      const saved = drafts[id] || {};
-      drafts[id] = {
-        ...(saveContext.previousDraft || {}),
-        ...saved,
-        Body: saveContext.body,
-        savedAt: saved.savedAt || Date.now()
-      };
-      writeDrafts(drafts);
-      saveContext = null;
-    }, 0);
   }, true);
+
+  noteSaveBtn.addEventListener('click', () => {
+    if (!saveContext) return;
+
+    const drafts = readDrafts();
+    const saved = drafts[saveContext.id] || {};
+    drafts[saveContext.id] = {
+      ...(saveContext.previousDraft || {}),
+      ...saved,
+      Body: saveContext.body,
+      savedAt: saved.savedAt || Date.now()
+    };
+    writeDrafts(drafts);
+    saveContext = null;
+  });
 
   const observer = new MutationObserver(() => {
     queueMicrotask(decorateCurrentNote);

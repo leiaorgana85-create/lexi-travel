@@ -7,6 +7,14 @@
       .replace(/\s*PM\b/i, 'p');
   }
 
+  function compactAppointmentClock(value) {
+    return String(value || '')
+      .trim()
+      .replace(/^~\s*/, '')
+      .replace(/\s*AM\b/i, 'am')
+      .replace(/\s*PM\b/i, 'pm');
+  }
+
   function appendLine(label, text, className) {
     const line = document.createElement('span');
     line.className = className;
@@ -70,6 +78,14 @@
           } else if (time) {
             appendLine(label, compactClock(time), 'day-event-flight-time-line');
           }
+          return;
+        }
+
+        if (category.includes('appointment')) {
+          if (time) {
+            appendLine(label, compactAppointmentClock(time), 'day-event-generic-line');
+          }
+          appendLine(label, title, 'day-event-generic-line');
           return;
         }
 

@@ -60,6 +60,7 @@
 
         const title = String(event.Title || event.Category || 'Event').trim();
         const time = String(event.Time || '').trim();
+        const details = String(event.Details || '').trim();
         const category = String(event.Category || '').toLowerCase();
         label.textContent = '';
         label.classList.remove('travel-route');
@@ -71,12 +72,17 @@
           const origin = routeMatch[1].toUpperCase();
           const destination = routeMatch[2].toUpperCase();
           label.classList.add('travel-route');
-          appendLine(label, `${origin}→${destination}`, 'day-event-flight-line');
 
           if (timeParts.length === 2) {
             appendTravelTimeLine(label, timeParts[0], timeParts[1]);
           } else if (time) {
             appendLine(label, compactClock(time), 'day-event-flight-time-line');
+          }
+
+          appendLine(label, `${origin}→${destination}`, 'day-event-flight-line');
+
+          if (details) {
+            appendLine(label, details, 'day-event-generic-line');
           }
           return;
         }

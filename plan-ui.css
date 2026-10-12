@@ -250,6 +250,64 @@
   color: #4b5563;
 }
 
+.plan-convert-wrap {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto 78px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding-top: 5px;
+  border-top: 1px solid #edf0f4;
+}
+
+.plan-convert-wrap[hidden] {
+  display: none;
+}
+
+.plan-convert-time-label {
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan-convert-time {
+  width: 78px;
+  min-width: 0;
+  height: 25px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  padding: 3px 5px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.plan-convert-btn {
+  min-width: 0;
+  min-height: 25px;
+  border: 1px solid #b9c7dd;
+  border-radius: 6px;
+  background: #f5f8fc;
+  color: var(--blue);
+  padding: 3px 5px;
+  font-size: 9.5px;
+  line-height: 1.05;
+  font-weight: 750;
+}
+
+.plan-convert-status {
+  grid-column: 1 / -1;
+  min-height: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.15;
+}
+
 .plan-country-section {
   padding-top: 2px;
   border-top: 1px solid #e8ebef;
@@ -302,10 +360,21 @@
     transform: scale(0.75);
     transform-origin: left center;
   }
+
+  .plan-convert-time {
+    font-size: 16px !important;
+  }
 }
 
-html[data-theme="dark"] .plan-add-date {
+html[data-theme="dark"] .plan-add-date,
+html[data-theme="dark"] .plan-convert-time {
   border-color: #3a4350;
   background: #0f1319;
   color: var(--text);
+}
+
+html[data-theme="dark"] .plan-convert-btn {
+  border-color: #3a4350;
+  background: #151b24;
+  color: #7fb0ff;
 }

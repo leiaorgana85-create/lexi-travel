@@ -287,6 +287,13 @@
           .day-location-code { font-weight: 700 !important; }
           .day-event-flight-line,
           .day-event-generic-line { font-weight: 600 !important; }
+
+          /* Safari's SF text is slightly wider than Segoe UI in the compact Notes table.
+             Nudge only the preview metrics so line wrapping matches the iPhone more closely. */
+          .note-table { font-size: 11.65px !important; }
+          .note-table th { font-size: 10.65px !important; }
+          .note-table th,
+          .note-table td { letter-spacing: 0.06px !important; }
         `;
         doc.head.append(style);
       } catch (error) {

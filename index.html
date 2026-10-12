@@ -13,7 +13,8 @@
   <link rel="stylesheet" href="calendar-ui-tweaks.css?v=3">
   <link rel="stylesheet" href="calendar-edit-top.css?v=2">
   <link rel="stylesheet" href="notes-ui.css?v=4">
-  <link rel="stylesheet" href="plan-ui.css?v=2">
+  <link rel="stylesheet" href="plan-ui.css?v=3">
+  <link rel="stylesheet" href="plan-calendar.css?v=1">
   <link rel="stylesheet" href="theme.css?v=1">
 </head>
 <body>
@@ -101,6 +102,10 @@
               <button id="planAddBtn" class="plan-add-btn" type="button">+ Add item</button>
               <div id="planAddRow" class="plan-add-row" hidden>
                 <input id="planAddInput" class="plan-add-input" type="text" autocomplete="off" placeholder="Add something to do this month">
+                <div class="plan-add-date-wrap">
+                  <label class="plan-add-date-label" for="planAddDate">Date · optional</label>
+                  <input id="planAddDate" class="plan-add-date" type="date">
+                </div>
                 <button id="planAddSaveBtn" class="plan-add-save" type="button">Add</button>
                 <button id="planAddCancelBtn" class="plan-add-cancel" type="button">Cancel</button>
               </div>
@@ -174,6 +179,7 @@
   <script src="notes-ui.js?v=5"></script>
   <script src="notes-rich.js?v=2"></script>
   <script src="notes-sync.js?v=3"></script>
-  <script src="plan-ui.js?v=2"></script>
+  <script src="plan-ui.js?v=3"></script>
+  <script src="plan-calendar.js?v=1"></script>
 </body>
 </html>

@@ -395,3 +395,311 @@ renderCalendar();
 if (localStorage.getItem(KEY_STORAGE)) {
   loadCalendarData();
 }
+
+(() => {
+  const DRAFT_STORAGE = 'lexiTravelNoteDraftsV1';
+  const notesTab = document.querySelector('.tab[data-view="notesView"]');
+  const notesLayout = document.getElementById('notesLayout');
+  const notesList = document.getElementById('notesList');
+  const notesListBtn = document.getElementById('notesListBtn');
+  const notesCloseBtn = document.getElementById('notesCloseBtn');
+  const noteTitle = document.getElementById('noteTitle');
+  const noteTitleInput = document.getElementById('noteTitleInput');
+  const noteBody = document.getElementById('noteBody');
+  const noteEditBtn = document.getElementById('noteEditBtn');
+  const noteSaveBtn = document.getElementById('noteSaveBtn');
+  const noteCancelBtn = document.getElementById('noteCancelBtn');
+  const noteSaveStatus = document.getElementById('noteSaveStatus');
+
+  if (!notesTab || !notesLayout || !notesList || !noteTitle || !noteBody) return;
+
+  let selectedNoteId = '';
+  let editing = false;
+
+  function readDrafts() {
+    try {
+      return JSON.parse(localStorage.getItem(DRAFT_STORAGE) || '{}') || {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function writeDrafts(drafts) {
+    localStorage.setItem(DRAFT_STORAGE, JSON.stringify(drafts));
+  }
+
+  function isTrue(value) {
+    return value === true || String(value || '').toUpperCase() === 'TRUE';
+  }
+
+  function visibleNotes() {
+    return appData.notes
+      .filter(note => !isTrue(note.Archived))
+      .slice()
+      .sort((a, b) => {
+        const pinned = Number(isTrue(b.Pinned)) - Number(isTrue(a.Pinned));
+        if (pinned) return pinned;
+        const order = Number(a['Sort Order'] || 9999) - Number(b['Sort Order'] || 9999);
+        if (order) return order;
+        return String(a.Title || '').localeCompare(String(b.Title || ''));
+      });
+  }
+
+  function effectiveNote(note) {
+    if (!note) return null;
+    const draft = readDrafts()[note.ID];
+    return draft ? { ...note, ...draft } : note;
+  }
+
+  function parseBody(body) {
+    const text = String(body || '').trim();
+    if (!text) return { version: 1, blocks: [] };
+
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && Array.isArray(parsed.blocks)) return parsed;
+    } catch (error) {
+      // Plain-text notes remain supported.
+    }
+
+    return { version: 1, blocks: [{ type: 'paragraph', text }] };
+  }
+
+  function currentBaseNote() {
+    return visibleNotes().find(note => String(note.ID) === String(selectedNoteId)) || null;
+  }
+
+  function renderList() {
+    const notes = visibleNotes();
+    notesList.innerHTML = '';
+
+    if (!notes.length) {
+      const empty = document.createElement('div');
+      empty.className = 'note-empty';
+      empty.textContent = localStorage.getItem(KEY_STORAGE)
+        ? 'No notes yet.'
+        : 'Connect in Settings to load notes.';
+      notesList.append(empty);
+      return;
+    }
+
+    if (!selectedNoteId || !notes.some(note => String(note.ID) === String(selectedNoteId))) {
+      selectedNoteId = String(notes[0].ID || '');
+    }
+
+    for (const baseNote of notes) {
+      const note = effectiveNote(baseNote);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'note-list-item';
+      button.classList.toggle('active', String(baseNote.ID) === String(selectedNoteId));
+      button.textContent = note.Title || 'Untitled Note';
+
+      if (note.Category) {
+        const meta = document.createElement('span');
+        meta.className = 'note-list-meta';
+        meta.textContent = note.Category;
+        button.append(meta);
+      }
+
+      button.addEventListener('click', () => {
+        selectedNoteId = String(baseNote.ID || '');
+        editing = false;
+        notesLayout.classList.remove('list-open');
+        renderNotes();
+      });
+
+      notesList.append(button);
+    }
+  }
+
+  function renderScheduleBlock(block, blockIndex) {
+    const section = document.createElement('section');
+    section.className = 'note-schedule';
+
+    const heading = document.createElement('h3');
+    heading.className = `note-section-title${editing ? ' note-editable' : ''}`;
+    heading.textContent = block.heading || '';
+    heading.dataset.blockHeading = String(blockIndex);
+    if (editing) heading.contentEditable = 'true';
+    section.append(heading);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'note-table-wrap';
+
+    const table = document.createElement('table');
+    table.className = 'note-table';
+
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    (block.columns || []).forEach(column => {
+      const th = document.createElement('th');
+      th.textContent = column;
+      headerRow.append(th);
+    });
+    thead.append(headerRow);
+    table.append(thead);
+
+    const tbody = document.createElement('tbody');
+    (block.rows || []).forEach((rowValues, rowIndex) => {
+      const row = document.createElement('tr');
+      rowValues.forEach((value, columnIndex) => {
+        const cell = document.createElement('td');
+        cell.textContent = value;
+        if (editing) {
+          cell.contentEditable = 'true';
+          cell.className = 'note-editable note-edit-cell';
+          cell.dataset.blockIndex = String(blockIndex);
+          cell.dataset.rowIndex = String(rowIndex);
+          cell.dataset.columnIndex = String(columnIndex);
+        }
+        row.append(cell);
+      });
+      tbody.append(row);
+    });
+    table.append(tbody);
+    wrap.append(table);
+    section.append(wrap);
+    noteBody.append(section);
+  }
+
+  function renderParagraphBlock(block, blockIndex) {
+    const paragraph = document.createElement('div');
+    paragraph.className = `note-paragraph${editing ? ' note-editable' : ''}`;
+    paragraph.textContent = block.text || '';
+    paragraph.dataset.paragraphBlock = String(blockIndex);
+    if (editing) paragraph.contentEditable = 'true';
+    noteBody.append(paragraph);
+  }
+
+  function renderBody(note) {
+    noteBody.innerHTML = '';
+    const model = parseBody(note.Body);
+
+    if (!model.blocks.length) {
+      const empty = document.createElement('div');
+      empty.className = 'note-empty';
+      empty.textContent = 'This note is empty.';
+      noteBody.append(empty);
+      return;
+    }
+
+    model.blocks.forEach((block, index) => {
+      if (block.type === 'schedule') renderScheduleBlock(block, index);
+      else renderParagraphBlock(block, index);
+    });
+  }
+
+  function setEditControls() {
+    if (noteEditBtn) noteEditBtn.hidden = editing;
+    if (noteSaveBtn) noteSaveBtn.hidden = !editing;
+    if (noteCancelBtn) noteCancelBtn.hidden = !editing;
+    if (noteTitleInput) noteTitleInput.hidden = !editing;
+    noteTitle.hidden = editing;
+  }
+
+  function renderNotes() {
+    renderList();
+    const baseNote = currentBaseNote();
+
+    if (!baseNote) {
+      noteTitle.textContent = 'Notes';
+      if (noteTitleInput) noteTitleInput.value = '';
+      noteBody.innerHTML = '<div class="note-empty">No note selected.</div>';
+      if (noteEditBtn) noteEditBtn.hidden = true;
+      if (noteSaveBtn) noteSaveBtn.hidden = true;
+      if (noteCancelBtn) noteCancelBtn.hidden = true;
+      if (noteSaveStatus) noteSaveStatus.textContent = '';
+      return;
+    }
+
+    const note = effectiveNote(baseNote);
+    noteTitle.textContent = note.Title || 'Untitled Note';
+    if (noteTitleInput) noteTitleInput.value = note.Title || '';
+    setEditControls();
+    renderBody(note);
+
+    if (noteSaveStatus) {
+      const draft = readDrafts()[baseNote.ID];
+      noteSaveStatus.textContent = draft
+        ? 'Edited copy saved on this device · Google Sheets sync not enabled yet'
+        : 'From Google Sheets';
+    }
+  }
+
+  async function loadNotes() {
+    if (!localStorage.getItem(KEY_STORAGE)) {
+      appData.notes = [];
+      renderNotes();
+      return;
+    }
+
+    if (noteSaveStatus) noteSaveStatus.textContent = 'Loading…';
+    try {
+      await loadAllData();
+      renderNotes();
+    } catch (error) {
+      if (noteSaveStatus) noteSaveStatus.textContent = error.message || 'Could not load notes.';
+    }
+  }
+
+  function startEditing() {
+    if (!currentBaseNote()) return;
+    editing = true;
+    renderNotes();
+    if (noteTitleInput) {
+      noteTitleInput.focus();
+      noteTitleInput.select();
+    }
+  }
+
+  function cancelEditing() {
+    editing = false;
+    renderNotes();
+  }
+
+  function saveDraft() {
+    const baseNote = currentBaseNote();
+    if (!baseNote) return;
+
+    const note = effectiveNote(baseNote);
+    const model = parseBody(note.Body);
+
+    model.blocks.forEach((block, blockIndex) => {
+      if (block.type === 'schedule') {
+        const heading = noteBody.querySelector(`[data-block-heading="${blockIndex}"]`);
+        if (heading) block.heading = heading.textContent.trim();
+
+        (block.rows || []).forEach((row, rowIndex) => {
+          row.forEach((value, columnIndex) => {
+            const cell = noteBody.querySelector(
+              `[data-block-index="${blockIndex}"][data-row-index="${rowIndex}"][data-column-index="${columnIndex}"]`
+            );
+            if (cell) row[columnIndex] = cell.textContent.trim();
+          });
+        });
+      } else {
+        const paragraph = noteBody.querySelector(`[data-paragraph-block="${blockIndex}"]`);
+        if (paragraph) block.text = paragraph.textContent.trim();
+      }
+    });
+
+    const drafts = readDrafts();
+    drafts[baseNote.ID] = {
+      Title: noteTitleInput ? noteTitleInput.value.trim() || 'Untitled Note' : note.Title,
+      Body: JSON.stringify(model),
+      savedAt: Date.now()
+    };
+    writeDrafts(drafts);
+
+    editing = false;
+    renderNotes();
+  }
+
+  notesTab.addEventListener('click', loadNotes);
+  notesListBtn?.addEventListener('click', () => notesLayout.classList.add('list-open'));
+  notesCloseBtn?.addEventListener('click', () => notesLayout.classList.remove('list-open'));
+  noteEditBtn?.addEventListener('click', startEditing);
+  noteCancelBtn?.addEventListener('click', cancelEditing);
+  noteSaveBtn?.addEventListener('click', saveDraft);
+})();

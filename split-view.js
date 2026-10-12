@@ -29,7 +29,21 @@
 
     const summary = document.createElement('div');
     summary.className = 'pane-event-summary';
-    summary.textContent = [title, time, category].filter(Boolean).join(' ');
+
+    const summaryText = document.createElement('span');
+    summaryText.className = 'pane-event-summary-text';
+    summaryText.textContent = [title, time, category].filter(Boolean).join(' ');
+    summary.append(summaryText);
+
+    if (event.ID) {
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'pane-event-edit';
+      edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit ${title || 'event'}`);
+      summary.append(edit);
+    }
+
     row.append(summary);
 
     if (details) {

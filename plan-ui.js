@@ -20,6 +20,8 @@
   let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
   let syncCapability = null;
   let capabilityPromise = null;
+  let editingId = '';
+  let editingMonth = '';
   const refreshPromises = new Map();
 
   function monthKey(date) {
@@ -46,6 +48,23 @@
     if (!match) return '';
     const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
     return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+  }
+
+  function sortedItems(items) {
+    return items.slice().sort((a, b) => {
+      const aDate = normalizeDueDate(a?.dueDate);
+      const bDate = normalizeDueDate(b?.dueDate);
+
+      if (aDate && bDate) {
+        const dateOrder = aDate.localeCompare(bDate);
+        if (dateOrder) return dateOrder;
+        return String(a?.text || '').localeCompare(String(b?.text || ''));
+      }
+
+      if (aDate) return -1;
+      if (bDate) return 1;
+      return 0;
+    });
   }
 
   function announceChange() {
@@ -118,7 +137,7 @@
     const date = String(dateKey || '').trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
     const month = date.slice(0, 7);
-    return itemsForMonth(month)
+    return sortedItems(itemsForMonth(month))
       .filter(item => normalizeDueDate(item.dueDate) === date)
       .map(item => publicItem(item, month));
   };
@@ -295,6 +314,12 @@
     return promise;
   }
 
+  window.lexiPlanRefreshMonth = month => {
+    const key = String(month || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(key)) return Promise.resolve(false);
+    return refreshMonthFromSheets(key);
+  };
+
   function updateItem(id, patch) {
     const month = monthKey(cursor);
     const items = itemsForCurrentMonth().map(item =>
@@ -314,6 +339,7 @@
     deleted[id] = month;
     writeDeleted(deleted);
 
+    if (editingId === String(id)) closeAdd();
     render();
     syncDelete(id);
   }
@@ -345,9 +371,45 @@
     syncUpsert(targetMonth, item.id);
   }
 
+  function editItem(id, originalMonth, text, dueDateValue) {
+    const clean = String(text || '').trim();
+    if (!clean) return;
+
+    const dueDate = normalizeDueDate(dueDateValue);
+    const targetMonth = dueDate ? dueDate.slice(0, 7) : originalMonth;
+    const sourceItems = itemsForMonth(originalMonth);
+    const existing = sourceItems.find(item => String(item.id) === String(id));
+    if (!existing) return;
+
+    const nextItem = {
+      ...existing,
+      text: clean,
+      dueDate,
+      _dirty: true
+    };
+
+    if (targetMonth === originalMonth) {
+      writeMonth(originalMonth, sourceItems.map(item =>
+        String(item.id) === String(id) ? nextItem : item
+      ));
+    } else {
+      writeMonth(originalMonth, sourceItems.filter(item => String(item.id) !== String(id)));
+      const targetItems = itemsForMonth(targetMonth)
+        .filter(item => String(item.id) !== String(id));
+      targetItems.push(nextItem);
+      writeMonth(targetMonth, targetItems);
+
+      const targetDate = dateFromMonthKey(targetMonth);
+      if (targetDate) cursor = targetDate;
+    }
+
+    render();
+    syncUpsert(targetMonth, id);
+  }
+
   function render() {
     monthLabel.textContent = monthTitle(cursor);
-    const items = itemsForCurrentMonth();
+    const items = sortedItems(itemsForCurrentMonth());
     list.innerHTML = '';
 
     if (!items.length) {
@@ -372,18 +434,25 @@
       const main = document.createElement('div');
       main.className = 'plan-check-main';
 
-      const text = document.createElement('div');
-      text.className = 'plan-check-text';
-      text.textContent = item.text || '';
-      main.append(text);
-
       const dueDate = normalizeDueDate(item.dueDate);
       if (dueDate) {
-        const date = document.createElement('div');
+        const date = document.createElement('span');
         date.className = 'plan-check-date';
         date.textContent = formatDueDate(dueDate);
         main.append(date);
       }
+
+      const text = document.createElement('span');
+      text.className = 'plan-check-text';
+      text.textContent = item.text || '';
+      main.append(text);
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'plan-edit-btn';
+      edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit ${item.text || 'item'}`);
+      edit.addEventListener('click', () => openEdit(item));
 
       const remove = document.createElement('button');
       remove.type = 'button';
@@ -392,30 +461,53 @@
       remove.setAttribute('aria-label', `Delete ${item.text || 'item'}`);
       remove.addEventListener('click', () => removeItem(item.id));
 
-      row.append(check, main, remove);
+      row.append(check, main, edit, remove);
       list.append(row);
     });
   }
 
   function openAdd() {
+    editingId = '';
+    editingMonth = '';
     addRow.hidden = false;
     addBtn.hidden = true;
     input.value = '';
     dateInput.value = '';
+    saveBtn.textContent = 'Add';
+    requestAnimationFrame(() => input.focus());
+  }
+
+  function openEdit(item) {
+    editingId = String(item?.id || '');
+    editingMonth = monthKey(cursor);
+    addRow.hidden = false;
+    addBtn.hidden = true;
+    input.value = String(item?.text || '');
+    dateInput.value = normalizeDueDate(item?.dueDate);
+    saveBtn.textContent = 'Save';
     requestAnimationFrame(() => input.focus());
   }
 
   function closeAdd() {
+    editingId = '';
+    editingMonth = '';
     addRow.hidden = true;
     addBtn.hidden = false;
     input.value = '';
     dateInput.value = '';
+    saveBtn.textContent = 'Add';
   }
 
   function saveAdd() {
     const value = input.value;
     if (!String(value || '').trim()) return;
-    addItem(value, dateInput.value);
+
+    if (editingId) {
+      editItem(editingId, editingMonth || monthKey(cursor), value, dateInput.value);
+    } else {
+      addItem(value, dateInput.value);
+    }
+
     closeAdd();
   }
 

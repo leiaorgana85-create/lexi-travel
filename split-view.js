@@ -34,6 +34,31 @@
     paneDetails.append(row);
   }
 
+  function appendLocationNote(text) {
+    const note = document.createElement('div');
+    note.className = 'pane-location-note';
+
+    String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean).forEach(line => {
+      const item = document.createElement('div');
+      item.className = 'pane-location-note-line';
+
+      if (/^https?:\/\//i.test(line)) {
+        const link = document.createElement('a');
+        link.href = line;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = line;
+        item.append(link);
+      } else {
+        item.textContent = line;
+      }
+
+      note.append(item);
+    });
+
+    paneDetails.append(note);
+  }
+
   function renderPane(dateKey) {
     if (!dateKey || typeof locationForDate !== 'function' || typeof eventsForDate !== 'function') return;
 
@@ -49,17 +74,10 @@
     }).format(date);
 
     paneLocation.textContent = location
-      ? [location.Label || location.City || location.Country, location.Country].filter(Boolean).join(' · ')
+      ? [location.City || location.Label || location.Country, location.Country].filter(Boolean).join(', ')
       : '';
 
     paneDetails.innerHTML = '';
-
-    if (location && location.Notes) {
-      const note = document.createElement('div');
-      note.className = 'pane-location-note';
-      note.textContent = location.Notes;
-      paneDetails.append(note);
-    }
 
     for (const event of events) {
       const title = event.Title || event.Category || 'Event';
@@ -68,6 +86,10 @@
       const details = event.Details || '';
       const className = /flight|travel/i.test(`${category} ${title}`) ? 'travel' : '';
       addPaneLine(title, meta, details, className);
+    }
+
+    if (location && location.Notes) {
+      appendLocationNote(location.Notes);
     }
 
     if (!location && events.length === 0) {

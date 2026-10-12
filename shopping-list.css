@@ -1,0 +1,24 @@
+.shopping-list-note .note-table th.shopping-buy-col,
+.shopping-list-note .note-table td.shopping-buy-col {
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  padding: 2px 1px;
+  text-align: center;
+  vertical-align: top;
+}
+
+.shopping-buy-check {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  vertical-align: top;
+}
+
+.shopping-list-note .note-table tr.shopping-bought td:not(.shopping-buy-col) {
+  opacity: 0.48;
+}
+
+.shopping-list-note .note-table tr.shopping-bought td:first-of-type + td {
+  text-decoration: line-through;
+}

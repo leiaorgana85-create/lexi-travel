@@ -1,5 +1,7 @@
 (() => {
   const PLAN_STORAGE_KEY = 'lexiTravelMonthlyPlanV1';
+  const EVENT_DRAFT_STORAGE_KEY = 'lexiTravelEventDraftsV1';
+  const CALENDAR_CACHE_STORAGE_KEY = 'lexiTravelCalendarCacheV1';
 
   function normalizeCategory(value) {
     return String(value || '')
@@ -12,17 +14,26 @@
     return normalizeCategory(value) === 'todo';
   }
 
-  function readPlan() {
+  function readJson(key, fallback) {
     try {
-      const parsed = JSON.parse(localStorage.getItem(PLAN_STORAGE_KEY) || '{}');
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+      return parsed ?? fallback;
     } catch (error) {
-      return {};
+      return fallback;
     }
   }
 
+  function writeJson(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function readPlan() {
+    const parsed = readJson(PLAN_STORAGE_KEY, {});
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  }
+
   function writePlan(data) {
-    localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(data));
+    writeJson(PLAN_STORAGE_KEY, data);
     document.dispatchEvent(new CustomEvent('lexi-plan-change'));
   }
 
@@ -45,20 +56,14 @@
     return `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   }
 
-  async function postPlan(item, month, sortOrder) {
+  async function postAction(action, fields) {
     const key = localStorage.getItem(KEY_STORAGE);
     if (!key) throw new Error('Not connected');
 
-    const body = new URLSearchParams({
-      key,
-      action: 'planUpsert',
-      id: item.id,
-      month,
-      text: item.text,
-      dueDate: item.dueDate,
-      completed: 'false',
-      sortOrder: String(sortOrder)
-    });
+    const body = new URLSearchParams({ key, action });
+    for (const [name, value] of Object.entries(fields || {})) {
+      body.set(name, value == null ? '' : String(value));
+    }
 
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -69,8 +74,35 @@
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (!data.ok) throw new Error(data.error || 'Plan sync failed');
+    if (!data.ok) throw new Error(data.error || 'Sync failed');
     return data;
+  }
+
+  function markEventDeletedLocally(id) {
+    try {
+      if (typeof appData !== 'undefined' && Array.isArray(appData.events)) {
+        appData.events = appData.events.filter(item => String(item.ID || '') !== String(id));
+      }
+    } catch (error) {
+      // Keep going; the local tombstone below is the important part.
+    }
+
+    const drafts = readJson(EVENT_DRAFT_STORAGE_KEY, {});
+    if (drafts && typeof drafts === 'object' && !Array.isArray(drafts)) {
+      drafts[id] = {
+        ...(drafts[id] || {}),
+        ID: id,
+        _localDeleted: true,
+        savedAt: Date.now()
+      };
+      writeJson(EVENT_DRAFT_STORAGE_KEY, drafts);
+    }
+
+    const cache = readJson(CALENDAR_CACHE_STORAGE_KEY, {});
+    if (cache && typeof cache === 'object' && Array.isArray(cache.events)) {
+      cache.events = cache.events.filter(item => String(item.ID || '') !== String(id));
+      writeJson(CALENDAR_CACHE_STORAGE_KEY, cache);
+    }
   }
 
   document.addEventListener('submit', event => {
@@ -84,16 +116,13 @@
     const category = String(values.get('category') || '').trim();
     if (!isToDoCategory(category)) return;
 
-    // Existing EVENTS rows remain normal calendar events. This route is for new
-    // To Dos created from Calendar so there is only one underlying Plan record.
-    if (form.dataset.eventId) return;
-
     event.preventDefault();
     event.stopImmediatePropagation();
 
     const title = String(values.get('title') || '').trim();
     const date = String(values.get('date') || '').trim();
     const time = String(values.get('time') || '').trim();
+    const existingEventId = String(form.dataset.eventId || '').trim();
     const status = document.getElementById('calendarSyncStatus');
 
     if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -116,6 +145,10 @@
     all[month] = items;
     writePlan(all);
 
+    if (existingEventId) {
+      markEventDeletedLocally(existingEventId);
+    }
+
     // Use Calendar's own Cancel handler so its private editor state is closed cleanly.
     const cancelButton = [...form.querySelectorAll('button')]
       .find(button => String(button.textContent || '').trim() === 'Cancel');
@@ -123,9 +156,33 @@
 
     if (status) status.textContent = 'Saving…';
 
-    postPlan(item, month, items.length)
+    const writes = [
+      postAction('planUpsert', {
+        id: item.id,
+        month,
+        text: item.text,
+        dueDate: item.dueDate,
+        completed: 'false',
+        sortOrder: String(items.length)
+      })
+    ];
+
+    if (existingEventId) {
+      writes.push(postAction('eventDelete', { id: existingEventId }));
+    }
+
+    Promise.all(writes)
       .then(() => {
         markSynced(month, item.id);
+
+        if (existingEventId) {
+          const drafts = readJson(EVENT_DRAFT_STORAGE_KEY, {});
+          if (drafts && typeof drafts === 'object' && !Array.isArray(drafts)) {
+            delete drafts[existingEventId];
+            writeJson(EVENT_DRAFT_STORAGE_KEY, drafts);
+          }
+        }
+
         if (status) status.textContent = 'Synced';
       })
       .catch(() => {

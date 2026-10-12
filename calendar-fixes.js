@@ -13,7 +13,20 @@
 
         const title = event.Title || event.Category || 'Event';
         const time = String(event.Time || '').trim();
-        label.textContent = time ? `${time} ${title}` : title;
+
+        label.textContent = '';
+
+        if (time) {
+          const timeLine = document.createElement('span');
+          timeLine.className = 'day-event-time';
+          timeLine.textContent = time;
+          label.append(timeLine);
+        }
+
+        const titleLine = document.createElement('span');
+        titleLine.className = 'day-event-title';
+        titleLine.textContent = title;
+        label.append(titleLine);
       });
     });
   }

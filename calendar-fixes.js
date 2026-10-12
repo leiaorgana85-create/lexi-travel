@@ -37,7 +37,7 @@
           const origin = routeMatch[1].toUpperCase();
           const destination = routeMatch[2].toUpperCase();
           appendLine(label, `${compactTime(timeParts[0])} ${origin}`, 'day-event-flight-line');
-          appendLine(label, `- ${compactTime(timeParts[1])} ${destination}`, 'day-event-flight-line');
+          appendLine(label, `-${compactTime(timeParts[1])} ${destination}`, 'day-event-flight-line');
           return;
         }
 

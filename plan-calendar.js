@@ -12,12 +12,10 @@
   }
 
   function markerText(items) {
-    const first = items[0];
-    const state = first?.done ? '✓' : '☐';
-    const title = String(first?.text || 'To Do').trim();
+    const title = String(items[0]?.text || 'To Do').trim();
     return items.length > 1
-      ? `${state} ${title} +${items.length - 1}`
-      : `${state} ${title}`;
+      ? `${title} +${items.length - 1}`
+      : title;
   }
 
   function renderCell(cell) {
@@ -74,7 +72,7 @@
 
       const summary = document.createElement('div');
       summary.className = 'pane-event-summary';
-      summary.textContent = `${item.done ? '✓' : '☐'} To Do · ${item.text || 'To Do'}`;
+      summary.textContent = `To Do · ${item.text || 'To Do'}`;
 
       row.append(summary);
       paneDetails.append(row);

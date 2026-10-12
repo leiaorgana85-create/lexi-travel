@@ -19,15 +19,16 @@
 
     <main class="content">
       <section id="calendarView" class="view active" aria-label="Calendar">
-        <div class="section-head">
-          <button class="month-btn" type="button" aria-label="Previous month">‹</button>
-          <h2>October 2026</h2>
-          <button class="month-btn" type="button" aria-label="Next month">›</button>
+        <div class="section-head calendar-head">
+          <button id="prevMonthBtn" class="month-btn" type="button" aria-label="Previous month">‹</button>
+          <h2 id="monthTitle">October 2026</h2>
+          <button id="nextMonthBtn" class="month-btn" type="button" aria-label="Next month">›</button>
         </div>
-        <div class="placeholder">
-          <strong>Calendar shell ready</strong>
-          <span>Monday–Sunday month grid comes next.</span>
+        <div id="calendarStatus" class="calendar-status"></div>
+        <div class="weekday-row" aria-hidden="true">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
         </div>
+        <div id="calendarGrid" class="calendar-grid" aria-label="Month calendar"></div>
       </section>
 
       <section id="notesView" class="view" aria-label="Notes">
@@ -55,6 +56,19 @@
       <button class="tab" data-view="countryView" type="button">Country Days</button>
     </nav>
   </div>
+
+  <dialog id="dayDialog" class="day-dialog">
+    <div class="day-sheet">
+      <div class="dialog-head day-dialog-head">
+        <div>
+          <div id="dayLocation" class="day-location"></div>
+          <h2 id="dayTitle">Date</h2>
+        </div>
+        <button id="closeDayBtn" class="close-btn" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="dayDetails" class="day-details"></div>
+    </div>
+  </dialog>
 
   <dialog id="settingsDialog">
     <form method="dialog" class="settings-card">

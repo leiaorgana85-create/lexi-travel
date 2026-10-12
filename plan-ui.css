@@ -154,8 +154,8 @@
 
 .plan-add-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) 38px 46px;
+  gap: 4px;
   align-items: center;
 }
 
@@ -167,47 +167,59 @@
   grid-column: 1 / -1;
   min-width: 0;
   width: 100%;
+  box-sizing: border-box;
   border: 1px solid #cbd5e1;
-  border-radius: 7px;
+  border-radius: 6px;
   background: #fff;
   color: #111827;
-  padding: 6px 7px;
-  font-size: 12px;
+  padding: 5px 6px;
+  font-size: 11px;
+  line-height: 1.25;
 }
 
 .plan-add-date-wrap {
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  max-width: 166px;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  overflow: visible;
 }
 
 .plan-add-date-label {
+  flex: 0 0 auto;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 8.5px;
+  line-height: 1;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .plan-add-date {
+  flex: 0 0 106px;
+  width: 106px;
+  max-width: 106px;
   min-width: 0;
-  width: 100%;
+  height: 25px;
+  box-sizing: border-box;
   border: 1px solid #cbd5e1;
-  border-radius: 7px;
+  border-radius: 6px;
   background: #fff;
   color: #111827;
-  padding: 5px 6px;
-  font-size: 11px;
+  padding: 2px 4px;
+  font-size: 10px;
+  line-height: 1;
 }
 
 .plan-add-save,
 .plan-add-cancel {
-  min-height: 28px;
+  min-width: 0;
+  min-height: 25px;
   border: 0;
-  border-radius: 7px;
-  padding: 4px 7px;
-  font-size: 11px;
+  border-radius: 6px;
+  padding: 3px 5px;
+  font-size: 10px;
+  line-height: 1;
   font-weight: 750;
 }
 
@@ -246,10 +258,22 @@
   display: none;
 }
 
+/* Keep iOS inputs at a 16px computed font to avoid Safari focus zoom,
+   while visually scaling the compact date control to match Calendar fields. */
 @supports (-webkit-touch-callout: none) {
-  .plan-add-input,
-  .plan-add-date {
+  .plan-add-input {
     font-size: 16px !important;
+  }
+
+  .plan-add-date {
+    flex-basis: 142px;
+    width: 142px;
+    max-width: 142px;
+    height: 32px;
+    margin-right: -35px;
+    font-size: 16px !important;
+    transform: scale(0.75);
+    transform-origin: left center;
   }
 }
 

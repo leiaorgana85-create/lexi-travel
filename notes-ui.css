@@ -166,6 +166,17 @@
   color: #9aa3af;
 }
 
+/* iOS Safari/PWA auto-zooms focused editable text below 16px.
+   Keep read mode compact, but use 16px while editing on WebKit touch devices. */
+@supports (-webkit-touch-callout: none) {
+  .note-title-input,
+  .note-editable[contenteditable="true"],
+  .note-edit-cell[contenteditable="true"] {
+    font-size: 16px !important;
+    line-height: 1.25;
+  }
+}
+
 @media (min-width: 700px) {
   .notes-sidebar {
     width: 195px;

@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
-  <title>LEXI Travel</title>
+  <title>Lexi Travel</title>
   <link rel="stylesheet" href="styles.css?v=5">
-  <link rel="stylesheet" href="calendar-fixes.css?v=15">
+  <link rel="stylesheet" href="calendar-fixes.css?v=16">
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <h1 class="app-title">LEXI Travel</h1>
+      <h1 class="app-title">Lexi Travel ✈︎</h1>
       <button id="settingsBtn" class="icon-btn" type="button" aria-label="API settings">⚙︎</button>
     </header>
 
@@ -30,9 +30,9 @@
 
         <section id="dayPane" class="day-pane" aria-label="Selected day details" aria-live="polite">
           <div class="day-pane-head">
-            <div>
-              <div id="paneDayLocation" class="day-pane-location"></div>
+            <div class="day-pane-summary">
               <h3 id="paneDayTitle" class="day-pane-title">Select a day</h3>
+              <div id="paneDayLocation" class="day-pane-location"></div>
             </div>
           </div>
           <div id="paneDayDetails" class="day-pane-details">
@@ -116,7 +116,7 @@
   </dialog>
 
   <script src="app.js?v=5"></script>
-  <script src="calendar-fixes.js?v=13"></script>
-  <script src="split-view.js?v=1"></script>
+  <script src="calendar-fixes.js?v=14"></script>
+  <script src="split-view.js?v=2"></script>
 </body>
 </html>

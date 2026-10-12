@@ -1,12 +1,12 @@
 .topbar {
-  padding: calc(8px + env(safe-area-inset-top)) 12px 6px;
+  padding: calc(7px + env(safe-area-inset-top)) 12px 5px;
 }
 
 .topbar .app-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1.1;
-  font-weight: 800;
+  font-weight: 750;
   letter-spacing: 0;
 }
 
@@ -21,14 +21,14 @@
 
 .calendar-head {
   grid-template-columns: 36px 1fr 36px;
-  min-height: 30px;
+  min-height: 32px;
   margin-bottom: 1px;
 }
 
 .calendar-head #monthTitle {
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.1;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .calendar-head .month-btn {
@@ -112,8 +112,26 @@
 }
 
 .day-location-code {
+  padding: 1px 3px;
+  border-radius: 999px;
   font-size: 9px;
+  font-weight: 800;
   line-height: 1.1;
+}
+
+.day-location-code.city-pus {
+  color: #0b6280;
+  background: #e4f4fa;
+}
+
+.day-location-code.city-bkk {
+  color: #7a3e12;
+  background: #fff0df;
+}
+
+.day-location-code.city-other {
+  color: #4b5563;
+  background: #eef1f5;
 }
 
 .day-event {
@@ -181,34 +199,41 @@
   border: 1px solid #e7ebf0;
   border-radius: 11px;
   background: #fbfcfe;
+  color: #111827;
 }
 
 .day-pane-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
   padding: 0 2px 7px;
 }
 
-.day-pane-location {
-  min-height: 14px;
-  margin-bottom: 1px;
-  font-size: 10.5px;
-  font-weight: 800;
-  line-height: 1.2;
-  color: var(--blue);
+.day-pane-summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  color: #111827;
 }
 
 .day-pane-title {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.15;
+  font-size: 13.5px;
+  line-height: 1.2;
   font-weight: 750;
+  color: #111827;
+}
+
+.day-pane-location {
+  min-height: 0;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  color: #111827;
 }
 
 .day-pane-details {
   border-top: 1px solid #e7ebf0;
+  color: #111827;
 }
 
 .pane-event,
@@ -216,6 +241,7 @@
 .pane-empty {
   padding: 8px 2px;
   border-bottom: 1px solid #eceff3;
+  color: #111827;
 }
 
 .pane-event:last-child,
@@ -234,12 +260,13 @@
   font-size: 13.5px;
   font-weight: 800;
   line-height: 1.22;
+  color: #111827;
 }
 
 .pane-event-meta {
   margin-top: 2px;
   font-size: 11.5px;
-  color: var(--muted);
+  color: #111827;
   line-height: 1.3;
 }
 
@@ -248,16 +275,30 @@
 .pane-empty {
   font-size: 12px;
   line-height: 1.4;
-  color: var(--muted);
+  color: #111827;
 }
 
 .pane-event-details {
   margin-top: 3px;
 }
 
+.pane-location-note {
+  margin-top: 2px;
+}
+
+.pane-location-note-line + .pane-location-note-line {
+  margin-top: 2px;
+}
+
+.pane-location-note a {
+  color: #111827;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 700px) {
   .topbar .app-title {
-    font-size: 20px;
+    font-size: 15px;
   }
 
   .content {
@@ -265,7 +306,7 @@
   }
 
   .calendar-head #monthTitle {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .calendar-grid {

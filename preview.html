@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LEXI Travel · iPhone Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #eef1f5;
+      color: #111827;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #eef1f5;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+
+    .preview-shell {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .preview-toolbar {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #d8dee7;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 1px 8px rgba(15,23,42,.05);
+      z-index: 5;
+    }
+
+    .preview-title {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .preview-toolbar label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #4b5563;
+    }
+
+    .preview-toolbar select,
+    .preview-toolbar button,
+    .preview-toolbar a {
+      min-height: 34px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .preview-toolbar select {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #111827;
+      padding: 0 9px;
+    }
+
+    .preview-toolbar button,
+    .preview-toolbar a {
+      border: 0;
+      background: #e8eefc;
+      color: #1746a2;
+      padding: 0 10px;
+      font-weight: 750;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .viewport-readout {
+      margin-left: auto;
+      font-size: 11px;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: relative;
+      overflow: auto;
+      display: grid;
+      place-items: start center;
+      padding: 18px;
+    }
+
+    .phone-wrap {
+      position: relative;
+      transform-origin: top center;
+    }
+
+    .phone-frame {
+      position: relative;
+      border: 10px solid #111318;
+      border-radius: 38px;
+      background: #111318;
+      box-shadow: 0 20px 55px rgba(15,23,42,.24);
+      overflow: hidden;
+    }
+
+    .phone-frame::before {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      top: 8px;
+      left: 50%;
+      width: 92px;
+      height: 23px;
+      transform: translateX(-50%);
+      border-radius: 14px;
+      background: #111318;
+      pointer-events: none;
+    }
+
+    #appPreview {
+      display: block;
+      border: 0;
+      background: #fff;
+    }
+
+    @media (max-width: 760px) {
+      .preview-title,
+      .viewport-readout { display: none; }
+      .preview-toolbar { padding-inline: 8px; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-shell">
+    <header class="preview-toolbar">
+      <div class="preview-title">LEXI Travel · iPhone Preview</div>
+      <label for="devicePreset">Device</label>
+      <select id="devicePreset">
+        <option value="390x844" selected>iPhone 13 / 14 / 15 · 390×844</option>
+        <option value="393x852">iPhone 14 Pro / 15 Pro · 393×852</option>
+        <option value="430x932">iPhone 14/15 Pro Max · 430×932</option>
+        <option value="375x812">iPhone 12/13 mini · 375×812</option>
+        <option value="375x667">iPhone SE · 375×667</option>
+      </select>
+      <button id="reloadBtn" type="button">Reload</button>
+      <a href="./" target="_blank" rel="noopener">Open app</a>
+      <div id="viewportReadout" class="viewport-readout">390 × 844 CSS px</div>
+    </header>
+
+    <main id="stage" class="stage">
+      <div id="phoneWrap" class="phone-wrap">
+        <div class="phone-frame">
+          <iframe id="appPreview" title="LEXI Travel iPhone preview" src="./"></iframe>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const stage = document.getElementById('stage');
+    const phoneWrap = document.getElementById('phoneWrap');
+    const frame = document.querySelector('.phone-frame');
+    const preview = document.getElementById('appPreview');
+    const preset = document.getElementById('devicePreset');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const readout = document.getElementById('viewportReadout');
+
+    let viewportWidth = 390;
+    let viewportHeight = 844;
+
+    function fitPreview() {
+      const chrome = 20;
+      const availableWidth = Math.max(200, stage.clientWidth - 36);
+      const availableHeight = Math.max(300, stage.clientHeight - 36);
+      const fullWidth = viewportWidth + chrome;
+      const fullHeight = viewportHeight + chrome;
+      const scale = Math.min(1, availableWidth / fullWidth, availableHeight / fullHeight);
+
+      phoneWrap.style.width = `${fullWidth}px`;
+      phoneWrap.style.height = `${fullHeight * scale}px`;
+      frame.style.width = `${fullWidth}px`;
+      frame.style.height = `${fullHeight}px`;
+      phoneWrap.style.transform = `scale(${scale})`;
+    }
+
+    function setViewport(value) {
+      const [width, height] = value.split('x').map(Number);
+      viewportWidth = width;
+      viewportHeight = height;
+      preview.style.width = `${width}px`;
+      preview.style.height = `${height}px`;
+      readout.textContent = `${width} × ${height} CSS px`;
+      fitPreview();
+    }
+
+    preset.addEventListener('change', () => setViewport(preset.value));
+    reloadBtn.addEventListener('click', () => {
+      preview.contentWindow.location.reload();
+    });
+    window.addEventListener('resize', fitPreview);
+
+    setViewport(preset.value);
+  </script>
+</body>
+</html>

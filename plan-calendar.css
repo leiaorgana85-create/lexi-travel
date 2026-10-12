@@ -1,0 +1,96 @@
+/* Dated Plan to-dos appear in calendar without becoming duplicate EVENTS rows. */
+.day-cell.has-plan-todo {
+  padding-bottom: 13px;
+}
+
+.day-cell.has-special-event.has-plan-todo {
+  padding-bottom: 24px;
+}
+
+.day-plan-todo {
+  position: absolute !important;
+  z-index: 4;
+  left: 1px;
+  right: 1px;
+  bottom: 2px;
+  height: 10px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #e3efff;
+  color: #245ca8;
+  font-size: 8px;
+  line-height: 8px;
+  font-weight: 700;
+  letter-spacing: -0.08px;
+  text-align: left;
+  pointer-events: none;
+}
+
+.day-cell.has-special-event .day-plan-todo {
+  bottom: 13px;
+}
+
+.day-plan-todo.done {
+  background: #edf1f6;
+  color: #7b8796;
+  text-decoration: line-through;
+}
+
+.day-cell.other-month .day-plan-todo {
+  background: #f0f2f5;
+  color: #9ba4b0;
+}
+
+.pane-plan-todo {
+  border-left: 3px solid #8bb7ee;
+  padding-left: 5px;
+}
+
+.pane-plan-todo.done {
+  opacity: .62;
+}
+
+html[data-theme="dark"] .day-plan-todo {
+  background: #17304f;
+  color: #a9cfff;
+}
+
+html[data-theme="dark"] .day-plan-todo.done {
+  background: #222a34;
+  color: #7f8c9e;
+}
+
+html[data-theme="dark"] .day-cell.other-month .day-plan-todo {
+  background: #1a1f27;
+  color: #667283;
+}
+
+html[data-theme="dark"] .pane-plan-todo {
+  border-left-color: #608fc9;
+}
+
+@media (min-width: 700px) {
+  .day-cell.has-plan-todo {
+    padding-bottom: 15px;
+  }
+
+  .day-cell.has-special-event.has-plan-todo {
+    padding-bottom: 28px;
+  }
+
+  .day-plan-todo {
+    left: 4px;
+    right: 4px;
+    bottom: 3px;
+    height: 11px;
+    font-size: 9px;
+    line-height: 9px;
+  }
+
+  .day-cell.has-special-event .day-plan-todo {
+    bottom: 16px;
+  }
+}

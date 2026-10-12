@@ -4,10 +4,11 @@
 }
 
 .day-special-event {
-  position: absolute;
+  position: absolute !important;
+  z-index: 3;
   left: 1px;
   right: 1px;
-  bottom: 2px;
+  bottom: 2px !important;
   height: 10px;
   padding: 1px 2px;
   border-radius: 3px;
@@ -16,20 +17,20 @@
   white-space: nowrap;
   font-size: 8px;
   line-height: 8px;
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.08px;
   text-align: left;
   pointer-events: none;
 }
 
 .day-special-event.holiday {
-  background: var(--red-soft);
-  color: #8d3943;
+  background: #fde2e7;
+  color: #8b1e2d;
 }
 
 .day-special-event.event {
-  background: var(--blue-soft);
-  color: #355f96;
+  background: #e8e2ff;
+  color: #4e3a8a;
 }
 
 .day-cell.other-month .day-special-event {
@@ -45,7 +46,7 @@
   .day-special-event {
     left: 4px;
     right: 4px;
-    bottom: 3px;
+    bottom: 3px !important;
     height: 11px;
     font-size: 9px;
     line-height: 9px;

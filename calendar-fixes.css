@@ -1,3 +1,26 @@
+.topbar {
+  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-bottom: 8px;
+}
+
+.topbar .app-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.calendar-head {
+  margin-bottom: 4px;
+}
+
+.calendar-head #monthTitle {
+  font-size: 15px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
 .calendar-grid {
   grid-auto-rows: 60px;
 }
@@ -130,6 +153,14 @@
 }
 
 @media (min-width: 700px) {
+  .topbar .app-title {
+    font-size: 20px;
+  }
+
+  .calendar-head #monthTitle {
+    font-size: 16px;
+  }
+
   .calendar-grid {
     grid-auto-rows: 72px;
   }

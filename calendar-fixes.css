@@ -4,12 +4,16 @@
   right: 0;
   top: 21px;
   width: auto;
+  height: 14px;
   margin: 0;
-  padding: 2px 1px;
+  padding: 0 1px;
   border-radius: 0;
   font-size: 8px;
   line-height: 1.15;
-  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .day-event:nth-of-type(2) {
@@ -27,6 +31,7 @@
 @media (min-width: 700px) {
   .day-event {
     top: 25px;
+    height: 16px;
     font-size: 9px;
   }
 

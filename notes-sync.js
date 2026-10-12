@@ -78,15 +78,16 @@
 
   async function syncUpsert(id) {
     if (!id) return;
+
+    if (noteSaveStatus) noteSaveStatus.textContent = 'Saving to Google Sheets…';
+
     if (!await ensureWriteCapability()) {
-      if (noteSaveStatus) noteSaveStatus.textContent = 'Saved on this device · Sheets sync not enabled yet';
+      if (noteSaveStatus) noteSaveStatus.textContent = 'Saved on this device · Sheets sync unavailable';
       return;
     }
 
     const note = effectiveNote(id);
     if (!note.ID && !id) return;
-
-    if (noteSaveStatus) noteSaveStatus.textContent = 'Saving to Google Sheets…';
 
     try {
       await postWrite('noteUpsert', {
@@ -100,13 +101,19 @@
       if (drafts[id]) {
         drafts[id] = {
           ...drafts[id],
-          _localNew: false
+          _localNew: false,
+          _syncedAt: Date.now()
         };
         writeDrafts(drafts);
       }
 
       const appNote = (appData.notes || []).find(item => String(item.ID || '') === String(id));
-      if (appNote) appNote._localNew = false;
+      if (appNote) {
+        appNote.Title = note.Title || 'Untitled Note';
+        appNote.Body = note.Body || '';
+        appNote.Pinned = note.Pinned;
+        appNote._localNew = false;
+      }
 
       if (noteSaveStatus) noteSaveStatus.textContent = 'Synced to Google Sheets';
     } catch (error) {
@@ -158,22 +165,32 @@
     if (target.closest('#noteDeleteBtn')) {
       const id = selectedNoteId();
       setTimeout(() => syncDelete(id), 0);
-      return;
-    }
-
-    if (target.closest('#noteSaveBtn')) {
-      const id = selectedNoteId();
-      setTimeout(() => syncUpsert(id), 0);
     }
   }, true);
 
+  document.addEventListener('lexi-note-save-ready', event => {
+    const id = String(event.detail?.id || '');
+    if (id) syncUpsert(id);
+  });
+
   document.addEventListener('lexi-note-autosave', event => {
     const id = String(event.detail?.id || '');
-    if (id) setTimeout(() => syncUpsert(id), 0);
+    if (id) syncUpsert(id);
   });
 
   notesTab.addEventListener('click', () => {
     ensureWriteCapability(true);
+
+    setTimeout(() => {
+      if (!noteSaveStatus) return;
+      if (!noteSaveStatus.textContent.includes('Google Sheets sync not enabled yet')) return;
+
+      const id = selectedNoteId();
+      const draft = readDrafts()[id];
+      noteSaveStatus.textContent = draft?._syncedAt && Number(draft._syncedAt) >= Number(draft.savedAt || 0)
+        ? 'Synced to Google Sheets'
+        : 'Saved on this device';
+    }, 0);
   });
 
   if (localStorage.getItem(KEY_STORAGE)) {

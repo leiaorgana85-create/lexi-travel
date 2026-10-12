@@ -117,6 +117,10 @@
   function localRefresh(dateKey = selectedDateKey()) {
     mergeEventDrafts();
     writeCache();
+
+    // Never replace a form the user is actively editing.
+    if (editorOpen) return;
+
     renderCalendar();
     requestAnimationFrame(() => {
       if (dateKey && typeof openDay === 'function') openDay(dateKey);
@@ -138,7 +142,10 @@
         await loader();
         writeCache();
         mergeEventDrafts();
-        localRefresh(selectedDateKey());
+
+        // Google may finish several seconds after Edit opens. Keep the form intact;
+        // refreshed data is already in appData and will appear after Save/Cancel.
+        if (!editorOpen) localRefresh(selectedDateKey());
       } catch (error) {
         // Cached/local calendar remains usable if Google is slow or unavailable.
       } finally {
@@ -148,7 +155,7 @@
   }
 
   calendarTab.addEventListener('click', () => {
-    if (suppressFastClick) return;
+    if (suppressFastClick || editorOpen) return;
 
     const cache = readCache();
     if (!(appData.locations || []).length && Array.isArray(cache.locations)) appData.locations = cache.locations;
@@ -363,6 +370,12 @@
     if (form) form.dataset.eventId = id;
   }
 
+  // Stable public hook for the top-row Edit control. Avoid synthetic row clicks.
+  window.lexiCalendarEditEvent = id => {
+    const cleanId = String(id || '');
+    if (cleanId) editEvent(cleanId);
+  };
+
   function deleteEvent(event) {
     const id = String(event?.ID || '');
     if (!id) return;
@@ -469,7 +482,7 @@
       writeCache();
       syncStatus.textContent = 'Synced';
     } catch (error) {
-      syncStatus.textContent = `Saved locally · sync failed`;
+      syncStatus.textContent = 'Saved locally · sync failed';
     }
   }
 

@@ -15,26 +15,26 @@
     return line;
   }
 
-  function appendCompactTravelTime(label, value, role) {
+  function appendTravelTimeLine(label, departure, arrival) {
     const line = appendLine(
       label,
-      compactClock(value),
-      `day-event-flight-time-line ${role}`
+      `${compactClock(departure)}-${compactClock(arrival)}`,
+      'day-event-flight-time-line'
     );
+
+    // Keep both flight times on one readable row in narrow iPhone calendar cells.
+    // Horizontal condensation affects only this line, not the route or other events.
     line.style.display = 'block';
     line.style.width = '100%';
     line.style.overflow = 'hidden';
     line.style.whiteSpace = 'nowrap';
     line.style.textAlign = 'center';
-    line.style.fontSize = '7.5px';
+    line.style.fontSize = '8px';
     line.style.fontWeight = '500';
-    line.style.lineHeight = '1.02';
+    line.style.lineHeight = '1.08';
     line.style.letterSpacing = '-0.28px';
-  }
-
-  function appendTravelTimes(label, departure, arrival) {
-    appendCompactTravelTime(label, departure, 'departure');
-    appendCompactTravelTime(label, arrival, 'arrival');
+    line.style.transform = 'scaleX(0.86)';
+    line.style.transformOrigin = 'center center';
   }
 
   function refreshCalendarEventLabels() {
@@ -65,9 +65,17 @@
           appendLine(label, `${origin}→${destination}`, 'day-event-flight-line');
 
           if (timeParts.length === 2) {
-            appendTravelTimes(label, timeParts[0], timeParts[1]);
+            appendTravelTimeLine(label, timeParts[0], timeParts[1]);
           } else if (time) {
-            appendCompactTravelTime(label, time, 'single');
+            const line = appendLine(label, compactClock(time), 'day-event-flight-time-line');
+            line.style.display = 'block';
+            line.style.width = '100%';
+            line.style.overflow = 'hidden';
+            line.style.whiteSpace = 'nowrap';
+            line.style.textAlign = 'center';
+            line.style.fontSize = '8px';
+            line.style.fontWeight = '500';
+            line.style.letterSpacing = '-0.28px';
           }
           return;
         }

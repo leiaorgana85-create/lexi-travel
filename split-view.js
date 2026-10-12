@@ -8,21 +8,29 @@
 
   let selectedDateKey = typeof toDateKey === 'function' ? toDateKey(new Date()) : '';
 
-  function addPaneLine(title, meta, details, className = '') {
+  function compactDetailText(value) {
+    return String(value || '')
+      .trim()
+      .replace(/\s*→\s*/g, '->')
+      .replace(/\s+AM\b/g, 'AM')
+      .replace(/\s+PM\b/g, 'PM');
+  }
+
+  function addPaneLine(event) {
+    const title = compactDetailText(event.Title || event.Category || 'Event');
+    const time = compactDetailText(event.Time || '');
+    const category = String(event.Category || '').trim();
+    const details = String(event.Details || '').trim();
+    const className = /flight|travel/i.test(`${category} ${title}`) ? 'travel' : '';
+
     const row = document.createElement('div');
     row.className = `pane-event${className ? ` ${className}` : ''}`;
+    if (event.ID) row.dataset.eventId = event.ID;
 
-    const strong = document.createElement('div');
-    strong.className = 'pane-event-title';
-    strong.textContent = title;
-    row.append(strong);
-
-    if (meta) {
-      const metaEl = document.createElement('div');
-      metaEl.className = 'pane-event-meta';
-      metaEl.textContent = meta;
-      row.append(metaEl);
-    }
+    const summary = document.createElement('div');
+    summary.className = 'pane-event-summary';
+    summary.textContent = [title, time, category].filter(Boolean).join(' ');
+    row.append(summary);
 
     if (details) {
       const detailsEl = document.createElement('div');
@@ -80,12 +88,7 @@
     paneDetails.innerHTML = '';
 
     for (const event of events) {
-      const title = event.Title || event.Category || 'Event';
-      const category = String(event.Category || '').trim();
-      const meta = [event.Time, category, event.Status].filter(Boolean).join(' · ');
-      const details = event.Details || '';
-      const className = /flight|travel/i.test(`${category} ${title}`) ? 'travel' : '';
-      addPaneLine(title, meta, details, className);
+      addPaneLine(event);
     }
 
     if (location && location.Notes) {

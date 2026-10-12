@@ -197,3 +197,8 @@
 #countryView .country-list {
   padding-inline: 0;
 }
+
+/* Keep detailed country-rule text in Google Sheets, not in the Plan UI. */
+#countryView .country-rule {
+  display: none;
+}

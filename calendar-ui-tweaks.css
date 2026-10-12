@@ -41,39 +41,111 @@
   font-size: 8.5px;
 }
 
-.calendar-editor-field input {
-  height: 34px;
-  min-height: 34px;
-  padding: 4px 7px;
+/* Keep every editor cell allowed to shrink inside the phone-width grid. */
+.calendar-editor-field,
+.calendar-editor-pair {
+  min-width: 0;
 }
 
-.calendar-editor-field input[type="date"] {
-  height: 34px;
-  min-height: 34px;
-  padding-top: 0;
-  padding-bottom: 0;
+.calendar-editor-field {
+  overflow: hidden;
+  gap: 1px;
+  font-size: 8.5px;
+}
+
+.calendar-editor-field input,
+.calendar-editor-field textarea {
+  display: block;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  border-radius: 5px;
+  padding: 3px 5px;
+  font-size: 10.5px;
+  line-height: 1.1;
+}
+
+.calendar-editor-field input {
+  height: 29px;
+  min-height: 29px;
 }
 
 .calendar-editor-field textarea {
-  min-height: 54px;
+  min-height: 44px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* iOS gives date inputs a stubborn intrinsic width. Give Date more room,
+   force the native control to obey the grid, and clip any internal overflow. */
+.calendar-editor-pair:has(input[type="date"]) {
+  grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
+  gap: 4px;
+  overflow: hidden;
+}
+
+.calendar-editor-pair:has(input[type="date"]) .calendar-editor-field {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.calendar-editor-field input[type="date"] {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden;
+  text-overflow: clip;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
 }
 
 .calendar-editor-pair {
   align-items: start;
+  gap: 4px;
 }
 
+.calendar-event-editor {
+  gap: 4px;
+}
+
+/* Keep iPhone from auto-zooming focused controls while making the controls
+   look like ~13.8px text / ~29px-high fields. The computed text remains 16px. */
 @supports (-webkit-touch-callout: none) {
-  .calendar-editor-field input {
-    height: 38px;
-    min-height: 38px;
-    padding: 3px 7px;
+  .calendar-editor-field input,
+  .calendar-editor-field textarea {
+    width: 116.28% !important;
+    max-width: none !important;
     font-size: 16px !important;
-    line-height: 1.2;
+    line-height: 1.1;
+    transform: scale(0.86);
+    transform-origin: left top;
+  }
+
+  .calendar-editor-field input {
+    height: 34px;
+    min-height: 34px;
+    margin-bottom: -5px;
+    padding: 3px 6px;
+  }
+
+  .calendar-editor-field textarea {
+    min-height: 53px;
+    margin-bottom: -7px;
+    padding: 5px 6px;
   }
 
   .calendar-editor-field input[type="date"] {
-    height: 38px;
-    min-height: 38px;
+    width: 116.28% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 34px;
+    min-height: 34px;
     padding-top: 0;
     padding-bottom: 0;
   }

@@ -8,11 +8,12 @@
   const noteActions = document.querySelector('.note-actions');
   const noteEditBtn = document.getElementById('noteEditBtn');
   const noteSaveBtn = document.getElementById('noteSaveBtn');
+  const noteCancelBtn = document.getElementById('noteCancelBtn');
 
   if (!notesTab || !notesLayout || !notesList || !notesSidebarHead || !noteActions) return;
 
   let pendingSelectId = '';
-  let savedDraftMeta = null;
+  let createLocked = false;
 
   function readDrafts() {
     try {
@@ -30,22 +31,23 @@
     return value === true || String(value || '').toUpperCase() === 'TRUE';
   }
 
-  function mergeLocalNoteState() {
+  function mergeLocalState() {
     const drafts = readDrafts();
-    const remoteIds = new Set((appData.notes || []).map(note => String(note.ID || '')));
+    const seen = new Set();
 
     appData.notes = (appData.notes || []).map(note => {
-      const draft = drafts[note.ID];
+      const id = String(note.ID || '');
+      seen.add(id);
+      const draft = drafts[id];
       return draft ? { ...note, ...draft } : note;
     });
 
     for (const [id, draft] of Object.entries(drafts)) {
-      if (!draft?._localNew || remoteIds.has(String(id))) continue;
+      if (!draft?._localNew || seen.has(String(id))) continue;
       appData.notes.push({
         ID: id,
         Title: 'New Note',
-        Category: 'General',
-        Body: JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '' }] }),
+        Body: JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '• ' }] }),
         Pinned: false,
         'Sort Order': 9999,
         Archived: false,
@@ -54,14 +56,15 @@
     }
   }
 
-  const originalLoadAllData = loadAllData;
-  loadAllData = async function wrappedLoadAllData(...args) {
-    const result = await originalLoadAllData(...args);
-    mergeLocalNoteState();
+  const actualLoadAllData = loadAllData;
+  const wrappedLoadAllData = async function (...args) {
+    const result = await actualLoadAllData(...args);
+    mergeLocalState();
     return result;
   };
+  loadAllData = wrappedLoadAllData;
 
-  function sortedVisibleNotes() {
+  function visibleNotes() {
     return (appData.notes || [])
       .filter(note => !isTrue(note.Archived))
       .slice()
@@ -79,7 +82,18 @@
   }
 
   function noteById(id) {
-    return sortedVisibleNotes().find(note => String(note.ID || '') === String(id)) || null;
+    return (appData.notes || []).find(note => String(note.ID || '') === String(id)) || null;
+  }
+
+  function localRefresh() {
+    mergeLocalState();
+    const currentLoader = loadAllData;
+    loadAllData = async () => true;
+    try {
+      notesTab.click();
+    } finally {
+      loadAllData = currentLoader;
+    }
   }
 
   const sidebarActions = document.createElement('div');
@@ -96,49 +110,66 @@
   notesSidebarHead.insertBefore(sidebarActions, notesCloseBtn);
   sidebarActions.append(newBtn, notesCloseBtn);
 
-  const pinBtn = document.createElement('button');
-  pinBtn.id = 'notePinBtn';
-  pinBtn.className = 'note-action-btn note-pin-btn';
-  pinBtn.type = 'button';
-  pinBtn.textContent = 'Pin';
-
   const deleteBtn = document.createElement('button');
   deleteBtn.id = 'noteDeleteBtn';
   deleteBtn.className = 'note-action-btn note-delete-btn';
   deleteBtn.type = 'button';
   deleteBtn.textContent = 'Delete';
+  noteActions.insertBefore(deleteBtn, noteEditBtn?.nextSibling || null);
 
-  noteActions.insertBefore(pinBtn, noteEditBtn);
-  noteActions.insertBefore(deleteBtn, noteEditBtn);
+  function togglePin(id) {
+    const note = noteById(id);
+    if (!note) return;
+
+    const nextPinned = !isTrue(note.Pinned);
+    note.Pinned = nextPinned;
+
+    const drafts = readDrafts();
+    drafts[id] = {
+      ...(drafts[id] || {}),
+      Pinned: nextPinned,
+      savedAt: Date.now()
+    };
+    writeDrafts(drafts);
+    pendingSelectId = id;
+    localRefresh();
+  }
 
   function decorateList() {
-    const notes = sortedVisibleNotes();
+    const notes = visibleNotes();
     const buttons = [...notesList.querySelectorAll('.note-list-item')];
 
     buttons.forEach((button, index) => {
       const note = notes[index];
       if (!note) return;
-      button.dataset.noteId = String(note.ID || '');
+
+      const id = String(note.ID || '');
+      button.dataset.noteId = id;
       button.classList.toggle('pinned-note', isTrue(note.Pinned));
 
-      let pinMark = button.querySelector('.note-pin-mark');
-      if (isTrue(note.Pinned)) {
-        if (!pinMark) {
-          pinMark = document.createElement('span');
-          pinMark.className = 'note-pin-mark';
-          pinMark.textContent = '•';
-          button.prepend(pinMark);
-        }
-      } else {
-        pinMark?.remove();
+      let pin = button.querySelector('.note-list-pin');
+      if (!pin) {
+        pin = document.createElement('span');
+        pin.className = 'note-list-pin';
+        pin.setAttribute('role', 'button');
+        pin.setAttribute('aria-label', 'Pin note');
+        pin.title = 'Pin note';
+        pin.textContent = '📌';
+        button.append(pin);
       }
+
+      pin.classList.toggle('active', isTrue(note.Pinned));
+      pin.setAttribute('aria-label', isTrue(note.Pinned) ? 'Unpin note' : 'Pin note');
+      pin.title = isTrue(note.Pinned) ? 'Unpin note' : 'Pin note';
+      pin.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        togglePin(id);
+      };
     });
 
-    const selectedId = currentSelectedId();
-    const selected = noteById(selectedId);
-    pinBtn.hidden = !selected;
-    deleteBtn.hidden = !selected;
-    pinBtn.textContent = selected && isTrue(selected.Pinned) ? 'Unpin' : 'Pin';
+    const selected = noteById(currentSelectedId());
+    deleteBtn.hidden = !selected || Boolean(noteEditBtn?.hidden);
 
     if (pendingSelectId) {
       const target = buttons.find(button => button.dataset.noteId === pendingSelectId);
@@ -147,53 +178,47 @@
         pendingSelectId = '';
         target.click();
         requestAnimationFrame(() => {
-          if (currentSelectedId() === targetId) noteEditBtn?.click();
+          if (currentSelectedId() === targetId && noteEditBtn && !noteEditBtn.hidden) {
+            noteEditBtn.click();
+          }
         });
       }
     }
   }
 
   const observer = new MutationObserver(decorateList);
-  observer.observe(notesList, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  observer.observe(notesList, { childList: true, subtree: true });
   decorateList();
 
-  function refreshNotes() {
-    notesTab.click();
-  }
-
   newBtn.addEventListener('click', () => {
+    if (createLocked) return;
+    createLocked = true;
+    newBtn.disabled = true;
+
     const id = `local-note-${Date.now()}`;
-    const drafts = readDrafts();
-    drafts[id] = {
+    const body = JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '• ' }] });
+    const note = {
       ID: id,
       Title: 'New Note',
-      Category: 'General',
-      Body: JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '' }] }),
+      Body: body,
       Pinned: false,
       'Sort Order': 9999,
       Archived: false,
-      _localNew: true,
-      savedAt: Date.now()
+      _localNew: true
     };
-    writeDrafts(drafts);
-    pendingSelectId = id;
-    refreshNotes();
-  });
 
-  pinBtn.addEventListener('click', () => {
-    const id = currentSelectedId();
-    const note = noteById(id);
-    if (!id || !note) return;
-
+    appData.notes.push(note);
     const drafts = readDrafts();
-    drafts[id] = {
-      ...(drafts[id] || {}),
-      Pinned: !isTrue(note.Pinned),
-      savedAt: Date.now()
-    };
+    drafts[id] = { ...note, savedAt: Date.now() };
     writeDrafts(drafts);
+
     pendingSelectId = id;
-    refreshNotes();
+    localRefresh();
+
+    setTimeout(() => {
+      createLocked = false;
+      newBtn.disabled = false;
+    }, 250);
   });
 
   deleteBtn.addEventListener('click', () => {
@@ -203,9 +228,11 @@
     if (!window.confirm(`Delete “${note.Title || 'Untitled Note'}”?`)) return;
 
     const drafts = readDrafts();
-    if (drafts[id]?._localNew) {
+    if (drafts[id]?._localNew || note._localNew) {
       delete drafts[id];
+      appData.notes = (appData.notes || []).filter(item => String(item.ID || '') !== id);
     } else {
+      note.Archived = true;
       drafts[id] = {
         ...(drafts[id] || {}),
         Archived: true,
@@ -215,42 +242,27 @@
     }
     writeDrafts(drafts);
     pendingSelectId = '';
-    refreshNotes();
+    localRefresh();
+  });
+
+  noteEditBtn?.addEventListener('click', () => {
+    setTimeout(() => { deleteBtn.hidden = true; }, 0);
   });
 
   noteSaveBtn?.addEventListener('click', () => {
-    const id = currentSelectedId();
-    if (!id) return;
-    const draft = readDrafts()[id] || {};
-    savedDraftMeta = {
-      id,
-      Pinned: draft.Pinned,
-      Archived: draft.Archived,
-      Category: draft.Category,
-      _localNew: draft._localNew,
-      'Sort Order': draft['Sort Order']
-    };
-
     setTimeout(() => {
-      if (!savedDraftMeta) return;
-      const drafts = readDrafts();
-      drafts[savedDraftMeta.id] = {
-        ...(drafts[savedDraftMeta.id] || {}),
-        ...(savedDraftMeta.Pinned !== undefined ? { Pinned: savedDraftMeta.Pinned } : {}),
-        ...(savedDraftMeta.Archived !== undefined ? { Archived: savedDraftMeta.Archived } : {}),
-        ...(savedDraftMeta.Category !== undefined ? { Category: savedDraftMeta.Category } : {}),
-        ...(savedDraftMeta._localNew !== undefined ? { _localNew: savedDraftMeta._localNew } : {}),
-        ...(savedDraftMeta['Sort Order'] !== undefined ? { 'Sort Order': savedDraftMeta['Sort Order'] } : {})
-      };
-      writeDrafts(drafts);
-      savedDraftMeta = null;
+      mergeLocalState();
       decorateList();
     }, 0);
-  }, true);
+  });
+
+  noteCancelBtn?.addEventListener('click', () => {
+    setTimeout(decorateList, 0);
+  });
 
   notesTab.addEventListener('click', () => {
     setTimeout(() => {
-      mergeLocalNoteState();
+      mergeLocalState();
       decorateList();
     }, 0);
   });

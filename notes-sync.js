@@ -17,6 +17,10 @@
     }
   }
 
+  function writeDrafts(drafts) {
+    localStorage.setItem(DRAFT_STORAGE, JSON.stringify(drafts));
+  }
+
   function selectedNoteId() {
     return notesList.querySelector('.note-list-item.active')?.dataset.noteId || '';
   }
@@ -88,9 +92,22 @@
       await postWrite('noteUpsert', {
         id,
         title: note.Title || 'Untitled Note',
-        body: note.Body || JSON.stringify({ version: 1, blocks: [] }),
+        body: note.Body || '',
         pinned: String(note.Pinned === true || String(note.Pinned).toUpperCase() === 'TRUE').toLowerCase()
       });
+
+      const drafts = readDrafts();
+      if (drafts[id]) {
+        drafts[id] = {
+          ...drafts[id],
+          _localNew: false
+        };
+        writeDrafts(drafts);
+      }
+
+      const appNote = (appData.notes || []).find(item => String(item.ID || '') === String(id));
+      if (appNote) appNote._localNew = false;
+
       if (noteSaveStatus) noteSaveStatus.textContent = 'Synced to Google Sheets';
     } catch (error) {
       if (noteSaveStatus) noteSaveStatus.textContent = `Saved locally · sync failed: ${error.message}`;
@@ -100,6 +117,11 @@
   async function syncPin(id) {
     if (!id || !await ensureWriteCapability()) return;
     const note = effectiveNote(id);
+
+    if (note._localNew) {
+      await syncUpsert(id);
+      return;
+    }
 
     try {
       await postWrite('notePin', {
@@ -144,6 +166,11 @@
       setTimeout(() => syncUpsert(id), 0);
     }
   }, true);
+
+  document.addEventListener('lexi-note-autosave', event => {
+    const id = String(event.detail?.id || '');
+    if (id) setTimeout(() => syncUpsert(id), 0);
+  });
 
   notesTab.addEventListener('click', () => {
     ensureWriteCapability(true);

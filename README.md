@@ -61,13 +61,15 @@ Rules:
 - If `Due Date` exists, `Month` is derived from `YYYY-MM` of the due date.
 - If `Due Date` is blank, the selected Plan month is used.
 - `Archived = TRUE` means the item is historical/deleted and is hidden from normal Plan and Calendar views.
-- The `Archived` field is a technical field and is intentionally hidden in the Google Sheet UI.
+- The `ID`, `Sort Order`, `Updated At`, and `Archived` fields are technical fields and may be hidden in the Google Sheet UI.
 - Deleted Plan items are soft-deleted for history rather than immediately removing the row.
 
 Calendar-to-Plan behavior:
 - Creating a new Calendar item with category `To Do`, `Todo`, or `To-Do` routes the item into `PLAN_ITEMS`.
 - It must not create a duplicate `EVENTS` row.
-- Converting an existing Calendar event to category `To Do` moves it to `PLAN_ITEMS` and removes the old `EVENTS` row.
+- A brand-new Calendar To Do receives a normal Plan ID.
+- Converting an existing Calendar event to category `To Do` moves it to `PLAN_ITEMS`, preserves the original Event ID as the Plan item ID, and removes the old `EVENTS` row.
+- Preserving the ID on conversion is the standing identity rule so the same logical record remains traceable across `EVENTS` → `PLAN_ITEMS`.
 
 ### Notes
 Notes are stored in `NOTES`.
@@ -224,6 +226,7 @@ Dark mode should be implemented as shared theme overrides, not by duplicating th
 - To Do is a Plan record, not an Event record.
 - A dated To Do appears in both Plan and Calendar without duplication.
 - Undated To Dos remain Plan-only.
+- Event → To Do conversion preserves the original Event ID in `PLAN_ITEMS`.
 - Holiday/Event are separate Calendar visual concepts; birthdays and similar untimed occasions use Event.
 - Country Days lives under Plan.
 - Notes are for reference material, not a substitute for Calendar or Plan.

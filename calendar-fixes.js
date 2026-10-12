@@ -12,19 +12,29 @@
     line.className = className;
     line.textContent = text;
     label.append(line);
+    return line;
+  }
+
+  function appendCompactTravelTime(label, value, role) {
+    const line = appendLine(
+      label,
+      compactClock(value),
+      `day-event-flight-time-line ${role}`
+    );
+    line.style.display = 'block';
+    line.style.width = '100%';
+    line.style.overflow = 'hidden';
+    line.style.whiteSpace = 'nowrap';
+    line.style.textAlign = 'center';
+    line.style.fontSize = '7.5px';
+    line.style.fontWeight = '500';
+    line.style.lineHeight = '1.02';
+    line.style.letterSpacing = '-0.28px';
   }
 
   function appendTravelTimes(label, departure, arrival) {
-    appendLine(
-      label,
-      compactClock(departure),
-      'day-event-flight-time-line departure'
-    );
-    appendLine(
-      label,
-      compactClock(arrival),
-      'day-event-flight-time-line arrival'
-    );
+    appendCompactTravelTime(label, departure, 'departure');
+    appendCompactTravelTime(label, arrival, 'arrival');
   }
 
   function refreshCalendarEventLabels() {
@@ -57,7 +67,7 @@
           if (timeParts.length === 2) {
             appendTravelTimes(label, timeParts[0], timeParts[1]);
           } else if (time) {
-            appendLine(label, compactClock(time), 'day-event-flight-time-line');
+            appendCompactTravelTime(label, time, 'single');
           }
           return;
         }

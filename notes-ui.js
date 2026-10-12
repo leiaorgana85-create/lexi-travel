@@ -1,5 +1,6 @@
 (() => {
   const DRAFT_STORAGE = 'lexiTravelNoteDraftsV1';
+  const NOTES_CACHE_STORAGE = 'lexiTravelNotesCacheV1';
   const notesTab = document.querySelector('.tab[data-view="notesView"]');
   const notesLayout = document.getElementById('notesLayout');
   const notesList = document.getElementById('notesList');
@@ -14,6 +15,9 @@
 
   let pendingSelectId = '';
   let createLocked = false;
+  let backgroundRefreshPromise = null;
+  let lastBackgroundRefreshAt = 0;
+  let suppressFastClick = false;
 
   function readDrafts() {
     try {
@@ -25,6 +29,23 @@
 
   function writeDrafts(drafts) {
     localStorage.setItem(DRAFT_STORAGE, JSON.stringify(drafts));
+  }
+
+  function readNotesCache() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(NOTES_CACHE_STORAGE) || '[]');
+      return Array.isArray(cached) ? cached : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function writeNotesCache(notes) {
+    try {
+      localStorage.setItem(NOTES_CACHE_STORAGE, JSON.stringify(Array.isArray(notes) ? notes : []));
+    } catch (error) {
+      // Cache failure should never block Notes.
+    }
   }
 
   function isTrue(value) {
@@ -56,9 +77,16 @@
     }
   }
 
+  if (!(appData.notes || []).length) {
+    const cached = readNotesCache();
+    if (cached.length) appData.notes = cached;
+  }
+  mergeLocalState();
+
   const actualLoadAllData = loadAllData;
   const wrappedLoadAllData = async function (...args) {
     const result = await actualLoadAllData(...args);
+    writeNotesCache(appData.notes || []);
     mergeLocalState();
     return result;
   };
@@ -95,6 +123,44 @@
       loadAllData = currentLoader;
     }
   }
+
+  function refreshInBackground(loader) {
+    if (backgroundRefreshPromise) return;
+    if (Date.now() - lastBackgroundRefreshAt < 10000) return;
+
+    lastBackgroundRefreshAt = Date.now();
+    backgroundRefreshPromise = (async () => {
+      try {
+        await loader();
+        writeNotesCache(appData.notes || []);
+        suppressFastClick = true;
+        localRefresh();
+      } catch (error) {
+        // Cached/local Notes remain usable if Google is slow or unavailable.
+      } finally {
+        suppressFastClick = false;
+        backgroundRefreshPromise = null;
+      }
+    })();
+  }
+
+  notesTab.addEventListener('click', () => {
+    if (suppressFastClick) return;
+
+    if (!(appData.notes || []).length) {
+      const cached = readNotesCache();
+      if (cached.length) appData.notes = cached;
+    }
+    mergeLocalState();
+
+    const loader = loadAllData;
+    loadAllData = async () => true;
+
+    setTimeout(() => {
+      loadAllData = loader;
+      if (localStorage.getItem(KEY_STORAGE)) refreshInBackground(loader);
+    }, 0);
+  }, true);
 
   const sidebarActions = document.createElement('div');
   sidebarActions.className = 'notes-sidebar-actions';

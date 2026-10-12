@@ -334,15 +334,17 @@
 
   noteSaveBtn.addEventListener('click', () => {
     const id = selectedNoteId();
-    const editor = noteBody.querySelector('.lexi-plain-editor');
-    if (!id || !editor) {
+    if (!id) {
       saveContext = null;
       return;
     }
 
+    const editor = noteBody.querySelector('.lexi-plain-editor');
     saveContext = {
       id,
-      body: editor.value.replace(/\r/g, '').replace(/\n+$/, ''),
+      body: editor
+        ? editor.value.replace(/\r/g, '').replace(/\n+$/, '')
+        : null,
       previousDraft: readDrafts()[id] || null
     };
   }, true);
@@ -350,16 +352,25 @@
   noteSaveBtn.addEventListener('click', () => {
     if (!saveContext) return;
 
-    const drafts = readDrafts();
-    const saved = drafts[saveContext.id] || {};
-    drafts[saveContext.id] = {
-      ...(saveContext.previousDraft || {}),
-      ...saved,
-      Body: saveContext.body,
-      savedAt: saved.savedAt || Date.now()
-    };
-    writeDrafts(drafts);
+    const { id, body, previousDraft } = saveContext;
+
+    if (body !== null) {
+      const drafts = readDrafts();
+      const saved = drafts[id] || {};
+      drafts[id] = {
+        ...(previousDraft || {}),
+        ...saved,
+        Body: body,
+        savedAt: Date.now()
+      };
+      writeDrafts(drafts);
+    }
+
     saveContext = null;
+
+    document.dispatchEvent(new CustomEvent('lexi-note-save-ready', {
+      detail: { id }
+    }));
   });
 
   const observer = new MutationObserver(() => {

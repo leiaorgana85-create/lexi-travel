@@ -2,6 +2,8 @@
   const grid = document.getElementById('calendarGrid');
   if (!grid || typeof eventsForDate !== 'function') return;
 
+  let refreshFrame = 0;
+
   function categoryOf(event) {
     return String(event?.Category || '').trim().toLowerCase();
   }
@@ -117,16 +119,25 @@
   }
 
   function renderSpecialEvent(cell, events) {
-    cell.querySelectorAll('.day-special-event').forEach(node => node.remove());
-    cell.classList.toggle('has-special-event', events.length > 0);
-    if (!events.length) return;
+    const existing = cell.querySelector('.day-special-event');
+    const hasSpecial = events.length > 0;
+    cell.classList.toggle('has-special-event', hasSpecial);
+
+    if (!hasSpecial) {
+      if (existing) existing.remove();
+      return;
+    }
 
     const first = events[0];
     const title = String(first.Title || first.Category || 'Event').trim();
-    const marker = document.createElement('span');
-    marker.className = `day-special-event ${categoryOf(first) === 'holiday' ? 'holiday' : 'event'}`;
-    marker.textContent = events.length > 1 ? `${title} +${events.length - 1}` : title;
-    cell.append(marker);
+    const text = events.length > 1 ? `${title} +${events.length - 1}` : title;
+    const tone = categoryOf(first) === 'holiday' ? 'holiday' : 'event';
+
+    const marker = existing || document.createElement('span');
+    marker.className = `day-special-event ${tone}`;
+    marker.textContent = text;
+
+    if (!existing) cell.append(marker);
   }
 
   function refresh() {
@@ -138,12 +149,25 @@
       const specialEvents = allEvents.filter(isSpecialEvent);
       const regularEvents = allEvents.filter(event => !isSpecialEvent(event));
 
+      // Rebuild only the timed/regular event rows. Holiday/Event/Birthday never
+      // occupy row 2; they are rendered separately at the bottom of the cell.
       renderRegularEvents(cell, regularEvents);
       renderSpecialEvent(cell, specialEvents);
     });
   }
 
-  const observer = new MutationObserver(refresh);
+  function scheduleRefresh() {
+    if (refreshFrame) return;
+    refreshFrame = requestAnimationFrame(() => {
+      refreshFrame = 0;
+      refresh();
+    });
+  }
+
+  // Wait until the normal calendar-label observer has finished, then enforce the
+  // bottom-row layout. Observing only direct grid children avoids self-triggering.
+  const observer = new MutationObserver(scheduleRefresh);
   observer.observe(grid, { childList: true });
-  refresh();
+
+  scheduleRefresh();
 })();

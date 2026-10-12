@@ -134,7 +134,9 @@
     const all = readPlan();
     const items = Array.isArray(all[month]) ? all[month] : [];
     const item = {
-      id: makePlanId(),
+      // A converted Event keeps its original ID so its identity remains traceable
+      // across EVENTS -> PLAN_ITEMS. A brand-new Calendar To Do gets a Plan ID.
+      id: existingEventId || makePlanId(),
       text: planText(title, time),
       dueDate: date,
       done: false,

@@ -63,6 +63,18 @@ function doPost(e) {
       return json_(planDelete_(e.parameter || {}));
     }
 
+    if (action === 'shoppingcapabilities') {
+      return json_({ ok: true, shoppingWrite: true, version: 1 });
+    }
+
+    if (action === 'shoppinglist') {
+      return json_(shoppingList_());
+    }
+
+    if (action === 'shoppingsetbought') {
+      return json_(shoppingSetBought_(e.parameter || {}));
+    }
+
     return json_({ ok: false, error: 'Unknown write action' });
   } catch (error) {
     return json_({
@@ -210,6 +222,79 @@ function handleNotesOnEdit_(e) {
       archivedCell.setValue(false);
     }
   }
+}
+
+function shoppingSheet_() {
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName('SHOPPING_LIST');
+
+  if (!sheet) {
+    throw new Error('Missing sheet: SHOPPING_LIST');
+  }
+
+  return sheet;
+}
+
+function shoppingColumns_(sheet) {
+  const lastColumn = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+  const productColumn = headers.indexOf('Product') + 1;
+  const boughtColumn = headers.indexOf('Bought') + 1;
+
+  if (!productColumn) throw new Error('Missing SHOPPING_LIST Product column');
+  if (!boughtColumn) throw new Error('Missing SHOPPING_LIST Bought column');
+
+  return { productColumn, boughtColumn };
+}
+
+function shoppingList_() {
+  const sheet = shoppingSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, items: [] };
+
+  const columns = shoppingColumns_(sheet);
+  const width = sheet.getLastColumn();
+  const values = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+
+  const items = values
+    .map(row => ({
+      product: String(row[columns.productColumn - 1] || '').trim(),
+      bought: noteBool_(row[columns.boughtColumn - 1])
+    }))
+    .filter(item => item.product);
+
+  return { ok: true, items: items };
+}
+
+function shoppingSetBought_(p) {
+  const product = String(p.product || '').trim();
+  if (!product) return { ok: false, error: 'Missing product' };
+
+  const sheet = shoppingSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: false, error: 'Shopping item not found' };
+
+  const columns = shoppingColumns_(sheet);
+  const products = sheet
+    .getRange(2, columns.productColumn, lastRow - 1, 1)
+    .getDisplayValues();
+
+  let targetRow = 0;
+  for (let i = 0; i < products.length; i += 1) {
+    if (String(products[i][0] || '').trim() === product) {
+      targetRow = i + 2;
+      break;
+    }
+  }
+
+  if (!targetRow) return { ok: false, error: 'Shopping item not found' };
+
+  const bought = noteBool_(p.bought);
+  sheet.getRange(targetRow, columns.boughtColumn).setValue(bought);
+  SpreadsheetApp.flush();
+
+  return { ok: true, product: product, bought: bought };
 }
 
 function onEdit(e) {

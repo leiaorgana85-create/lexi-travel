@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="calendar-ui-tweaks.css?v=3">
   <link rel="stylesheet" href="calendar-edit-top.css?v=2">
   <link rel="stylesheet" href="notes-ui.css?v=4">
+  <link rel="stylesheet" href="plan-ui.css?v=1">
 </head>
 <body>
   <div class="app-shell">
@@ -77,19 +78,46 @@
         </div>
       </section>
 
-      <section id="countryView" class="view" aria-label="Country Days">
-        <div class="section-head left">
-          <h2>Country Days</h2>
+      <section id="countryView" class="view plan-view" aria-label="Plan">
+        <div class="plan-title-row">
+          <h2>Plan</h2>
         </div>
-        <div id="countryStatus" class="status-card">Enter your API key in Settings to load country rules.</div>
-        <div id="countryList" class="country-list"></div>
+
+        <section class="plan-section" aria-label="Monthly plan">
+          <div class="plan-section-head">
+            <h3>This Month</h3>
+            <div class="plan-month-nav" aria-label="Plan month">
+              <button id="planPrevMonthBtn" type="button" aria-label="Previous plan month">‹</button>
+              <span id="planMonthLabel">October 2026</span>
+              <button id="planNextMonthBtn" type="button" aria-label="Next plan month">›</button>
+            </div>
+          </div>
+
+          <div class="plan-card">
+            <div id="planChecklist" class="plan-checklist"></div>
+            <div class="plan-add-wrap">
+              <button id="planAddBtn" class="plan-add-btn" type="button">+ Add item</button>
+              <div id="planAddRow" class="plan-add-row" hidden>
+                <input id="planAddInput" class="plan-add-input" type="text" autocomplete="off" placeholder="Add something to do this month">
+                <button id="planAddSaveBtn" class="plan-add-save" type="button">Add</button>
+                <button id="planAddCancelBtn" class="plan-add-cancel" type="button">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="plan-section plan-country-section" aria-label="Country days">
+          <h3 class="plan-country-title">Country Days</h3>
+          <div id="countryStatus" class="status-card">Enter your API key in Settings to load country rules.</div>
+          <div id="countryList" class="country-list"></div>
+        </section>
       </section>
     </main>
 
     <nav class="tabbar" aria-label="Primary">
       <button class="tab active" data-view="calendarView" type="button">Calendar</button>
       <button class="tab" data-view="notesView" type="button">Notes</button>
-      <button class="tab" data-view="countryView" type="button">Country Days</button>
+      <button class="tab" data-view="countryView" type="button">Plan</button>
     </nav>
   </div>
 
@@ -130,5 +158,6 @@
   <script src="notes-ui.js?v=5"></script>
   <script src="notes-rich.js?v=2"></script>
   <script src="notes-sync.js?v=3"></script>
+  <script src="plan-ui.js?v=1"></script>
 </body>
 </html>

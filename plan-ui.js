@@ -1,6 +1,8 @@
 (() => {
   const STORAGE_KEY = 'lexiTravelMonthlyPlanV1';
   const DELETE_STORAGE_KEY = 'lexiTravelMonthlyPlanDeletedV1';
+  const CALENDAR_CACHE_STORAGE_KEY = 'lexiTravelCalendarCacheV1';
+  const EVENT_DRAFT_STORAGE_KEY = 'lexiTravelEventDraftsV1';
   const planView = document.getElementById('countryView');
   const planTab = document.querySelector('.tab[data-view="countryView"]');
   const monthLabel = document.getElementById('planMonthLabel');
@@ -13,8 +15,12 @@
   const dateInput = document.getElementById('planAddDate');
   const saveBtn = document.getElementById('planAddSaveBtn');
   const cancelBtn = document.getElementById('planAddCancelBtn');
+  const convertWrap = document.getElementById('planConvertWrap');
+  const convertTime = document.getElementById('planConvertTime');
+  const convertBtn = document.getElementById('planConvertAppointmentBtn');
+  const convertStatus = document.getElementById('planConvertStatus');
 
-  if (!planView || !monthLabel || !prevBtn || !nextBtn || !list || !addBtn || !addRow || !input || !dateInput || !saveBtn || !cancelBtn) return;
+  if (!planView || !monthLabel || !prevBtn || !nextBtn || !list || !addBtn || !addRow || !input || !dateInput || !saveBtn || !cancelBtn || !convertWrap || !convertTime || !convertBtn || !convertStatus) return;
 
   const today = new Date();
   let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -50,6 +56,13 @@
     return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
   }
 
+  function splitAppointmentText(value) {
+    const clean = String(value || '').trim();
+    const match = clean.match(/^(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm|a|p)?)\s*·\s*(.+)$/);
+    if (!match) return { title: clean, time: '' };
+    return { title: match[2].trim(), time: match[1].trim() };
+  }
+
   function sortedItems(items) {
     return items.slice().sort((a, b) => {
       const aDate = normalizeDueDate(a?.dueDate);
@@ -71,30 +84,33 @@
     document.dispatchEvent(new CustomEvent('lexi-plan-change'));
   }
 
-  function readAll() {
+  function readObject(key) {
     try {
-      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      return parsed && typeof parsed === 'object' ? parsed : {};
+      const parsed = JSON.parse(localStorage.getItem(key) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     } catch (error) {
       return {};
     }
+  }
+
+  function writeObject(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function readAll() {
+    return readObject(STORAGE_KEY);
   }
 
   function writeAll(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    writeObject(STORAGE_KEY, data);
   }
 
   function readDeleted() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(DELETE_STORAGE_KEY) || '{}');
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch (error) {
-      return {};
-    }
+    return readObject(DELETE_STORAGE_KEY);
   }
 
   function writeDeleted(data) {
-    localStorage.setItem(DELETE_STORAGE_KEY, JSON.stringify(data));
+    writeObject(DELETE_STORAGE_KEY, data);
   }
 
   function itemsForMonth(key) {
@@ -407,6 +423,123 @@
     syncUpsert(targetMonth, id);
   }
 
+  function cacheAppointment(event) {
+    try {
+      if (typeof appData !== 'undefined' && Array.isArray(appData.events)) {
+        appData.events = appData.events.filter(item => String(item.ID || '') !== String(event.ID));
+        appData.events.push(event);
+      }
+    } catch (error) {
+      // Calendar will still refresh from Google if the in-memory cache is unavailable.
+    }
+
+    const cache = readObject(CALENDAR_CACHE_STORAGE_KEY);
+    const cachedEvents = Array.isArray(cache.events) ? cache.events : [];
+    cache.events = cachedEvents.filter(item => String(item.ID || '') !== String(event.ID));
+    cache.events.push(event);
+    writeObject(CALENDAR_CACHE_STORAGE_KEY, cache);
+
+    const drafts = readObject(EVENT_DRAFT_STORAGE_KEY);
+    if (Object.prototype.hasOwnProperty.call(drafts, event.ID)) {
+      delete drafts[event.ID];
+      writeObject(EVENT_DRAFT_STORAGE_KEY, drafts);
+    }
+  }
+
+  async function convertEditingItemToAppointment() {
+    const id = String(editingId || '');
+    const originalMonth = editingMonth || monthKey(cursor);
+    const clean = String(input.value || '').trim();
+    const dueDate = normalizeDueDate(dateInput.value);
+    const parsed = splitAppointmentText(clean);
+    const time = String(convertTime.value || parsed.time || '').trim();
+    const title = parsed.title || clean;
+
+    convertStatus.textContent = '';
+
+    if (!id || !clean) {
+      input.focus();
+      return;
+    }
+
+    if (!dueDate) {
+      convertStatus.textContent = 'Add a date first';
+      dateInput.focus();
+      return;
+    }
+
+    if (!time) {
+      convertStatus.textContent = 'Add a time first';
+      convertTime.focus();
+      return;
+    }
+
+    const appointment = {
+      ID: id,
+      Date: dueDate,
+      Title: title,
+      Time: time,
+      Category: 'Appointment',
+      Details: '',
+      Link: '',
+      Status: 'Booked'
+    };
+
+    convertBtn.disabled = true;
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    convertStatus.textContent = 'Converting…';
+
+    try {
+      await postAction('eventUpsert', {
+        id,
+        date: appointment.Date,
+        title: appointment.Title,
+        time: appointment.Time,
+        category: appointment.Category,
+        details: appointment.Details,
+        link: appointment.Link,
+        status: appointment.Status
+      });
+
+      try {
+        await postAction('planDelete', { id });
+      } catch (error) {
+        let rollbackFailed = false;
+        try {
+          await postAction('eventDelete', { id });
+        } catch (rollbackError) {
+          rollbackFailed = true;
+        }
+        if (rollbackFailed) throw new Error('Conversion incomplete');
+        throw error;
+      }
+
+      writeMonth(
+        originalMonth,
+        itemsForMonth(originalMonth).filter(item => String(item.id) !== id)
+      );
+
+      const deleted = readDeleted();
+      if (deleted[id]) {
+        delete deleted[id];
+        writeDeleted(deleted);
+      }
+
+      cacheAppointment(appointment);
+      closeAdd();
+      render();
+    } catch (error) {
+      convertStatus.textContent = error?.message === 'Conversion incomplete'
+        ? 'Conversion incomplete · check Calendar'
+        : 'Conversion failed';
+    } finally {
+      convertBtn.disabled = false;
+      saveBtn.disabled = false;
+      cancelBtn.disabled = false;
+    }
+  }
+
   function render() {
     monthLabel.textContent = monthTitle(cursor);
     const items = sortedItems(itemsForCurrentMonth());
@@ -474,6 +607,9 @@
     input.value = '';
     dateInput.value = '';
     saveBtn.textContent = 'Add';
+    convertWrap.hidden = true;
+    convertTime.value = '';
+    convertStatus.textContent = '';
     requestAnimationFrame(() => input.focus());
   }
 
@@ -485,6 +621,10 @@
     input.value = String(item?.text || '');
     dateInput.value = normalizeDueDate(item?.dueDate);
     saveBtn.textContent = 'Save';
+    const parsed = splitAppointmentText(item?.text || '');
+    convertTime.value = parsed.time;
+    convertStatus.textContent = '';
+    convertWrap.hidden = false;
     requestAnimationFrame(() => input.focus());
   }
 
@@ -496,6 +636,9 @@
     input.value = '';
     dateInput.value = '';
     saveBtn.textContent = 'Add';
+    convertWrap.hidden = true;
+    convertTime.value = '';
+    convertStatus.textContent = '';
   }
 
   function saveAdd() {
@@ -524,6 +667,7 @@
   addBtn.addEventListener('click', openAdd);
   saveBtn.addEventListener('click', saveAdd);
   cancelBtn.addEventListener('click', closeAdd);
+  convertBtn.addEventListener('click', convertEditingItemToAppointment);
   input.addEventListener('keydown', event => {
     if (event.key === 'Enter') {
       event.preventDefault();

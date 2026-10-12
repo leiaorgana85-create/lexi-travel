@@ -36,7 +36,8 @@
       min-height: 54px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      flex-wrap: wrap;
+      gap: 8px;
       padding: 8px 14px;
       border-bottom: 1px solid #d8dee7;
       background: rgba(255,255,255,.96);
@@ -84,11 +85,32 @@
       cursor: pointer;
     }
 
-    .viewport-readout {
+    .preview-status {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 11px;
       color: #6b7280;
       white-space: nowrap;
+    }
+
+    .data-state {
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #eef2f7;
+      color: #4b5563;
+      font-weight: 700;
+    }
+
+    .data-state.connected {
+      background: #eaf8ef;
+      color: #19733a;
+    }
+
+    .data-state.missing {
+      background: #fff4df;
+      color: #8a5a00;
     }
 
     .stage {
@@ -101,16 +123,19 @@
 
     .phone-wrap {
       position: relative;
-      transform-origin: top center;
+      flex: 0 0 auto;
     }
 
     .phone-frame {
-      position: relative;
+      position: absolute;
+      top: 0;
+      left: 0;
       border: 10px solid #111318;
       border-radius: 38px;
       background: #111318;
       box-shadow: 0 20px 55px rgba(15,23,42,.24);
       overflow: hidden;
+      transform-origin: top left;
     }
 
     .phone-frame::before {
@@ -133,10 +158,10 @@
       background: #fff;
     }
 
-    @media (max-width: 760px) {
-      .preview-title,
-      .viewport-readout { display: none; }
+    @media (max-width: 900px) {
+      .preview-title { display: none; }
       .preview-toolbar { padding-inline: 8px; gap: 6px; }
+      .preview-status { width: 100%; margin-left: 0; justify-content: flex-end; }
     }
   </style>
 </head>
@@ -144,6 +169,7 @@
   <div class="preview-shell">
     <header class="preview-toolbar">
       <div class="preview-title">LEXI Travel · iPhone Preview</div>
+
       <label for="devicePreset">Device</label>
       <select id="devicePreset">
         <option value="390x844" selected>iPhone 13 / 14 / 15 · 390×844</option>
@@ -152,14 +178,28 @@
         <option value="375x812">iPhone 12/13 mini · 375×812</option>
         <option value="375x667">iPhone SE · 375×667</option>
       </select>
+
+      <label for="zoomPreset">Preview size</label>
+      <select id="zoomPreset">
+        <option value="fit">Fit window</option>
+        <option value="1" selected>100% · true CSS size</option>
+        <option value="1.1">110%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5">150%</option>
+      </select>
+
       <button id="reloadBtn" type="button">Reload</button>
       <a href="./" target="_blank" rel="noopener">Open app</a>
-      <div id="viewportReadout" class="viewport-readout">390 × 844 CSS px</div>
+
+      <div class="preview-status">
+        <span id="dataState" class="data-state">Checking data…</span>
+        <span id="viewportReadout">390 × 844 · 100%</span>
+      </div>
     </header>
 
     <main id="stage" class="stage">
       <div id="phoneWrap" class="phone-wrap">
-        <div class="phone-frame">
+        <div id="phoneFrame" class="phone-frame">
           <iframe id="appPreview" title="LEXI Travel iPhone preview" src="./"></iframe>
         </div>
       </div>
@@ -167,30 +207,51 @@
   </div>
 
   <script>
+    const KEY_STORAGE = 'lexiTravelApiKey';
     const stage = document.getElementById('stage');
     const phoneWrap = document.getElementById('phoneWrap');
-    const frame = document.querySelector('.phone-frame');
+    const frame = document.getElementById('phoneFrame');
     const preview = document.getElementById('appPreview');
-    const preset = document.getElementById('devicePreset');
+    const devicePreset = document.getElementById('devicePreset');
+    const zoomPreset = document.getElementById('zoomPreset');
     const reloadBtn = document.getElementById('reloadBtn');
     const readout = document.getElementById('viewportReadout');
+    const dataState = document.getElementById('dataState');
 
     let viewportWidth = 390;
     let viewportHeight = 844;
+    let currentScale = 1;
 
-    function fitPreview() {
+    function fitScale() {
       const chrome = 20;
-      const availableWidth = Math.max(200, stage.clientWidth - 36);
-      const availableHeight = Math.max(300, stage.clientHeight - 36);
+      const availableWidth = Math.max(220, stage.clientWidth - 36);
+      const availableHeight = Math.max(320, stage.clientHeight - 36);
+      return Math.min(
+        1,
+        availableWidth / (viewportWidth + chrome),
+        availableHeight / (viewportHeight + chrome)
+      );
+    }
+
+    function selectedScale() {
+      return zoomPreset.value === 'fit' ? fitScale() : Number(zoomPreset.value);
+    }
+
+    function applyScale() {
+      const chrome = 20;
       const fullWidth = viewportWidth + chrome;
       const fullHeight = viewportHeight + chrome;
-      const scale = Math.min(1, availableWidth / fullWidth, availableHeight / fullHeight);
+      currentScale = selectedScale();
 
-      phoneWrap.style.width = `${fullWidth}px`;
-      phoneWrap.style.height = `${fullHeight * scale}px`;
       frame.style.width = `${fullWidth}px`;
       frame.style.height = `${fullHeight}px`;
-      phoneWrap.style.transform = `scale(${scale})`;
+      frame.style.transform = `scale(${currentScale})`;
+
+      phoneWrap.style.width = `${Math.ceil(fullWidth * currentScale)}px`;
+      phoneWrap.style.height = `${Math.ceil(fullHeight * currentScale)}px`;
+
+      const percent = Math.round(currentScale * 100);
+      readout.textContent = `${viewportWidth} × ${viewportHeight} · ${percent}%`;
     }
 
     function setViewport(value) {
@@ -199,17 +260,30 @@
       viewportHeight = height;
       preview.style.width = `${width}px`;
       preview.style.height = `${height}px`;
-      readout.textContent = `${width} × ${height} CSS px`;
-      fitPreview();
+      applyScale();
     }
 
-    preset.addEventListener('change', () => setViewport(preset.value));
+    function refreshDataState() {
+      const connected = Boolean(localStorage.getItem(KEY_STORAGE));
+      dataState.textContent = connected
+        ? 'Chrome data connected'
+        : 'No Chrome API key · Open app once';
+      dataState.className = `data-state ${connected ? 'connected' : 'missing'}`;
+    }
+
+    devicePreset.addEventListener('change', () => setViewport(devicePreset.value));
+    zoomPreset.addEventListener('change', applyScale);
     reloadBtn.addEventListener('click', () => {
+      refreshDataState();
       preview.contentWindow.location.reload();
     });
-    window.addEventListener('resize', fitPreview);
+    window.addEventListener('resize', () => {
+      if (zoomPreset.value === 'fit') applyScale();
+    });
+    window.addEventListener('storage', refreshDataState);
 
-    setViewport(preset.value);
+    refreshDataState();
+    setViewport(devicePreset.value);
   </script>
 </body>
 </html>

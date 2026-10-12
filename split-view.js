@@ -16,6 +16,10 @@
       .replace(/\s+PM\b/g, 'PM');
   }
 
+  function calendarEditorOpen() {
+    return Boolean(paneDetails.querySelector('.calendar-event-editor'));
+  }
+
   function addPaneLine(event) {
     const title = compactDetailText(event.Title || event.Category || 'Event');
     const time = compactDetailText(event.Time || '');
@@ -154,6 +158,10 @@
 
   function syncSelectionAfterRender() {
     requestAnimationFrame(() => {
+      // renderCalendar() rebuilds the grid after Google refreshes. Do not let that
+      // observer wipe out a form the user is actively editing.
+      if (calendarEditorOpen()) return;
+
       let target = grid.querySelector(`.day-cell[aria-label="${selectedDateKey}"]`);
       if (!target) target = grid.querySelector('.day-cell:not(.other-month)');
       if (target) renderPane(target.getAttribute('aria-label'));

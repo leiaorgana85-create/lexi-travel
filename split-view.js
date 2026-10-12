@@ -46,7 +46,36 @@
     const note = document.createElement('div');
     note.className = 'pane-location-note';
 
-    String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean).forEach(line => {
+    const lines = String(text || '')
+      .split(/\n+/)
+      .map(line => line.trim())
+      .filter(Boolean);
+
+    const urlIndex = lines.findIndex(line => /^https?:\/\//i.test(line));
+    const titleIndex = lines.findIndex(line => !/^https?:\/\//i.test(line));
+    const used = new Set();
+
+    if (urlIndex >= 0 && titleIndex >= 0) {
+      const first = document.createElement('div');
+      first.className = 'pane-location-note-line';
+      first.append(document.createTextNode(lines[titleIndex]));
+      first.append(document.createTextNode(' · '));
+
+      const link = document.createElement('a');
+      link.href = lines[urlIndex];
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Map';
+      first.append(link);
+      note.append(first);
+
+      used.add(titleIndex);
+      used.add(urlIndex);
+    }
+
+    lines.forEach((line, index) => {
+      if (used.has(index)) return;
+
       const item = document.createElement('div');
       item.className = 'pane-location-note-line';
 
@@ -55,7 +84,7 @@
         link.href = line;
         link.target = '_blank';
         link.rel = 'noopener';
-        link.textContent = line;
+        link.textContent = 'Map';
         item.append(link);
       } else {
         item.textContent = line;

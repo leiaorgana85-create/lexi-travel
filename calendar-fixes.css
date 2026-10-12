@@ -40,18 +40,15 @@
   font-size: 8px;
 }
 
-.day-event-flight-time {
-  font-size: 6.5px;
+.day-event-flight-time,
+.day-event-flight-route {
+  font-size: 7.5px;
   font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .day-event-flight-route {
   margin-top: 1px;
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1.05;
 }
 
 .day-event:nth-of-type(2) {
@@ -77,13 +74,9 @@
   }
 
   .day-event-title,
+  .day-event-flight-time,
   .day-event-flight-route {
     font-size: 9px;
-  }
-
-  .day-event-flight-time {
-    font-size: 8px;
-    letter-spacing: 0;
   }
 
   .day-event:nth-of-type(2) {

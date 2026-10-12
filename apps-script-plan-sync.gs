@@ -32,6 +32,12 @@ function planFindRow_(sheet, id) {
   return 0;
 }
 
+function planNormalizeDueDate_(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
 function planList_(p) {
   const month = String((p && p.month) || '').trim();
   const sheet = planItemsSheet_();
@@ -42,12 +48,12 @@ function planList_(p) {
   }
 
   const rows = sheet
-    .getRange(2, 1, lastRow - 1, 7)
+    .getRange(2, 1, lastRow - 1, 8)
     .getValues();
 
   const items = rows
     .filter(row => {
-      const archived = planBool_(row[6]);
+      const archived = planBool_(row[7]);
       const rowMonth = String(row[1] || '').trim();
       return !archived && (!month || rowMonth === month);
     })
@@ -55,9 +61,12 @@ function planList_(p) {
       ID: String(row[0] || ''),
       Month: String(row[1] || ''),
       Text: String(row[2] || ''),
-      Completed: planBool_(row[3]),
-      'Sort Order': Number(row[4] || 9999),
-      'Updated At': row[5] instanceof Date ? row[5].toISOString() : String(row[5] || ''),
+      'Due Date': row[3] instanceof Date
+        ? Utilities.formatDate(row[3], Session.getScriptTimeZone(), 'yyyy-MM-dd')
+        : String(row[3] || ''),
+      Completed: planBool_(row[4]),
+      'Sort Order': Number(row[5] || 9999),
+      'Updated At': row[6] instanceof Date ? row[6].toISOString() : String(row[6] || ''),
       Archived: false
     }))
     .sort((a, b) => {
@@ -71,13 +80,16 @@ function planList_(p) {
 
 function planUpsert_(p) {
   const id = String(p.id || '').trim();
-  const month = String(p.month || '').trim();
+  const requestedMonth = String(p.month || '').trim();
   const text = String(p.text || '').trim();
+  const dueDate = planNormalizeDueDate_(p.dueDate);
+  const month = dueDate ? dueDate.slice(0, 7) : requestedMonth;
   const completed = planBool_(p.completed);
   const requestedSortOrder = Number(p.sortOrder || 0);
 
   if (!id) return { ok: false, error: 'Missing plan item ID' };
   if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, error: 'Invalid plan month' };
+  if (p.dueDate && !dueDate) return { ok: false, error: 'Invalid due date' };
   if (!text) return { ok: false, error: 'Missing plan item text' };
 
   const sheet = planItemsSheet_();
@@ -87,15 +99,16 @@ function planUpsert_(p) {
   let sortOrder = requestedSortOrder > 0 ? requestedSortOrder : 9999;
 
   if (row) {
-    const existing = sheet.getRange(row, 1, 1, 7).getValues()[0];
+    const existing = sheet.getRange(row, 1, 1, 8).getValues()[0];
     if (!(requestedSortOrder > 0)) {
-      sortOrder = Number(existing[4] || 9999);
+      sortOrder = Number(existing[5] || 9999);
     }
 
-    sheet.getRange(row, 1, 1, 7).setValues([[
+    sheet.getRange(row, 1, 1, 8).setValues([[
       id,
       month,
       text,
+      dueDate,
       completed,
       sortOrder,
       now,
@@ -106,6 +119,7 @@ function planUpsert_(p) {
       id,
       month,
       text,
+      dueDate,
       completed,
       sortOrder,
       now,
@@ -117,6 +131,8 @@ function planUpsert_(p) {
   return {
     ok: true,
     id: id,
+    month: month,
+    dueDate: dueDate,
     updatedAt: now.toISOString()
   };
 }
@@ -132,10 +148,10 @@ function planDelete_(p) {
     return { ok: true, id: id, alreadyMissing: true };
   }
 
-  const values = sheet.getRange(row, 1, 1, 7).getValues()[0];
-  values[5] = new Date();
-  values[6] = true;
-  sheet.getRange(row, 1, 1, 7).setValues([values]);
+  const values = sheet.getRange(row, 1, 1, 8).getValues()[0];
+  values[6] = new Date();
+  values[7] = true;
+  sheet.getRange(row, 1, 1, 8).setValues([values]);
   SpreadsheetApp.flush();
 
   return { ok: true, id: id, archived: true };
@@ -151,7 +167,7 @@ function planSheetOnEdit_(e) {
   const lastRow = e.range.getRow() + e.range.getNumRows() - 1;
 
   for (let row = firstRow; row <= lastRow; row += 1) {
-    const visibleValues = sheet.getRange(row, 2, 1, 3).getDisplayValues()[0];
+    const visibleValues = sheet.getRange(row, 2, 1, 4).getDisplayValues()[0];
     const hasContent = visibleValues.some(value => String(value || '').trim() !== '');
     if (!hasContent) continue;
 
@@ -160,14 +176,19 @@ function planSheetOnEdit_(e) {
       idCell.setValue('sheet-plan-' + Utilities.getUuid());
     }
 
-    const sortCell = sheet.getRange(row, 5);
+    const dueDate = planNormalizeDueDate_(sheet.getRange(row, 4).getDisplayValue());
+    if (dueDate) {
+      sheet.getRange(row, 2).setValue(dueDate.slice(0, 7));
+    }
+
+    const sortCell = sheet.getRange(row, 6);
     if (!String(sortCell.getValue() || '').trim()) {
       sortCell.setValue(row - 1);
     }
 
-    sheet.getRange(row, 6).setValue(new Date());
+    sheet.getRange(row, 7).setValue(new Date());
 
-    const archivedCell = sheet.getRange(row, 7);
+    const archivedCell = sheet.getRange(row, 8);
     if (String(archivedCell.getValue() || '').trim() === '') {
       archivedCell.setValue(false);
     }

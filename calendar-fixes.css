@@ -92,22 +92,29 @@
 }
 
 .day-cell.selected-day {
-  background: inherit;
-  box-shadow: none;
+  background: #f4f7ff;
+  box-shadow: inset 0 -2px 0 var(--blue);
 }
 
 .day-cell.selected-day .day-number {
-  width: auto;
-  height: auto;
-  display: inline;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  line-height: 16px;
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  line-height: 1;
 }
 
-.day-cell.today.selected-day .day-number {
-  color: var(--blue);
+.day-cell.other-month.selected-day {
+  background: #f4f5f7;
+  box-shadow: inset 0 -2px 0 #b7c1cf;
+}
+
+.day-cell.other-month.selected-day .day-number {
+  background: #c5cad2;
+  color: #fff !important;
 }
 
 .day-top {
@@ -155,7 +162,12 @@
 .day-cell.other-month .day-number,
 .day-cell.other-month .day-location-code {
   color: #aab1bc !important;
-  background: transparent !important;
+  background-color: transparent;
+}
+
+.day-cell.other-month.selected-day .day-number {
+  background: #c5cad2 !important;
+  color: #fff !important;
 }
 
 .day-cell.other-month .day-event {
@@ -316,6 +328,105 @@
   color: #111827;
   text-decoration: underline;
   overflow-wrap: anywhere;
+}
+
+/* Notes: compact schedule tables on phone. */
+.note-body {
+  padding-top: 3px;
+}
+
+.note-schedule {
+  margin: 3px 0 10px;
+}
+
+.note-section-title {
+  padding: 2px 2px 4px;
+  font-size: 12.5px;
+}
+
+.note-table {
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.note-table th,
+.note-table td {
+  padding: 3px 3px;
+}
+
+.note-table th {
+  font-size: 10px;
+}
+
+/* Country Days: current-year stays/plans + remaining allowance. */
+#countryView .section-head.left {
+  margin-bottom: 4px;
+  padding-inline: 2px;
+}
+
+#countryView .section-head.left h2 {
+  font-size: 17px;
+}
+
+#countryStatus.country-year-status {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0 3px 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.country-list {
+  gap: 8px;
+  margin-top: 0;
+  padding-inline: 2px;
+}
+
+.country-days-card {
+  padding: 10px 11px;
+  gap: 7px;
+}
+
+.country-days-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.country-days-total {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--blue);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.country-days-total.over {
+  color: var(--danger);
+}
+
+.country-stay-list {
+  display: grid;
+  gap: 3px;
+}
+
+.country-stay-row {
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.country-stay-row.empty {
+  color: var(--muted);
+}
+
+.country-days-card .country-rule {
+  padding-top: 5px;
+  border-top: 1px solid #eef0f3;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 @media (min-width: 700px) {

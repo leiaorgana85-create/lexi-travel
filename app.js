@@ -189,8 +189,10 @@ function renderCalendar() {
   const firstDay = new Date(year, month, 1);
   const mondayOffset = (firstDay.getDay() + 6) % 7;
   const gridStart = new Date(year, month, 1 - mondayOffset);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cellCount = Math.ceil((mondayOffset + daysInMonth) / 7) * 7;
 
-  for (let i = 0; i < 42; i += 1) {
+  for (let i = 0; i < cellCount; i += 1) {
     const date = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
     const dateKey = toDateKey(date);
     const location = locationForDate(dateKey);

@@ -14,6 +14,22 @@
     label.append(line);
   }
 
+  function appendTravelTimes(label, departure, arrival) {
+    const row = document.createElement('span');
+    row.className = 'day-event-flight-times';
+
+    const start = document.createElement('span');
+    start.className = 'day-event-flight-time departure';
+    start.textContent = compactClock(departure);
+
+    const end = document.createElement('span');
+    end.className = 'day-event-flight-time arrival';
+    end.textContent = compactClock(arrival);
+
+    row.append(start, end);
+    label.append(row);
+  }
+
   function refreshCalendarEventLabels() {
     document.querySelectorAll('.day-cell').forEach(cell => {
       const dateKey = cell.getAttribute('aria-label');
@@ -42,11 +58,7 @@
           appendLine(label, `${origin}→${destination}`, 'day-event-flight-line');
 
           if (timeParts.length === 2) {
-            appendLine(
-              label,
-              `${compactClock(timeParts[0])}–${compactClock(timeParts[1])}`,
-              'day-event-flight-line'
-            );
+            appendTravelTimes(label, timeParts[0], timeParts[1]);
           } else if (time) {
             appendLine(label, compactClock(time), 'day-event-flight-line');
           }

@@ -1,9 +1,10 @@
 (() => {
-  function compactTime(value) {
+  function compactClock(value) {
     return String(value || '')
       .trim()
       .replace(/^~\s*/, '')
-      .replace(/\s+(AM|PM)\b/gi, '$1');
+      .replace(/\s*AM\b/i, 'a')
+      .replace(/\s*PM\b/i, 'p');
   }
 
   function appendLine(label, text, className) {
@@ -29,33 +30,31 @@
         const time = String(event.Time || '').trim();
         const category = String(event.Category || '').toLowerCase();
         label.textContent = '';
+        label.classList.remove('travel-route');
 
         const routeMatch = title.match(/^\s*([A-Za-z]{3})\s*[→>-]+\s*([A-Za-z]{3})\s*$/);
         const timeParts = time.split(/\s*→\s*/);
 
-        if (category.includes('flight') && routeMatch) {
+        if ((category.includes('flight') || category.includes('travel')) && routeMatch) {
           const origin = routeMatch[1].toUpperCase();
           const destination = routeMatch[2].toUpperCase();
           label.classList.add('travel-route');
           appendLine(label, `${origin}→${destination}`, 'day-event-flight-line');
 
-          if (timeParts[0]) {
-            appendLine(label, compactTime(timeParts[0]), 'day-event-flight-line');
-          }
-
-          if (timeParts[1]) {
-            appendLine(label, compactTime(timeParts[1]), 'day-event-flight-line');
+          if (timeParts.length === 2) {
+            appendLine(
+              label,
+              `${compactClock(timeParts[0])}–${compactClock(timeParts[1])}`,
+              'day-event-flight-line'
+            );
+          } else if (time) {
+            appendLine(label, compactClock(time), 'day-event-flight-line');
           }
           return;
         }
 
-        label.classList.remove('travel-route');
-
-        if (time) {
-          appendLine(label, compactTime(time), 'day-event-time');
-        }
-
-        appendLine(label, title, 'day-event-title');
+        const generic = time ? `${compactClock(time)} ${title}` : title;
+        appendLine(label, generic, 'day-event-generic-line');
       });
     });
   }

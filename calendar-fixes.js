@@ -33,13 +33,23 @@
         const routeMatch = title.match(/^\s*([A-Za-z]{3})\s*[→>-]+\s*([A-Za-z]{3})\s*$/);
         const timeParts = time.split(/\s*→\s*/);
 
-        if (category.includes('flight') && routeMatch && timeParts.length === 2) {
+        if (category.includes('flight') && routeMatch) {
           const origin = routeMatch[1].toUpperCase();
           const destination = routeMatch[2].toUpperCase();
-          appendLine(label, `${compactTime(timeParts[0])} ${origin}`, 'day-event-flight-line');
-          appendLine(label, `-${compactTime(timeParts[1])} ${destination}`, 'day-event-flight-line');
+          label.classList.add('travel-route');
+          appendLine(label, `${origin}→${destination}`, 'day-event-flight-line');
+
+          if (timeParts[0]) {
+            appendLine(label, compactTime(timeParts[0]), 'day-event-flight-line');
+          }
+
+          if (timeParts[1]) {
+            appendLine(label, compactTime(timeParts[1]), 'day-event-flight-line');
+          }
           return;
         }
+
+        label.classList.remove('travel-route');
 
         if (time) {
           appendLine(label, compactTime(time), 'day-event-time');

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>LEXI Travel</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">LEXI</div>
+        <h1>Travel</h1>
+      </div>
+      <button id="settingsBtn" class="icon-btn" type="button" aria-label="API settings">⚙︎</button>
+    </header>
+
+    <main class="content">
+      <section id="calendarView" class="view active" aria-label="Calendar">
+        <div class="section-head">
+          <button class="month-btn" type="button" aria-label="Previous month">‹</button>
+          <h2>October 2026</h2>
+          <button class="month-btn" type="button" aria-label="Next month">›</button>
+        </div>
+        <div class="placeholder">
+          <strong>Calendar shell ready</strong>
+          <span>Monday–Sunday month grid comes next.</span>
+        </div>
+      </section>
+
+      <section id="notesView" class="view" aria-label="Notes">
+        <div class="section-head left">
+          <h2>Notes</h2>
+        </div>
+        <div class="placeholder">
+          <strong>Notes shell ready</strong>
+          <span>List + notepad editor comes after the calendar foundation.</span>
+        </div>
+      </section>
+
+      <section id="countryView" class="view" aria-label="Country Days">
+        <div class="section-head left">
+          <h2>Country Days</h2>
+        </div>
+        <div id="countryStatus" class="status-card">Enter your API key in Settings to load country rules.</div>
+        <div id="countryList" class="country-list"></div>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="Primary">
+      <button class="tab active" data-view="calendarView" type="button">Calendar</button>
+      <button class="tab" data-view="notesView" type="button">Notes</button>
+      <button class="tab" data-view="countryView" type="button">Country Days</button>
+    </nav>
+  </div>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings-card">
+      <div class="dialog-head">
+        <h2>Connection</h2>
+        <button class="close-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+      <label for="apiKey">LEXI API key</label>
+      <input id="apiKey" name="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your saved key">
+      <p class="help">The key is stored only in this browser on this device.</p>
+      <button id="saveKeyBtn" class="primary-btn" type="button">Save & test</button>
+      <div id="connectionResult" class="connection-result" aria-live="polite"></div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

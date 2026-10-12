@@ -23,10 +23,25 @@
     );
   }
 
+  function applyLocationTone(cell, dateKey) {
+    const codeEl = cell.querySelector('.day-location-code');
+    if (!codeEl) return;
+
+    codeEl.classList.remove('city-pus', 'city-bkk', 'city-other');
+    const location = typeof locationForDate === 'function' ? locationForDate(dateKey) : null;
+    const code = String(location?.Label || codeEl.textContent || '').trim().toUpperCase();
+
+    if (code === 'PUS') codeEl.classList.add('city-pus');
+    else if (code === 'BKK') codeEl.classList.add('city-bkk');
+    else codeEl.classList.add('city-other');
+  }
+
   function refreshCalendarEventLabels() {
     document.querySelectorAll('.day-cell').forEach(cell => {
       const dateKey = cell.getAttribute('aria-label');
       if (!dateKey || typeof eventsForDate !== 'function') return;
+
+      applyLocationTone(cell, dateKey);
 
       const events = eventsForDate(dateKey).slice(0, 2);
       const labels = cell.querySelectorAll('.day-event');

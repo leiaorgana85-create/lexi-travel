@@ -71,6 +71,15 @@ Calendar-to-Plan behavior:
 - Converting an existing Calendar event to category `To Do` moves it to `PLAN_ITEMS`, preserves the original Event ID as the Plan item ID, and removes the old `EVENTS` row.
 - Preserving the ID on conversion is the standing identity rule so the same logical record remains traceable across `EVENTS` → `PLAN_ITEMS`.
 
+Plan-to-Appointment behavior:
+- This is an explicit conversion, not ongoing two-way synchronization.
+- From Plan Edit, `Convert to Appointment` requires a date and time.
+- Conversion preserves the same record ID.
+- The active record is created in `EVENTS` as category `Appointment` with status `Booked`.
+- The corresponding `PLAN_ITEMS` record is archived so there is only one active record after conversion.
+- If the To Do text begins with a recognizable time followed by `·`, the conversion can reuse that time and remove the time prefix from the Appointment title.
+- The conversion attempts to roll back the new Event if archiving the Plan item fails, to avoid duplicate active records.
+
 ### Notes
 Notes are stored in `NOTES`.
 
@@ -227,6 +236,8 @@ Dark mode should be implemented as shared theme overrides, not by duplicating th
 - A dated To Do appears in both Plan and Calendar without duplication.
 - Undated To Dos remain Plan-only.
 - Event → To Do conversion preserves the original Event ID in `PLAN_ITEMS`.
+- To Do → Appointment is an explicit type conversion, not continuous reverse sync.
+- To Do → Appointment preserves the same ID, creates one active `EVENTS` record, and archives the Plan record.
 - Holiday/Event are separate Calendar visual concepts; birthdays and similar untimed occasions use Event.
 - Country Days lives under Plan.
 - Notes are for reference material, not a substitute for Calendar or Plan.

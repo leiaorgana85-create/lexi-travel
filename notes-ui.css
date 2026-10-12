@@ -127,6 +127,34 @@
   line-height: 1.05;
 }
 
+.note-format-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 1px 4px;
+}
+
+.note-format-bar[hidden] {
+  display: none;
+}
+
+.note-format-btn {
+  min-width: 30px;
+  min-height: 27px;
+  padding: 2px 7px;
+  border: 1px solid #dfe4ea;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.note-format-btn:active {
+  background: #f0f3f7;
+}
+
 .note-body {
   padding: 1px 1px 18px;
 }
@@ -166,14 +194,90 @@
   color: #9aa3af;
 }
 
+.lexi-plain-editor {
+  display: block;
+  width: 100%;
+  min-height: 210px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid #dfe4ea;
+  border-radius: 7px;
+  background: #fff;
+  color: #111;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.42;
+  white-space: pre-wrap;
+}
+
+.lexi-plain-editor:focus {
+  outline: 1px solid var(--blue);
+  outline-offset: 0;
+}
+
+.lexi-plain-render {
+  padding: 2px 2px 8px;
+  font-size: 11.5px;
+  line-height: 1.38;
+}
+
+.lexi-note-line {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  min-height: 18px;
+}
+
+.lexi-note-text-line {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.lexi-note-blank {
+  display: block;
+  min-height: 8px;
+}
+
+.lexi-note-marker {
+  text-align: center;
+  line-height: 1.38;
+}
+
+.lexi-number-marker {
+  text-align: right;
+  padding-right: 4px;
+}
+
+.lexi-note-text {
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.lexi-check-line {
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+
+.lexi-check-input {
+  width: 14px;
+  height: 14px;
+  margin: 1px 0 0 1px;
+}
+
+.lexi-check-input:checked + .lexi-note-text {
+  text-decoration: line-through;
+  opacity: 0.58;
+}
+
 /* iOS Safari/PWA auto-zooms focused editable text below 16px.
    Keep read mode compact, but use 16px while editing on WebKit touch devices. */
 @supports (-webkit-touch-callout: none) {
   .note-title-input,
   .note-editable[contenteditable="true"],
-  .note-edit-cell[contenteditable="true"] {
+  .note-edit-cell[contenteditable="true"],
+  .lexi-plain-editor {
     font-size: 16px !important;
-    line-height: 1.25;
+    line-height: 1.3;
   }
 }
 

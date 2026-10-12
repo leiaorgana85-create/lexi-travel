@@ -1,6 +1,8 @@
 (() => {
   const STORAGE_KEY = 'lexiTravelMonthlyPlanV1';
+  const DELETE_STORAGE_KEY = 'lexiTravelMonthlyPlanDeletedV1';
   const planView = document.getElementById('countryView');
+  const planTab = document.querySelector('.tab[data-view="countryView"]');
   const monthLabel = document.getElementById('planMonthLabel');
   const prevBtn = document.getElementById('planPrevMonthBtn');
   const nextBtn = document.getElementById('planNextMonthBtn');
@@ -15,6 +17,9 @@
 
   const today = new Date();
   let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
+  let syncCapability = null;
+  let capabilityPromise = null;
+  let refreshPromise = null;
 
   function monthKey(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -37,44 +42,247 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   }
 
-  function itemsForCurrentMonth() {
+  function readDeleted() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DELETE_STORAGE_KEY) || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function writeDeleted(data) {
+    localStorage.setItem(DELETE_STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function itemsForMonth(key) {
     const data = readAll();
-    const items = data[monthKey(cursor)];
+    const items = data[key];
     return Array.isArray(items) ? items : [];
   }
 
-  function writeCurrentMonth(items) {
+  function itemsForCurrentMonth() {
+    return itemsForMonth(monthKey(cursor));
+  }
+
+  function writeMonth(key, items) {
     const data = readAll();
-    data[monthKey(cursor)] = items;
+    data[key] = items;
     writeAll(data);
   }
 
+  function writeCurrentMonth(items) {
+    writeMonth(monthKey(cursor), items);
+  }
+
+  function currentIndex(items, id) {
+    const index = items.findIndex(item => String(item.id) === String(id));
+    return index >= 0 ? index : items.length;
+  }
+
+  async function postAction(action, fields = {}) {
+    const key = localStorage.getItem(KEY_STORAGE);
+    if (!key) throw new Error('Not connected');
+
+    const body = new URLSearchParams({
+      key,
+      action,
+      ...Object.fromEntries(
+        Object.entries(fields).map(([name, value]) => [name, value == null ? '' : String(value)])
+      )
+    });
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body,
+      cache: 'no-store',
+      redirect: 'follow'
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || 'Plan sync failed');
+    return data;
+  }
+
+  async function ensureSyncCapability(force = false) {
+    if (!localStorage.getItem(KEY_STORAGE)) return false;
+    if (!force && syncCapability !== null) return syncCapability;
+    if (!force && capabilityPromise) return capabilityPromise;
+
+    capabilityPromise = (async () => {
+      try {
+        const data = await postAction('planCapabilities');
+        syncCapability = Boolean(data.planWrite);
+      } catch (error) {
+        syncCapability = false;
+      } finally {
+        capabilityPromise = null;
+      }
+      return syncCapability;
+    })();
+
+    return capabilityPromise;
+  }
+
+  function remoteItemToLocal(item) {
+    return {
+      id: String(item.ID || ''),
+      text: String(item.Text || ''),
+      done: item.Completed === true || String(item.Completed || '').toLowerCase() === 'true',
+      _dirty: false
+    };
+  }
+
+  async function syncUpsert(month, id) {
+    if (!await ensureSyncCapability()) return false;
+
+    const items = itemsForMonth(month);
+    const item = items.find(candidate => String(candidate.id) === String(id));
+    if (!item) return false;
+
+    const snapshot = {
+      text: String(item.text || ''),
+      done: Boolean(item.done)
+    };
+
+    try {
+      await postAction('planUpsert', {
+        id: item.id,
+        month,
+        text: item.text,
+        completed: String(Boolean(item.done)).toLowerCase(),
+        sortOrder: currentIndex(items, id) + 1
+      });
+
+      const latest = itemsForMonth(month);
+      const next = latest.map(candidate => {
+        if (String(candidate.id) !== String(id)) return candidate;
+        if (String(candidate.text || '') !== snapshot.text || Boolean(candidate.done) !== snapshot.done) return candidate;
+        return { ...candidate, _dirty: false };
+      });
+      writeMonth(month, next);
+      return true;
+    } catch (error) {
+      syncCapability = null;
+      return false;
+    }
+  }
+
+  async function syncDelete(id) {
+    if (!await ensureSyncCapability()) return false;
+
+    try {
+      await postAction('planDelete', { id });
+      const deleted = readDeleted();
+      if (deleted[id]) {
+        delete deleted[id];
+        writeDeleted(deleted);
+      }
+      return true;
+    } catch (error) {
+      syncCapability = null;
+      return false;
+    }
+  }
+
+  async function refreshMonthFromSheets(month, forceCapability = false) {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+      if (!await ensureSyncCapability(forceCapability)) return false;
+
+      try {
+        const data = await postAction('planList', { month });
+        const remoteItems = Array.isArray(data.items) ? data.items.map(remoteItemToLocal) : [];
+        const localItems = itemsForMonth(month);
+        const localById = new Map(localItems.map(item => [String(item.id), item]));
+        const remoteIds = new Set(remoteItems.map(item => String(item.id)));
+        const deleted = readDeleted();
+
+        const merged = remoteItems
+          .map(remote => {
+            const local = localById.get(String(remote.id));
+            return local && local._dirty ? local : remote;
+          })
+          .filter(item => !deleted[item.id]);
+
+        const pendingUpserts = [];
+        for (const local of localItems) {
+          const id = String(local.id || '');
+          if (!id || deleted[id]) continue;
+          if (!remoteIds.has(id)) {
+            merged.push(local);
+            pendingUpserts.push(id);
+          } else if (local._dirty) {
+            pendingUpserts.push(id);
+          }
+        }
+
+        writeMonth(month, merged);
+        if (month === monthKey(cursor)) render();
+
+        const pendingDeletes = Object.entries(deleted)
+          .filter(([, deletedMonth]) => String(deletedMonth) === month)
+          .map(([id]) => id);
+
+        await Promise.all([
+          ...pendingUpserts.map(id => syncUpsert(month, id)),
+          ...pendingDeletes.map(id => syncDelete(id))
+        ]);
+
+        return true;
+      } catch (error) {
+        syncCapability = null;
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
+  }
+
   function updateItem(id, patch) {
+    const month = monthKey(cursor);
     const items = itemsForCurrentMonth().map(item =>
-      String(item.id) === String(id) ? { ...item, ...patch } : item
+      String(item.id) === String(id) ? { ...item, ...patch, _dirty: true } : item
     );
     writeCurrentMonth(items);
     render();
+    syncUpsert(month, id);
   }
 
   function removeItem(id) {
+    const month = monthKey(cursor);
     const items = itemsForCurrentMonth().filter(item => String(item.id) !== String(id));
     writeCurrentMonth(items);
+
+    const deleted = readDeleted();
+    deleted[id] = month;
+    writeDeleted(deleted);
+
     render();
+    syncDelete(id);
   }
 
   function addItem(text) {
     const clean = String(text || '').trim();
     if (!clean) return;
 
+    const month = monthKey(cursor);
     const items = itemsForCurrentMonth();
-    items.push({
+    const item = {
       id: `plan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       text: clean,
-      done: false
-    });
+      done: false,
+      _dirty: true
+    };
+    items.push(item);
     writeCurrentMonth(items);
     render();
+    syncUpsert(month, item.id);
   }
 
   function render() {
@@ -137,17 +345,15 @@
     closeAdd();
   }
 
-  prevBtn.addEventListener('click', () => {
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+  function moveMonth(delta) {
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1);
     closeAdd();
     render();
-  });
+    refreshMonthFromSheets(monthKey(cursor));
+  }
 
-  nextBtn.addEventListener('click', () => {
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    closeAdd();
-    render();
-  });
+  prevBtn.addEventListener('click', () => moveMonth(-1));
+  nextBtn.addEventListener('click', () => moveMonth(1));
 
   addBtn.addEventListener('click', openAdd);
   saveBtn.addEventListener('click', saveAdd);
@@ -163,5 +369,16 @@
     }
   });
 
+  planTab?.addEventListener('click', () => {
+    setTimeout(() => refreshMonthFromSheets(monthKey(cursor), true), 0);
+  });
+
+  window.addEventListener('focus', () => {
+    if (planView.classList.contains('active')) {
+      refreshMonthFromSheets(monthKey(cursor));
+    }
+  });
+
   render();
+  setTimeout(() => refreshMonthFromSheets(monthKey(cursor)), 0);
 })();

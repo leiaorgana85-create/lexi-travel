@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#ffffff">
   <title>LEXI Travel</title>
   <link rel="stylesheet" href="styles.css?v=4">
-  <link rel="stylesheet" href="calendar-fixes.css?v=9">
+  <link rel="stylesheet" href="calendar-fixes.css?v=10">
 </head>
 <body>
   <div class="app-shell">
@@ -30,6 +30,18 @@
           <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
         </div>
         <div id="calendarGrid" class="calendar-grid" aria-label="Month calendar"></div>
+
+        <section id="dayPane" class="day-pane" aria-label="Selected day details" aria-live="polite">
+          <div class="day-pane-head">
+            <div>
+              <div id="paneDayLocation" class="day-pane-location"></div>
+              <h3 id="paneDayTitle" class="day-pane-title">Select a day</h3>
+            </div>
+          </div>
+          <div id="paneDayDetails" class="day-pane-details">
+            <div class="pane-empty">Tap a date to see appointments, travel and to-dos.</div>
+          </div>
+        </section>
       </section>
 
       <section id="notesView" class="view" aria-label="Notes">
@@ -86,6 +98,7 @@
   </dialog>
 
   <script src="app.js?v=3"></script>
-  <script src="calendar-fixes.js?v=7"></script>
+  <script src="calendar-fixes.js?v=8"></script>
+  <script src="split-view.js?v=1"></script>
 </body>
 </html>

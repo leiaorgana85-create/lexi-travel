@@ -2,26 +2,24 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 20px;
+  top: 18px;
   width: auto;
-  min-height: 28px;
   margin: 0;
-  padding: 2px 0;
+  padding: 0;
   border-radius: 0;
   font-size: 8px;
   line-height: 1.05;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: center;
   white-space: normal;
 }
 
 .day-event-time,
 .day-event-title,
-.day-event-flight-time,
-.day-event-flight-route {
+.day-event-flight-line {
   display: block;
   width: 100%;
   overflow: hidden;
@@ -40,33 +38,27 @@
   font-size: 8px;
 }
 
-.day-event-flight-time,
-.day-event-flight-route {
+.day-event-flight-line {
   font-size: 7.5px;
   font-weight: 700;
   line-height: 1.15;
 }
 
-.day-event-flight-route {
-  margin-top: 1px;
-}
-
 .day-event:nth-of-type(2) {
-  top: 50px;
+  top: 38px;
 }
 
 .day-more {
   position: absolute;
   left: 1px;
   right: 1px;
-  top: 78px;
+  top: 58px;
   margin: 0;
 }
 
 @media (min-width: 700px) {
   .day-event {
-    top: 24px;
-    min-height: 30px;
+    top: 22px;
   }
 
   .day-event-time {
@@ -74,16 +66,15 @@
   }
 
   .day-event-title,
-  .day-event-flight-time,
-  .day-event-flight-route {
+  .day-event-flight-line {
     font-size: 9px;
   }
 
   .day-event:nth-of-type(2) {
-    top: 56px;
+    top: 44px;
   }
 
   .day-more {
-    top: 86px;
+    top: 66px;
   }
 }

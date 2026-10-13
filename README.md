@@ -1,6 +1,6 @@
 # Lexi Travel — Standing App Guide
 
-Last updated: 2026-10-12
+Last updated: 2026-10-13
 
 This README is the canonical standing guide for the Lexi Travel app. Future work should read this file before making changes. It records the app’s architecture, data rules, deployment rules, maintenance policy, and non-negotiable implementation constraints.
 
@@ -49,7 +49,25 @@ The governing principle is: **one To Do, one underlying record, two views when d
 Normal Calendar events are stored in the `EVENTS` sheet.
 
 Schema:
-`ID | Date | Title | Time | Category | Details | Link | Status`
+`ID | Date | Title | Time | Category | Details | Link | Status | Travel Time | Flight Plan`
+
+For normal non-flight events, `Travel Time` and `Flight Plan` may be blank.
+
+For Flight events:
+- `Date` is the travel date.
+- `Title` is the high-level route, e.g. `PUS→BKK`.
+- `Time` is the overall departure → arrival clock-time range.
+- `Travel Time` is the total elapsed journey duration, e.g. `9h 45m`. Store it explicitly because it cannot always be derived safely from local departure/arrival times across time zones.
+- `Flight Plan` is display-ready operational itinerary text for Upcoming Moves. It may contain multiple lines. The app should display these lines directly rather than requiring a parser-specific punctuation format.
+- `Details` is for secondary booking/reference information such as airline, fare, reservation code, baggage, terminal, aircraft, and similar information. Do not duplicate route/date/status/travel-time/segment information in Details when it already has a canonical field.
+- `Status` may remain `Booked` or another useful backend value even when Plan intentionally does not display it.
+
+Upcoming Moves flight hierarchy:
+- Top row: `Date | Route | overall Time (Travel Time)`.
+- Flight section: lines from `Flight Plan` only; for connections this is where segment numbers, connection airport, segment times, and layover duration belong.
+- Stay section: destination accommodation/location summary.
+- Do not display reservation code, baggage, terminal, aircraft, or `Booked` status in Upcoming Moves; those belong in Calendar Details.
+- Legacy Details parsing may remain only as backward-compatible fallback for old rows. New/manual flight data should use `Travel Time` and `Flight Plan`.
 
 ### To Dos / Plan items
 All To Dos are stored in `PLAN_ITEMS`, not duplicated into `EVENTS`.
@@ -241,6 +259,7 @@ Dark mode should be implemented as shared theme overrides, not by duplicating th
 - Holiday/Event are separate Calendar visual concepts; birthdays and similar untimed occasions use Event.
 - Country Days lives under Plan.
 - Notes are for reference material, not a substitute for Calendar or Plan.
+- Flight operational data uses `Travel Time` + `Flight Plan`; do not push new flight segment parsing back into free-form Details.
 - Technical columns may be hidden in Sheets to keep manual editing clean.
 - Separate yearly archive workbooks are preferred over year-specific tabs in the live workbook.
 - The app must preserve the existing production Web App URL when deploying backend updates.

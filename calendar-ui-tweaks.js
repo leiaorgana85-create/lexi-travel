@@ -10,6 +10,55 @@
 
   if (!paneHead || !summary || !paneDetails || !title || !location || !addBtn || !syncStatus || !paneActions) return;
 
+  const CATEGORY_OPTIONS = ['Appointment', 'Event', 'Holiday', 'To Do'];
+
+  function eventById(id) {
+    return (Array.isArray(appData?.events) ? appData.events : [])
+      .find(item => String(item?.ID || '') === String(id || '')) || null;
+  }
+
+  function isFlightEvent(event) {
+    const category = String(event?.Category || '').trim().toLowerCase();
+    return category === 'flight' || category === 'travel';
+  }
+
+  function protectFlightRows() {
+    paneDetails.querySelectorAll('.pane-event[data-event-id]').forEach(row => {
+      const id = row.dataset.eventId || '';
+      const flight = eventById(id);
+      if (!isFlightEvent(flight)) return;
+
+      row.classList.add('calendar-flight-readonly');
+      row.removeAttribute('data-event-id');
+      row.querySelector('.pane-event-edit')?.remove();
+    });
+  }
+
+  function upgradeCategoryField() {
+    const input = paneDetails.querySelector('.calendar-event-editor input[name="category"]');
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const select = document.createElement('select');
+    select.name = 'category';
+    select.setAttribute('aria-label', 'Category');
+
+    CATEGORY_OPTIONS.forEach(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      select.append(option);
+    });
+
+    const current = String(input.value || '').trim();
+    select.value = CATEGORY_OPTIONS.includes(current) ? current : 'Appointment';
+    input.replaceWith(select);
+  }
+
+  function enforceCalendarRules() {
+    protectFlightRows();
+    upgradeCategoryField();
+  }
+
   // Keep + before the date, and Edit at the far right after the location.
   summary.insertBefore(addBtn, title);
 
@@ -39,6 +88,8 @@
   }
 
   function refreshEditButton() {
+    enforceCalendarRules();
+
     const editorOpen = Boolean(paneDetails.querySelector('.calendar-event-editor'));
     const rows = eventRows();
 

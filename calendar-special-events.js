@@ -13,6 +13,10 @@
     return category === 'holiday' || category === 'event' || category === 'birthday';
   }
 
+  function isTimeOffEvent(event) {
+    return categoryOf(event) === 'time off';
+  }
+
   function compactClock(value) {
     return String(value || '')
       .trim()
@@ -147,7 +151,12 @@
 
       const allEvents = eventsForDate(dateKey);
       const specialEvents = allEvents.filter(isSpecialEvent);
-      const regularEvents = allEvents.filter(event => !isSpecialEvent(event));
+      const regularEvents = allEvents.filter(event => !isSpecialEvent(event) && !isTimeOffEvent(event));
+      const redDate = allEvents.some(event => categoryOf(event) === 'holiday' || isTimeOffEvent(event));
+
+      // Holiday and Time Off both mark the date number red. Time Off is intentionally
+      // visual-only in the month cell; it remains available in the selected-day pane.
+      cell.classList.toggle('red-date', redDate);
 
       // Rebuild only the timed/regular event rows. Holiday/Event/Birthday never
       // occupy row 2; they are rendered separately at the bottom of the cell.

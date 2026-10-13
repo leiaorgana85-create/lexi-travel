@@ -54,27 +54,35 @@
 }
 
 .calendar-editor-field input,
+.calendar-editor-field select,
 .calendar-editor-field textarea {
   display: block;
   width: 100% !important;
   min-width: 0 !important;
   max-width: 100% !important;
   box-sizing: border-box;
+  border: 1px solid #d7dde5;
   border-radius: 5px;
+  background: #fff;
+  color: #111;
   padding: 3px 5px;
+  font: inherit;
   font-size: 10.5px;
+  font-weight: 450;
   line-height: 1.1;
 }
 
 /* Use a neutral focus state; iOS was drawing a distracting blue ring. */
 .calendar-editor-field input:focus,
+.calendar-editor-field select:focus,
 .calendar-editor-field textarea:focus {
   outline: none !important;
   box-shadow: none !important;
   border-color: #bfc7d2 !important;
 }
 
-.calendar-editor-field input {
+.calendar-editor-field input,
+.calendar-editor-field select {
   height: 29px;
   min-height: 29px;
 }
@@ -149,10 +157,15 @@
   font-weight: 650;
 }
 
+.pane-event.calendar-flight-readonly {
+  cursor: default;
+}
+
 /* Keep iPhone from auto-zooming focused controls while making the controls
    look like ~13.8px text / ~29px-high fields. The computed text remains 16px. */
 @supports (-webkit-touch-callout: none) {
   .calendar-editor-field input,
+  .calendar-editor-field select,
   .calendar-editor-field textarea {
     width: 116.28% !important;
     max-width: none !important;
@@ -162,7 +175,8 @@
     transform-origin: left top;
   }
 
-  .calendar-editor-field input {
+  .calendar-editor-field input,
+  .calendar-editor-field select {
     height: 34px;
     min-height: 34px;
     margin-bottom: -5px;

@@ -21,6 +21,10 @@
     return [...notesList.querySelectorAll('.note-list-item[data-note-id]')];
   }
 
+  function isPinnedButton(button) {
+    return Boolean(button?.classList.contains('pinned-note'));
+  }
+
   function saveCurrentOrder() {
     const ids = currentButtons()
       .map(button => String(button.dataset.noteId || ''))
@@ -34,11 +38,14 @@
     if (buttons.length < 2) return;
 
     const saved = readOrder();
-    if (!saved.length) return;
-
     const rank = new Map(saved.map((id, index) => [id, index]));
     const originalIndex = new Map(buttons.map((button, index) => [button, index]));
     const sorted = buttons.slice().sort((a, b) => {
+      /* Pin status always wins. Manual order is only applied within the
+         pinned group and within the unpinned group. */
+      const pinDiff = Number(isPinnedButton(b)) - Number(isPinnedButton(a));
+      if (pinDiff) return pinDiff;
+
       const aId = String(a.dataset.noteId || '');
       const bId = String(b.dataset.noteId || '');
       const aRank = rank.has(aId) ? rank.get(aId) : Number.MAX_SAFE_INTEGER;
@@ -64,6 +71,10 @@
 
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= buttons.length) return;
+
+    /* Never let manual reordering move a pinned note into the unpinned
+       section or an unpinned note above the pinned section. */
+    if (isPinnedButton(buttons[index]) !== isPinnedButton(buttons[targetIndex])) return;
 
     applyingOrder = true;
     try {
@@ -139,7 +150,12 @@
   const observer = new MutationObserver(() => {
     if (!applyingOrder) queueMicrotask(decorate);
   });
-  observer.observe(notesList, { childList: true, subtree: true });
+  observer.observe(notesList, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class']
+  });
 
   queueMicrotask(decorate);
 })();

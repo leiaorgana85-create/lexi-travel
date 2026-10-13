@@ -11,6 +11,13 @@
   let loading = false;
   let cachedItems = null;
 
+  const baseLoadAllData = loadAllData;
+  loadAllData = async function (...args) {
+    const result = await baseLoadAllData(...args);
+    setTimeout(showShoppingIfSelected, 0);
+    return result;
+  };
+
   function noteIdFromButton(button) {
     if (!button) return '';
     if (button.dataset.noteId) return String(button.dataset.noteId);
@@ -118,12 +125,29 @@
     }
   }
 
+  function showMessage(message) {
+    if (!isShoppingNote()) return;
+    noteBody.classList.add('shopping-list-note');
+    setShoppingToolbar();
+    noteBody.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'note-empty';
+    empty.textContent = message;
+    noteBody.append(empty);
+  }
+
   function render(items) {
     if (!isShoppingNote()) return;
 
     noteBody.innerHTML = '';
     noteBody.classList.add('shopping-list-note');
     setShoppingToolbar();
+
+    if (!items.length) {
+      showMessage('No shopping items found.');
+      if (noteSaveStatus) noteSaveStatus.textContent = '';
+      return;
+    }
 
     const groups = new Map();
     items.forEach(item => {
@@ -208,10 +232,7 @@
   }
 
   function showLoading() {
-    if (!isShoppingNote()) return;
-    noteBody.classList.add('shopping-list-note');
-    setShoppingToolbar();
-    noteBody.innerHTML = '<div class="note-empty">Loading shopping list…</div>';
+    showMessage('Loading shopping list…');
     if (noteSaveStatus) noteSaveStatus.textContent = '';
   }
 
@@ -224,8 +245,11 @@
       cachedItems = Array.isArray(data.items) ? data.items : [];
       if (isShoppingNote()) render(cachedItems);
     } catch (error) {
-      if (isShoppingNote() && noteSaveStatus) {
-        noteSaveStatus.textContent = `Shopping list could not load: ${error.message}`;
+      if (isShoppingNote()) {
+        showMessage(error.message === 'Not connected'
+          ? 'Shopping list needs the Lexi Travel connection. Open Settings and save the API key once.'
+          : 'Shopping list could not load. Try opening it again.');
+        if (noteSaveStatus) noteSaveStatus.textContent = `Shopping list could not load: ${error.message}`;
       }
     } finally {
       loading = false;
@@ -253,7 +277,7 @@
       return;
     }
 
-    showShoppingIfSelected();
+    setTimeout(showShoppingIfSelected, 0);
   });
 
   notesTab.addEventListener('click', () => {

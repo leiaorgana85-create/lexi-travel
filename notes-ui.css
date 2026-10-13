@@ -329,3 +329,22 @@
     width: 195px;
   }
 }
+
+/* Keep the open sidebar above the workspace and fully tappable on iOS. */
+.notes-layout.list-open .notes-sidebar {
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.notes-layout.list-open .notes-list,
+.notes-layout.list-open .note-list-item,
+.notes-layout.list-open .notes-sidebar-head,
+.notes-layout.list-open .notes-sidebar button {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.notes-layout.list-open .note-workspace {
+  position: relative;
+  z-index: 1;
+}

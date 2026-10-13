@@ -1,7 +1,7 @@
 // LEXI Travel consolidated write router.
 // Use this as the complete NotesSync.gs file in the bound Apps Script project.
-// It expects CalendarSync.gs (event helpers) and PlanSync.gs (plan helpers)
-// to exist in the same Apps Script project.
+// It expects CalendarSync.gs (event helpers), PlanSync.gs (plan helpers),
+// and FlightLegs.gs (structured flight calculations) to exist in the same project.
 
 function doPost(e) {
   try {
@@ -398,6 +398,9 @@ function shoppingDelete_(p) {
 
 function onEdit(e) {
   if (!e || !e.range) return;
+
+  // FLIGHT_LEGS / AIRPORT_TZ recalculation helper exits immediately for other sheets.
+  flightLegsOnEdit_(e);
 
   const sheetName = e.range.getSheet().getName();
 

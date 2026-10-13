@@ -21,12 +21,17 @@
   margin-bottom: 13px;
 }
 
+.plan-section + .plan-section {
+  padding-top: 10px;
+  border-top: 1px solid #dfe5ec;
+}
+
 .plan-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   padding: 0 2px;
 }
 
@@ -35,6 +40,14 @@
   font-size: 13px;
   line-height: 1.15;
   font-weight: 800;
+}
+
+.plan-section-head h3,
+.plan-next-move-title,
+.plan-country-title {
+  border-left: 3px solid var(--blue);
+  padding-left: 6px;
+  color: var(--text);
 }
 
 .plan-month-nav {
@@ -309,12 +322,11 @@
 }
 
 .plan-country-section {
-  padding-top: 2px;
-  border-top: 1px solid #e8ebef;
+  padding-top: 10px;
 }
 
 .plan-country-title {
-  margin: 10px 2px 3px;
+  margin: 0 2px 5px;
   font-size: 13px;
   line-height: 1.15;
   font-weight: 800;
@@ -377,6 +389,10 @@ html[data-theme="dark"] .plan-convert-btn {
   border-color: #3a4350;
   background: #151b24;
   color: #7fb0ff;
+}
+
+html[data-theme="dark"] .plan-section + .plan-section {
+  border-top-color: #2a303b;
 }
 
 /* Keep Country Days compact so the monthly to-do list has more room. */

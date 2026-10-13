@@ -166,29 +166,36 @@
     return [...dates].sort();
   }
 
-  function compressDateKeys(keys) {
-    if (!keys.length) return [];
-    const ranges = [];
-    let start = keys[0];
-    let end = keys[0];
+  function countryStayRanges(country, year) {
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    const countryName = String(country.Country || '').trim().toLowerCase();
+    const rawRanges = [];
 
-    for (let i = 1; i < keys.length; i += 1) {
-      if (keys[i] === addDaysKey(end, 1)) {
-        end = keys[i];
-      } else {
-        ranges.push({ start, end });
-        start = keys[i];
-        end = keys[i];
-      }
+    for (const location of appData.locations || []) {
+      if (String(location.Country || '').trim().toLowerCase() !== countryName) continue;
+
+      const start = normalizeDateString(location['Start Date']);
+      const end = normalizeDateString(location['End Date']) || start;
+      if (!start || !end) continue;
+      if (end < yearStart || start > yearEnd) continue;
+
+      rawRanges.push({ start, end });
     }
-    ranges.push({ start, end });
-    return ranges;
-  }
 
-  function daysInRange(start, end) {
-    let count = 0;
-    for (let key = start; key <= end; key = addDaysKey(key, 1)) count += 1;
-    return count;
+    rawRanges.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+
+    const merged = [];
+    for (const range of rawRanges) {
+      const last = merged[merged.length - 1];
+      if (!last || range.start > addDaysKey(last.end, 1)) {
+        merged.push({ ...range });
+        continue;
+      }
+      if (range.end > last.end) last.end = range.end;
+    }
+
+    return merged;
   }
 
   function renderCountryDays(countries) {
@@ -199,7 +206,7 @@
       if (!enabled(country.Enabled)) continue;
 
       const dates = countryDateSet(country, year);
-      const ranges = compressDateKeys(dates);
+      const ranges = countryStayRanges(country, year);
       const used = dates.length;
       const limit = Number(country['Calendar Year Limit'] || 0);
       const remaining = limit ? limit - used : null;
@@ -243,10 +250,16 @@
         for (const range of ranges) {
           const row = document.createElement('div');
           row.className = 'country-stay-row';
-          const rangeDays = daysInRange(range.start, range.end);
-          row.textContent = range.start === range.end
-            ? `${formatStayDate(range.start)} · ${rangeDays} day`
-            : `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDays} days`;
+          const rangeDaysThisYear = dates.filter(key => key >= range.start && key <= range.end).length;
+          const crossesYear = !range.start.startsWith(`${year}-`) || !range.end.startsWith(`${year}-`);
+
+          if (range.start === range.end) {
+            row.textContent = `${formatStayDate(range.start)} · ${rangeDaysThisYear} day`;
+          } else if (crossesYear) {
+            row.textContent = `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDaysThisYear} days in ${year}`;
+          } else {
+            row.textContent = `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDaysThisYear} days`;
+          }
           stays.append(row);
         }
       }

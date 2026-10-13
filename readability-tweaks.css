@@ -1,0 +1,39 @@
+/* Small readability increases requested for Notes and Plan. */
+
+/* Notes left-pane titles: one step larger. */
+.note-list-item {
+  font-size: 12.5px;
+}
+
+/* Mark read-only notes clearly without changing list order or behavior. */
+.note-list-item.read-only-note {
+  padding-left: 22px;
+}
+
+.note-list-item.read-only-note::before {
+  content: '🔒';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+/* Notes body/read text: one step larger. */
+.note-paragraph,
+.lexi-plain-render {
+  font-size: 13.5px;
+}
+
+/* Desktop editor follows the same readability increase; iOS remains 16px via existing anti-zoom rule. */
+.lexi-plain-editor {
+  font-size: 14px;
+}
+
+/* Plan: increase only the actual to-do item text. */
+.plan-check-text {
+  font-size: 12.5px;
+}

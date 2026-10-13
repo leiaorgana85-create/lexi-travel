@@ -2,6 +2,7 @@
   const DRAFT_STORAGE = 'lexiTravelNoteDraftsV1';
   const NOTES_CACHE_STORAGE = 'lexiTravelNotesCacheV1';
   const notesTab = document.querySelector('.tab[data-view="notesView"]');
+  const notesView = document.getElementById('notesView');
   const notesLayout = document.getElementById('notesLayout');
   const notesList = document.getElementById('notesList');
   const notesSidebarHead = document.querySelector('.notes-sidebar-head');
@@ -11,7 +12,7 @@
   const noteSaveBtn = document.getElementById('noteSaveBtn');
   const noteCancelBtn = document.getElementById('noteCancelBtn');
 
-  if (!notesTab || !notesLayout || !notesList || !notesSidebarHead || !noteActions) return;
+  if (!notesTab || !notesView || !notesLayout || !notesList || !notesSidebarHead || !noteActions) return;
 
   let pendingSelectId = '';
   let createLocked = false;
@@ -114,6 +115,10 @@
   }
 
   function localRefresh() {
+    // A Notes background refresh may finish after the user has moved to another tab.
+    // Refresh cached Notes data, but never click the Notes tab from the background.
+    if (!notesView.classList.contains('active')) return;
+
     mergeLocalState();
     const currentLoader = loadAllData;
     const previousSuppressFastClick = suppressFastClick;

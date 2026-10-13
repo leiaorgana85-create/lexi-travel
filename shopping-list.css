@@ -1,3 +1,8 @@
+.shopping-list-note .note-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
 .shopping-list-note .note-table th.shopping-buy-col,
 .shopping-list-note .note-table td.shopping-buy-col {
   width: 22px;
@@ -6,6 +11,27 @@
   padding: 2px 1px;
   text-align: center;
   vertical-align: top;
+}
+
+.shopping-list-note .note-table th:nth-child(2),
+.shopping-list-note .note-table td:nth-child(2) {
+  width: 43%;
+}
+
+.shopping-list-note .note-table th:nth-child(3),
+.shopping-list-note .note-table td:nth-child(3) {
+  width: 19%;
+}
+
+.shopping-list-note .note-table th:nth-child(4),
+.shopping-list-note .note-table td:nth-child(4) {
+  width: 38%;
+}
+
+.shopping-list-note .note-table th,
+.shopping-list-note .note-table td {
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .shopping-buy-check {

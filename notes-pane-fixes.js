@@ -2,15 +2,21 @@
   const notesView = document.getElementById('notesView');
   const notesLayout = document.getElementById('notesLayout');
   const notesList = document.getElementById('notesList');
+  const notesSidebar = document.querySelector('.notes-sidebar');
   const noteWorkspace = document.querySelector('.note-workspace');
   const noteBody = document.getElementById('noteBody');
   const noteTitle = document.getElementById('noteTitle');
 
-  if (!notesView || !notesLayout || !notesList || !noteWorkspace || !noteBody || !noteTitle) return;
+  if (!notesView || !notesLayout || !notesList || !notesSidebar || !noteWorkspace || !noteBody || !noteTitle) return;
 
-  /* When the note list is open, tapping the visible note workspace closes it. */
-  noteWorkspace.addEventListener('click', () => {
-    if (notesLayout.classList.contains('list-open')) {
+  /* Close the list only when the user taps the right-side note workspace.
+     Never treat a tap inside the sidebar as a workspace tap. */
+  notesLayout.addEventListener('click', event => {
+    if (!notesLayout.classList.contains('list-open')) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+    if (target.closest('.notes-sidebar')) return;
+    if (target.closest('.note-workspace')) {
       notesLayout.classList.remove('list-open');
     }
   });

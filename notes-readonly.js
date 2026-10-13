@@ -19,7 +19,19 @@
     return READ_ONLY_NOTE_IDS.has(selectedNoteId());
   }
 
+  function decorateReadOnlyList() {
+    notesList.querySelectorAll('.note-list-item[data-note-id]').forEach(button => {
+      const readOnly = READ_ONLY_NOTE_IDS.has(String(button.dataset.noteId || ''));
+      if (button.classList.contains('read-only-note') !== readOnly) {
+        button.classList.toggle('read-only-note', readOnly);
+      }
+      if (readOnly) button.setAttribute('data-read-only', 'true');
+      else button.removeAttribute('data-read-only');
+    });
+  }
+
   function applyReadOnlyState() {
+    decorateReadOnlyList();
     if (!isReadOnlySelected()) return;
 
     if (noteEditBtn) noteEditBtn.hidden = true;
@@ -53,7 +65,7 @@
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['class']
+    attributeFilter: ['class', 'data-note-id']
   });
 
   queueMicrotask(applyReadOnlyState);

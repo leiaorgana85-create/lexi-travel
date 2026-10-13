@@ -7,6 +7,7 @@
   if (!paneTitle || !paneLocation || !paneDetails || !grid) return;
 
   let selectedDateKey = typeof toDateKey === 'function' ? toDateKey(new Date()) : '';
+  let lastRenderedMonthKey = '';
 
   function compactDetailText(value) {
     return String(value || '')
@@ -156,14 +157,42 @@
 
   openDay = renderPane;
 
+  function displayedMonthKey() {
+    const firstInMonth = grid.querySelector('.day-cell:not(.other-month)');
+    return String(firstInMonth?.getAttribute('aria-label') || '').slice(0, 7);
+  }
+
   function syncSelectionAfterRender() {
     requestAnimationFrame(() => {
       // renderCalendar() rebuilds the grid after Google refreshes. Do not let that
       // observer wipe out a form the user is actively editing.
       if (calendarEditorOpen()) return;
 
-      let target = grid.querySelector(`.day-cell[aria-label="${selectedDateKey}"]`);
+      const monthKey = displayedMonthKey();
+      const todayKey = typeof toDateKey === 'function' ? toDateKey(new Date()) : '';
+      const todayMonthKey = todayKey.slice(0, 7);
+      const monthChanged = Boolean(monthKey && monthKey !== lastRenderedMonthKey);
+
+      let target = null;
+
+      // Whenever the user enters the current month, today is the default selected
+      // day. On ordinary data refreshes within the same month, preserve a manual
+      // selection instead.
+      if (monthChanged && monthKey === todayMonthKey) {
+        target = grid.querySelector(`.day-cell:not(.other-month)[aria-label="${todayKey}"]`);
+      }
+
+      if (!target && selectedDateKey) {
+        target = grid.querySelector(`.day-cell:not(.other-month)[aria-label="${selectedDateKey}"]`);
+      }
+
+      if (!target && monthKey === todayMonthKey) {
+        target = grid.querySelector(`.day-cell:not(.other-month)[aria-label="${todayKey}"]`);
+      }
+
       if (!target) target = grid.querySelector('.day-cell:not(.other-month)');
+
+      lastRenderedMonthKey = monthKey;
       if (target) renderPane(target.getAttribute('aria-label'));
     });
   }

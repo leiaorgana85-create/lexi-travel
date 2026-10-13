@@ -8,8 +8,8 @@
 //   AIRPORT_TZ (hidden system table)
 //   IATA | IANA Time Zone | Airport / City
 //
-// Derived EVENTS fields:
-//   Travel Time | Flight Plan
+// Derived EVENTS fields for Flight records:
+//   Date | Time | Travel Time | Flight Plan
 //
 // Integration:
 //   Add `flightLegsOnEdit_(e);` near the top of the existing onEdit(e).
@@ -287,7 +287,7 @@ function rebuildFlightEvent_(eventId) {
   if (totalMs <= 0) throw new Error('Invalid total flight duration for ' + eventId);
 
   const planLines = [];
-  calculated.forEach((leg, index) => {
+  calculated.forEach(leg => {
     planLines.push(
       leg.flightNumber + ' · ' + leg.from + ' → ' + leg.to + ' · ' +
       flightCompactTime_(leg.departTime) + '–' + flightCompactTime_(leg.arriveTime) + ' · ' +
@@ -303,6 +303,14 @@ function rebuildFlightEvent_(eventId) {
 
   const eventRow = flightEventRow_(eventId);
   if (!eventRow) throw new Error('Missing EVENTS row for flight Event ID: ' + eventId);
+
+  // For Flight rows, overall calendar date/time are derived from the first
+  // departure and final arrival. Title remains manual because app-facing city
+  // labels may intentionally differ from IATA airport codes (e.g. DNG vs DAD).
+  const firstDepartDateValue = legsSheet.getRange(first.rowNumber, 5).getValue();
+  const overallTime = flightCompactTime_(first.departTime) + ' → ' + flightCompactTime_(last.arriveTime);
+  eventSheet.getRange(eventRow, 2).setValue(firstDepartDateValue); // Date
+  eventSheet.getRange(eventRow, 4).setValue(overallTime); // Time
 
   // I = Travel Time, J = Flight Plan.
   eventSheet.getRange(eventRow, 9, 1, 2).setValues([[

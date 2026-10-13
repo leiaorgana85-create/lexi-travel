@@ -29,6 +29,8 @@ Canonical Calendar categories:
 - `Holiday`
 - `To Do`
 
+`Flight` is a system-backed Calendar category: create and edit flight schedules in `FLIGHT_LEGS`, not in the normal Calendar event editor. The app's New/Edit Event category dropdown intentionally offers only `Appointment`, `Event`, `Holiday`, and `To Do` so a standalone Flight event cannot be created accidentally.
+
 Birthdays, anniversaries, reminders, and similar untimed occasions use `Event`; do not create separate category families unless there is a strong product reason.
 
 ### Notes
@@ -53,14 +55,16 @@ Schema:
 
 For normal non-flight events, `Travel Time` and `Flight Plan` remain blank.
 
-For Flight events:
-- `Date` is the travel date.
-- `Title` is the high-level route, e.g. `PUS→BKK`.
-- `Time` is the overall departure → arrival clock-time range.
-- `Travel Time` is a **system/derived** field containing total elapsed journey duration, e.g. `9h 45m`. Do not manually maintain it once the structured flight-leg backend is active.
-- `Flight Plan` is a **system/derived** multi-line itinerary for Upcoming Moves. Do not manually maintain it once the structured flight-leg backend is active.
-- `Details` is for secondary booking/reference information such as airline, fare, reservation code, baggage, terminal, aircraft, and similar information. Do not duplicate route/date/status/travel-time/segment information in Details when it already has a canonical field.
-- `Status` may remain `Booked` or another useful backend value even when Plan intentionally does not display it.
+For Flight events, `EVENTS` is an app-facing summary/projection of the structured flight record rather than the schedule-entry source:
+- `ID`, `Date`, `Time`, `Category`, `Travel Time`, and `Flight Plan` are **system/derived or technical** and are light grey in the Sheet. Do not edit them manually.
+- `Date` and `Time` are rebuilt from the first departure and final arrival in `FLIGHT_LEGS`.
+- `Category` remains `Flight` and is system-controlled for these rows.
+- `Travel Time` contains total elapsed journey duration, e.g. `9h 45m`.
+- `Flight Plan` is the system-generated multi-line itinerary consumed by Upcoming Moves.
+- `Title` remains manual trip-level display metadata, e.g. `BKK→DNG`, because the displayed city label can intentionally differ from the airport code such as `DAD`.
+- `Details`, `Link`, and `Status` remain manual trip-level metadata. `Details` is for secondary booking/reference information such as airline, fare, reservation code, baggage, terminal, aircraft, and similar information. Do not duplicate route/time/segment information there.
+
+Normal Calendar events continue to use `EVENTS` as their editable source record. Existing Flight rows remain visible in Calendar but are intentionally read-only in the normal app event editor.
 
 Upcoming Moves flight hierarchy:
 - Top row: `Date | Route | overall Time (Travel Time)`.
@@ -75,10 +79,11 @@ Upcoming Moves flight hierarchy:
 Schema:
 `Event ID | Leg # | Flight # | From | Depart Date | Depart Time | To | Arrive Date | Arrive Time | From TZ | To TZ | Segment Time | Layover After`
 
-Color convention in the Sheet:
-- **Green** = user/manual schedule input.
-- **Blue** = system/derived; do not edit manually.
-- **Gray** = technical/system identifiers; do not edit manually.
+Color convention across the workbook uses exactly two colors:
+- **Light green** = user-editable/manual input.
+- **Light grey** = system-generated, derived, or technical; do not edit manually.
+
+For `FLIGHT_LEGS`, `Leg #` through `Arrive Time` are green. `Event ID`, timezone columns, `Segment Time`, and `Layover After` are grey.
 
 Manual columns are `Leg #`, `Flight #`, `From`, `Depart Date`, `Depart Time`, `To`, `Arrive Date`, `Arrive Time`.
 
@@ -217,9 +222,9 @@ Current conceptual split:
 
 The consolidated `onEdit(e)` must call `flightLegsOnEdit_(e)` so edits to `FLIGHT_LEGS` or `AIRPORT_TZ` recalculate derived flight data.
 
-After installing the flight-leg module for the first time, run `rebuildAllFlightCalculations_()` once to rebuild all current outputs.
+After installing the flight-leg module for the first time, run `rebuildAllFlightCalculations()` once to rebuild all current outputs. The trailing-underscore implementation helper remains private to Apps Script.
 
-**Current deployment caveat (2026-10-13):** the Sheet tabs/data and repo source are prepared, but the bound Apps Script project cannot be edited through the available Google Drive connector. Automatic recalculation becomes live only after `apps-script-flight-legs.gs` is copied into the bound Apps Script project and the updated consolidated `onEdit(e)` is deployed. Until that one-time backend update is completed, the existing current-flight derived values are seeded in the Sheet but future edits will not recalculate automatically.
+**Current flight automation state (2026-10-13):** `FlightLegs.gs` is installed in the bound Apps Script project, the consolidated `onEdit(e)` calls `flightLegsOnEdit_(e)`, and automatic recalculation has been verified with a live edit test. `rebuildAllFlightCalculations()` is the public one-time/manual rebuild wrapper for the private `rebuildAllFlightCalculations_()` helper.
 
 POST routing supports Notes, Events, and Plan operations. The active deployment should be updated as a **new version of the existing Web App deployment**, preserving the existing URL.
 
@@ -328,7 +333,7 @@ These are recognized improvements, not permission to change unrelated behavior:
 - Convert Notes loading to lightweight index + on-demand body fetch.
 - Add a deliberate annual archive workflow, and eventually automate it.
 - Continue validating Calendar ↔ Plan To Do routing so both views stay consistent.
-- Complete the one-time bound Apps Script installation/deployment of the prepared structured flight-leg calculation module.
+- If flight entry is later moved into the app, build a dedicated structured Flight editor that writes `FLIGHT_LEGS`; do not re-enable Flight in the generic Calendar event editor.
 
 When updating this guide, modify the existing README rather than creating multiple competing rule documents. This file is the single canonical standing document for Lexi Travel.
 

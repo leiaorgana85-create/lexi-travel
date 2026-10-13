@@ -51,23 +51,55 @@ Normal Calendar events are stored in the `EVENTS` sheet.
 Schema:
 `ID | Date | Title | Time | Category | Details | Link | Status | Travel Time | Flight Plan`
 
-For normal non-flight events, `Travel Time` and `Flight Plan` may be blank.
+For normal non-flight events, `Travel Time` and `Flight Plan` remain blank.
 
 For Flight events:
 - `Date` is the travel date.
 - `Title` is the high-level route, e.g. `PUS→BKK`.
 - `Time` is the overall departure → arrival clock-time range.
-- `Travel Time` is the total elapsed journey duration, e.g. `9h 45m`. Store it explicitly because it cannot always be derived safely from local departure/arrival times across time zones.
-- `Flight Plan` is display-ready operational itinerary text for Upcoming Moves. It may contain multiple lines. The app should display these lines directly rather than requiring a parser-specific punctuation format.
+- `Travel Time` is a **system/derived** field containing total elapsed journey duration, e.g. `9h 45m`. Do not manually maintain it once the structured flight-leg backend is active.
+- `Flight Plan` is a **system/derived** multi-line itinerary for Upcoming Moves. Do not manually maintain it once the structured flight-leg backend is active.
 - `Details` is for secondary booking/reference information such as airline, fare, reservation code, baggage, terminal, aircraft, and similar information. Do not duplicate route/date/status/travel-time/segment information in Details when it already has a canonical field.
 - `Status` may remain `Booked` or another useful backend value even when Plan intentionally does not display it.
 
 Upcoming Moves flight hierarchy:
 - Top row: `Date | Route | overall Time (Travel Time)`.
-- Flight section: lines from `Flight Plan` only; for connections this is where segment numbers, connection airport, segment times, and layover duration belong.
+- Flight section: generated segment rows including flight number, airports, local times and each segment duration; connection rows show layover airport and layover duration.
 - Stay section: destination accommodation/location summary.
 - Do not display reservation code, baggage, terminal, aircraft, or `Booked` status in Upcoming Moves; those belong in Calendar Details.
-- Legacy Details parsing may remain only as backward-compatible fallback for old rows. New/manual flight data should use `Travel Time` and `Flight Plan`.
+- Legacy Details parsing may remain only as backward-compatible fallback for old rows. New flight segment data belongs in `FLIGHT_LEGS`, not free-form Details.
+
+### Structured flight legs
+`FLIGHT_LEGS` is the canonical operational schedule for flights.
+
+Schema:
+`Event ID | Leg # | Flight # | From | Depart Date | Depart Time | To | Arrive Date | Arrive Time | From TZ | To TZ | Segment Time | Layover After`
+
+Color convention in the Sheet:
+- **Green** = user/manual schedule input.
+- **Blue** = system/derived; do not edit manually.
+- **Gray** = technical/system identifiers; do not edit manually.
+
+Manual columns are `Leg #`, `Flight #`, `From`, `Depart Date`, `Depart Time`, `To`, `Arrive Date`, `Arrive Time`.
+
+System columns are `Event ID`, `From TZ`, `To TZ`, `Segment Time`, and `Layover After`.
+
+Rules:
+- `Depart Date/Time` and `Arrive Date/Time` are the scheduled **local airport times**.
+- Arrive Date must reflect the actual local arrival date, including overnight/date-line changes.
+- `From` and `To` use IATA airport codes such as `PUS`, `HKG`, `BKK`, `DAD`.
+- `AIRPORT_TZ` is a hidden system table mapping IATA codes to IANA zones such as `Asia/Seoul` and `Asia/Bangkok`.
+- Never calculate flight duration by directly subtracting displayed local clock times or by storing fixed UTC offsets.
+- The calculation layer converts local scheduled timestamps through date-specific IANA timezone rules, so timezone differences and DST are handled correctly.
+- Each segment duration is arrival instant − departure instant.
+- Each layover is next segment departure instant − prior segment arrival instant.
+- Total journey time is final segment arrival instant − first segment departure instant.
+- If an airport has no timezone mapping, fail visibly rather than guess.
+- If a local time falls in a nonexistent or ambiguous DST transition hour, fail visibly for manual review rather than silently choose an offset.
+
+`AIRPORT_TZ` is hidden because it is system metadata, not normal trip-entry data. Add an airport mapping only when a new IATA code is needed.
+
+The repo module `apps-script-flight-legs.gs` implements these calculations and writes derived results back to `FLIGHT_LEGS` and `EVENTS`.
 
 ### To Dos / Plan items
 All To Dos are stored in `PLAN_ITEMS`, not duplicated into `EVENTS`.
@@ -127,11 +159,13 @@ Once per year, normally in January:
 
 ### What moves out of the live workbook
 - `EVENTS`: prior-year event rows may be removed from live after the archive is verified.
+- `FLIGHT_LEGS`: prior-year flight-leg rows may be removed after the corresponding `EVENTS` history is safely archived.
 - `PLAN_ITEMS`: prior-year Plan rows, including completed and archived/deleted rows, may be removed from live after verification.
 - `LOCATIONS`: prior-year location history may be removed from live once safely archived, provided the current app no longer needs those rows for active calculations.
 - `DAY_OVERRIDES`: prior-year overrides may be removed when they no longer affect active calculations.
 - `NOTES`: do **not** blindly archive by age. Keep evergreen/reference notes live. Move only notes that are genuinely obsolete or intentionally archived.
 - `COUNTRIES`: keep current rule rows live unless explicitly superseded.
+- `AIRPORT_TZ`: keep current airport timezone mappings live; it is reference metadata rather than trip history.
 
 ### Archive design rule
 Use separate yearly archive workbooks. Do **not** accumulate `EVENTS_2026`, `EVENTS_2027`, etc. tabs inside the live workbook.
@@ -179,6 +213,13 @@ Current conceptual split:
 - `NotesSync.gs` — consolidated POST router plus Notes write helpers.
 - `CalendarSync.gs` — event write helpers.
 - `PlanSync.gs` — Plan write/list/delete helpers.
+- `FlightLegs.gs` — structured flight-leg timezone, segment, layover, total-duration and `Flight Plan` calculations. Repo source: `apps-script-flight-legs.gs`.
+
+The consolidated `onEdit(e)` must call `flightLegsOnEdit_(e)` so edits to `FLIGHT_LEGS` or `AIRPORT_TZ` recalculate derived flight data.
+
+After installing the flight-leg module for the first time, run `rebuildAllFlightCalculations_()` once to rebuild all current outputs.
+
+**Current deployment caveat (2026-10-13):** the Sheet tabs/data and repo source are prepared, but the bound Apps Script project cannot be edited through the available Google Drive connector. Automatic recalculation becomes live only after `apps-script-flight-legs.gs` is copied into the bound Apps Script project and the updated consolidated `onEdit(e)` is deployed. Until that one-time backend update is completed, the existing current-flight derived values are seeded in the Sheet but future edits will not recalculate automatically.
 
 POST routing supports Notes, Events, and Plan operations. The active deployment should be updated as a **new version of the existing Web App deployment**, preserving the existing URL.
 
@@ -259,7 +300,9 @@ Dark mode should be implemented as shared theme overrides, not by duplicating th
 - Holiday/Event are separate Calendar visual concepts; birthdays and similar untimed occasions use Event.
 - Country Days lives under Plan.
 - Notes are for reference material, not a substitute for Calendar or Plan.
-- Flight operational data uses `Travel Time` + `Flight Plan`; do not push new flight segment parsing back into free-form Details.
+- Flight operational schedule is stored structurally in `FLIGHT_LEGS`; do not move new flight segment logic back into free-form `Details`.
+- Flight durations must use date-specific IANA airport timezones; do not calculate them from displayed clock times alone or fixed UTC offsets.
+- `EVENTS.Travel Time` and `EVENTS.Flight Plan` are derived outputs, not manual flight-entry fields.
 - Technical columns may be hidden in Sheets to keep manual editing clean.
 - Separate yearly archive workbooks are preferred over year-specific tabs in the live workbook.
 - The app must preserve the existing production Web App URL when deploying backend updates.
@@ -273,7 +316,7 @@ Before making a substantial change, verify:
 - Does this change require an Apps Script deployment as well as a GitHub Pages change?
 - Has the exact current source been fetched before writing?
 - Has the exact Sheet target been read before writing?
-- Does the change preserve existing synced Notes/Calendar/Plan behavior?
+- Does this change preserve existing synced Notes/Calendar/Plan behavior?
 - Has cache propagation been considered before concluding a code change failed?
 - Has the final behavior been tested on the physical iPhone when it affects mobile UI?
 
@@ -285,6 +328,7 @@ These are recognized improvements, not permission to change unrelated behavior:
 - Convert Notes loading to lightweight index + on-demand body fetch.
 - Add a deliberate annual archive workflow, and eventually automate it.
 - Continue validating Calendar ↔ Plan To Do routing so both views stay consistent.
+- Complete the one-time bound Apps Script installation/deployment of the prepared structured flight-leg calculation module.
 
 When updating this guide, modify the existing README rather than creating multiple competing rule documents. This file is the single canonical standing document for Lexi Travel.
 

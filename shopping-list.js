@@ -1,7 +1,10 @@
 (() => {
   const NOTE_ID = 'bangkok-shopping-list';
+  const NOTE_TITLE = 'Bangkok Shopping List';
   const notesTab = document.querySelector('.tab[data-view="notesView"]');
+  const notesView = document.getElementById('notesView');
   const notesList = document.getElementById('notesList');
+  const noteTitle = document.getElementById('noteTitle');
   const noteBody = document.getElementById('noteBody');
   const noteSaveStatus = document.getElementById('noteSaveStatus');
   const noteEditBtn = document.getElementById('noteEditBtn');
@@ -10,29 +13,25 @@
 
   let loading = false;
   let cachedItems = null;
+  let shoppingSelected = false;
 
-  const baseLoadAllData = loadAllData;
-  loadAllData = async function (...args) {
-    const result = await baseLoadAllData(...args);
-    setTimeout(showShoppingIfSelected, 0);
-    return result;
-  };
-
-  function noteIdFromButton(button) {
+  function buttonTitle(button) {
     if (!button) return '';
-    if (button.dataset.noteId) return String(button.dataset.noteId);
-
-    const title = String(button.childNodes[0]?.textContent || button.textContent || '').trim();
-    const match = (appData.notes || []).find(note => String(note.Title || '').trim() === title);
-    return String(match?.ID || '');
+    const first = button.childNodes[0];
+    return String(first?.textContent || button.textContent || '').trim();
   }
 
-  function selectedNoteId() {
-    return noteIdFromButton(notesList.querySelector('.note-list-item.active'));
+  function isShoppingButton(button) {
+    if (!button) return false;
+    if (String(button.dataset.noteId || '') === NOTE_ID) return true;
+    return buttonTitle(button) === NOTE_TITLE;
   }
 
-  function isShoppingNote() {
-    return selectedNoteId() === NOTE_ID;
+  function shoppingIsCurrent() {
+    if (!notesView?.classList.contains('active')) return false;
+    if (shoppingSelected) return true;
+    if (String(noteTitle?.textContent || '').trim() === NOTE_TITLE) return true;
+    return isShoppingButton(notesList.querySelector('.note-list-item.active'));
   }
 
   function cleanupShoppingMode() {
@@ -126,7 +125,7 @@
   }
 
   function showMessage(message) {
-    if (!isShoppingNote()) return;
+    if (!shoppingIsCurrent()) return;
     noteBody.classList.add('shopping-list-note');
     setShoppingToolbar();
     noteBody.innerHTML = '';
@@ -137,7 +136,7 @@
   }
 
   function render(items) {
-    if (!isShoppingNote()) return;
+    if (!shoppingIsCurrent()) return;
 
     noteBody.innerHTML = '';
     noteBody.classList.add('shopping-list-note');
@@ -231,21 +230,16 @@
     if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping list · tap a box when purchased';
   }
 
-  function showLoading() {
-    showMessage('Loading shopping list…');
-    if (noteSaveStatus) noteSaveStatus.textContent = '';
-  }
-
   async function refreshShopping() {
-    if (!isShoppingNote() || loading) return;
+    if (!shoppingIsCurrent() || loading) return;
     loading = true;
 
     try {
       const data = await postShopping('shoppingList');
       cachedItems = Array.isArray(data.items) ? data.items : [];
-      if (isShoppingNote()) render(cachedItems);
+      if (shoppingIsCurrent()) render(cachedItems);
     } catch (error) {
-      if (isShoppingNote()) {
+      if (shoppingIsCurrent()) {
         showMessage(error.message === 'Not connected'
           ? 'Shopping list needs the Lexi Travel connection. Open Settings and save the API key once.'
           : 'Shopping list could not load. Try opening it again.');
@@ -256,38 +250,58 @@
     }
   }
 
-  function showShoppingIfSelected() {
-    if (!isShoppingNote()) {
+  function showShoppingIfCurrent() {
+    if (!shoppingIsCurrent()) {
       cleanupShoppingMode();
       return;
     }
 
+    setShoppingToolbar();
     if (cachedItems) render(cachedItems);
-    else showLoading();
-
+    else showMessage('Loading shopping list…');
     refreshShopping();
   }
+
+  function syncSelectionFromUi() {
+    const active = notesList.querySelector('.note-list-item.active');
+    shoppingSelected = isShoppingButton(active) || String(noteTitle?.textContent || '').trim() === NOTE_TITLE;
+    showShoppingIfCurrent();
+  }
+
+  const baseLoadAllData = loadAllData;
+  loadAllData = async function (...args) {
+    const result = await baseLoadAllData(...args);
+    setTimeout(syncSelectionFromUi, 0);
+    return result;
+  };
 
   notesList.addEventListener('click', event => {
     const button = event.target instanceof Element ? event.target.closest('.note-list-item') : null;
     if (!button) return;
 
-    if (noteIdFromButton(button) !== NOTE_ID) {
+    shoppingSelected = isShoppingButton(button);
+    if (!shoppingSelected) {
       cleanupShoppingMode();
       return;
     }
 
-    setTimeout(showShoppingIfSelected, 0);
-  });
+    setTimeout(showShoppingIfCurrent, 0);
+    setTimeout(syncSelectionFromUi, 120);
+  }, true);
 
   notesTab.addEventListener('click', () => {
-    setTimeout(showShoppingIfSelected, 0);
+    setTimeout(syncSelectionFromUi, 0);
+    setTimeout(syncSelectionFromUi, 150);
+    setTimeout(syncSelectionFromUi, 500);
   });
 
   document.querySelectorAll('.tab').forEach(tab => {
     if (tab === notesTab) return;
-    tab.addEventListener('click', cleanupShoppingMode);
+    tab.addEventListener('click', () => {
+      shoppingSelected = false;
+      cleanupShoppingMode();
+    });
   });
 
-  setTimeout(showShoppingIfSelected, 0);
+  setTimeout(syncSelectionFromUi, 0);
 })();

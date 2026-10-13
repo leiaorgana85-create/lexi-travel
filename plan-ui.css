@@ -378,3 +378,19 @@ html[data-theme="dark"] .plan-convert-btn {
   background: #151b24;
   color: #7fb0ff;
 }
+
+/* Keep Country Days compact so the monthly to-do list has more room. */
+#countryView .country-list {
+  gap: 6px;
+  margin-top: 6px;
+}
+
+#countryView .country-card {
+  padding: 7px 9px;
+  gap: 4px;
+  border-radius: 10px;
+}
+
+#countryView .country-row {
+  gap: 8px;
+}

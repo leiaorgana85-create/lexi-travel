@@ -98,7 +98,7 @@
         <textarea name="note" rows="4"></textarea>
       </label>
       <label class="shopping-field">Source URL
-        <input name="source" type="url" inputmode="url" autocomplete="off">
+        <input name="source" type="text" inputmode="url" autocomplete="off">
       </label>
       <div class="shopping-dialog-status" aria-live="polite"></div>
       <div class="shopping-dialog-actions">
@@ -163,6 +163,7 @@
       return;
     }
 
+    const wasEditing = Boolean(editingOriginalProduct);
     const existing = shoppingItems.find(item => String(item.product || '') === editingOriginalProduct);
 
     dialogSaveBtn.disabled = true;
@@ -183,7 +184,7 @@
       });
 
       closeEditor();
-      if (noteSaveStatus) noteSaveStatus.textContent = editingOriginalProduct ? 'Shopping item updated' : 'Shopping item added';
+      if (noteSaveStatus) noteSaveStatus.textContent = wasEditing ? 'Shopping item updated' : 'Shopping item added';
       await loadShopping(true);
     } catch (error) {
       dialogStatus.textContent = error.message;

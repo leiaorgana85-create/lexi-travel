@@ -76,8 +76,6 @@
     } finally {
       applyingOrder = false;
     }
-
-    decorate();
   }
 
   function makeMoveControl(label, symbol, direction, id) {
@@ -107,19 +105,15 @@
     const buttons = currentButtons();
     buttons.forEach(button => {
       const id = String(button.dataset.noteId || '');
-      if (!id) return;
+      if (!id || button.querySelector('.note-reorder-controls')) return;
 
-      let controls = button.querySelector('.note-reorder-controls');
-      if (!controls) {
-        controls = document.createElement('span');
-        controls.className = 'note-reorder-controls';
-        button.append(controls);
-      }
-
-      controls.replaceChildren(
+      const controls = document.createElement('span');
+      controls.className = 'note-reorder-controls';
+      controls.append(
         makeMoveControl('Move note up', '↑', -1, id),
         makeMoveControl('Move note down', '↓', 1, id)
       );
+      button.append(controls);
     });
 
     notesList.classList.toggle('reorder-mode', reorderMode);
@@ -132,6 +126,7 @@
   reorderBtn.type = 'button';
   reorderBtn.textContent = '↕';
   reorderBtn.setAttribute('aria-label', 'Reorder notes');
+  reorderBtn.setAttribute('aria-pressed', 'false');
   reorderBtn.title = 'Reorder notes';
   sidebarActions.prepend(reorderBtn);
 
@@ -139,7 +134,7 @@
     reorderMode = !reorderMode;
     reorderBtn.classList.toggle('active', reorderMode);
     reorderBtn.setAttribute('aria-pressed', String(reorderMode));
-    decorate();
+    notesList.classList.toggle('reorder-mode', reorderMode);
   });
 
   const observer = new MutationObserver(() => {

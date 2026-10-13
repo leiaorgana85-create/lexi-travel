@@ -9,7 +9,13 @@
 //   IATA | IANA Time Zone | Airport / City
 //
 // Derived EVENTS fields for Flight records:
-//   Date | Time | Travel Time | Flight Plan
+//   ID | Date | Time | Category | Travel Time | Flight Plan
+//
+// New-flight entry workflow:
+//   Enter only the green FLIGHT_LEGS fields (B:I).
+//   A complete Leg 1 automatically receives an Event ID and creates its Flight
+//   summary row in EVENTS. Complete Leg 2/3/etc rows entered below it inherit
+//   the same Event ID when the leg sequence and connecting airport match.
 //
 // Integration:
 //   Add `flightLegsOnEdit_(e);` near the top of the existing onEdit(e).
@@ -216,6 +222,130 @@ function flightEventRow_(eventId) {
   return 0;
 }
 
+function flightReadManualRow_(sheet, rowNumber) {
+  const row = sheet.getRange(rowNumber, 2, 1, 8).getDisplayValues()[0];
+  return {
+    rowNumber: rowNumber,
+    legNumber: Number(row[0] || 0),
+    flightNumber: String(row[1] || '').trim().toUpperCase(),
+    from: String(row[2] || '').trim().toUpperCase(),
+    departDate: String(row[3] || '').trim(),
+    departTime: String(row[4] || '').trim(),
+    to: String(row[5] || '').trim().toUpperCase(),
+    arriveDate: String(row[6] || '').trim(),
+    arriveTime: String(row[7] || '').trim()
+  };
+}
+
+function flightManualRowHasData_(row) {
+  return Boolean(
+    row.legNumber || row.flightNumber || row.from || row.departDate ||
+    row.departTime || row.to || row.arriveDate || row.arriveTime
+  );
+}
+
+function flightManualRowComplete_(row) {
+  return Boolean(
+    row.legNumber && row.flightNumber && row.from && row.departDate &&
+    row.departTime && row.to && row.arriveDate && row.arriveTime
+  );
+}
+
+function flightAutoRoute_(rows) {
+  if (!rows.length) return '';
+  return rows[0].from + '→' + rows[rows.length - 1].to;
+}
+
+function flightNewEventId_(leg) {
+  const date = String(leg.departDate || '').replace(/-/g, '') || 'undated';
+  const from = String(leg.from || 'trip').toLowerCase();
+  const token = Utilities.getUuid().replace(/-/g, '').slice(0, 8).toLowerCase();
+  return 'evt_flight_' + date + '_' + from + '_' + token;
+}
+
+function flightCreateEvent_(eventId, leg) {
+  const sheet = eventsSheet_();
+  const eventRow = Math.max(2, sheet.getLastRow() + 1);
+  sheet.getRange(eventRow, 1, 1, 10).setValues([[
+    eventId,
+    '',
+    leg.from + '→' + leg.to,
+    '',
+    'Flight',
+    '',
+    '',
+    '',
+    '',
+    ''
+  ]]);
+  return eventRow;
+}
+
+function flightPreviousEnteredLeg_(sheet, rowNumber) {
+  for (let row = rowNumber - 1; row >= 2; row -= 1) {
+    const manual = flightReadManualRow_(sheet, row);
+    if (!flightManualRowHasData_(manual)) continue;
+
+    return Object.assign({}, manual, {
+      eventId: String(sheet.getRange(row, 1).getDisplayValue() || '').trim()
+    });
+  }
+  return null;
+}
+
+function flightEnsureEventLinkForRow_(sheet, rowNumber) {
+  const existingEventId = String(sheet.getRange(rowNumber, 1).getDisplayValue() || '').trim();
+  if (existingEventId) return existingEventId;
+
+  const leg = flightReadManualRow_(sheet, rowNumber);
+  if (!flightManualRowHasData_(leg) || !flightManualRowComplete_(leg)) return '';
+
+  if (!Number.isInteger(leg.legNumber) || leg.legNumber < 1) {
+    throw new Error('Leg # must be 1, 2, 3, etc. on FLIGHT_LEGS row ' + rowNumber);
+  }
+
+  if (leg.legNumber === 1) {
+    const eventId = flightNewEventId_(leg);
+    sheet.getRange(rowNumber, 1).setValue(eventId);
+    flightCreateEvent_(eventId, leg);
+    return eventId;
+  }
+
+  const previous = flightPreviousEnteredLeg_(sheet, rowNumber);
+  if (!previous || !previous.eventId || previous.legNumber !== leg.legNumber - 1) {
+    throw new Error(
+      'Leg ' + leg.legNumber + ' must be entered below Leg ' + (leg.legNumber - 1) +
+      ' of the same trip.'
+    );
+  }
+
+  if (previous.to !== leg.from) {
+    throw new Error(
+      'Connection mismatch on FLIGHT_LEGS row ' + rowNumber + ': prior leg arrives ' +
+      previous.to + ' but this leg departs ' + leg.from + '.'
+    );
+  }
+
+  const eventId = previous.eventId;
+  const existingRows = flightLegRowsForEvent_(eventId);
+  const priorAutoTitle = flightAutoRoute_(existingRows);
+  const eventRow = flightEventRow_(eventId);
+  if (!eventRow) throw new Error('Missing EVENTS row for flight Event ID: ' + eventId);
+
+  sheet.getRange(rowNumber, 1).setValue(eventId);
+
+  // Extend the default airport-code route as connecting legs are added, but
+  // preserve any title the user has already customized in EVENTS.
+  const titleCell = eventsSheet_().getRange(eventRow, 3);
+  const currentTitle = String(titleCell.getDisplayValue() || '').trim();
+  const nextAutoTitle = (existingRows.length ? existingRows[0].from : leg.from) + '→' + leg.to;
+  if (!currentTitle || currentTitle === priorAutoTitle) {
+    titleCell.setValue(nextAutoTitle);
+  }
+
+  return eventId;
+}
+
 function rebuildFlightEvent_(eventId) {
   const legsSheet = flightLegsSheet_();
   const eventSheet = eventsSheet_();
@@ -305,12 +435,13 @@ function rebuildFlightEvent_(eventId) {
   if (!eventRow) throw new Error('Missing EVENTS row for flight Event ID: ' + eventId);
 
   // For Flight rows, overall calendar date/time are derived from the first
-  // departure and final arrival. Title remains manual because app-facing city
-  // labels may intentionally differ from IATA airport codes (e.g. DNG vs DAD).
+  // departure and final arrival. Title is seeded automatically from airport
+  // codes when a flight is created, then remains user-overridable in EVENTS.
   const firstDepartDateValue = legsSheet.getRange(first.rowNumber, 5).getValue();
   const overallTime = flightCompactTime_(first.departTime) + ' → ' + flightCompactTime_(last.arriveTime);
   eventSheet.getRange(eventRow, 2).setValue(firstDepartDateValue); // Date
   eventSheet.getRange(eventRow, 4).setValue(overallTime); // Time
+  eventSheet.getRange(eventRow, 5).setValue('Flight'); // Category
 
   // I = Travel Time, J = Flight Plan.
   eventSheet.getRange(eventRow, 9, 1, 2).setValues([[
@@ -350,7 +481,7 @@ function flightLegsOnEdit_(e) {
     const eventIds = new Set();
 
     for (let row = firstRow; row <= lastRow; row += 1) {
-      const eventId = String(sheet.getRange(row, 1).getDisplayValue() || '').trim();
+      const eventId = flightEnsureEventLinkForRow_(sheet, row);
       if (eventId) eventIds.add(eventId);
     }
 

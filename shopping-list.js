@@ -14,10 +14,8 @@
   let loadPromise = null;
   let loaded = false;
   let sheetRenderReady = false;
-  let shoppingWriteReady = false;
   let decorateFrame = 0;
   let rendering = false;
-  let editingOriginalProduct = '';
 
   function selectedNoteId() {
     return notesList.querySelector('.note-list-item.active')?.dataset.noteId || '';
@@ -70,156 +68,6 @@
       if (deleteBtn && selectedNoteId()) deleteBtn.hidden = false;
     }
   }
-
-  const dialog = document.createElement('dialog');
-  dialog.className = 'shopping-item-dialog';
-  dialog.innerHTML = `
-    <form class="shopping-item-form">
-      <div class="shopping-item-dialog-head">
-        <h3 class="shopping-item-dialog-title">Edit shopping item</h3>
-        <button class="shopping-dialog-close" type="button" aria-label="Close">×</button>
-      </div>
-      <label class="shopping-field">Store
-        <input name="store" type="text" autocomplete="off">
-      </label>
-      <label class="shopping-field">Category
-        <input name="category" type="text" autocomplete="off">
-      </label>
-      <label class="shopping-field">Product
-        <input name="product" type="text" autocomplete="off" required>
-      </label>
-      <label class="shopping-field">Thai product name
-        <input name="thaiProductName" type="text" autocomplete="off">
-      </label>
-      <label class="shopping-field">Approx. price (THB; USD)
-        <input name="price" type="text" autocomplete="off">
-      </label>
-      <label class="shopping-field">Purpose / note
-        <textarea name="note" rows="4"></textarea>
-      </label>
-      <label class="shopping-field">Source URL
-        <input name="source" type="text" inputmode="url" autocomplete="off">
-      </label>
-      <div class="shopping-dialog-status" aria-live="polite"></div>
-      <div class="shopping-dialog-actions">
-        <button class="shopping-delete-item" type="button">Delete</button>
-        <span class="shopping-dialog-spacer"></span>
-        <button class="shopping-cancel-item" type="button">Cancel</button>
-        <button class="shopping-save-item" type="submit">Save</button>
-      </div>
-    </form>
-  `;
-  document.body.append(dialog);
-
-  const dialogForm = dialog.querySelector('.shopping-item-form');
-  const dialogTitle = dialog.querySelector('.shopping-item-dialog-title');
-  const dialogStatus = dialog.querySelector('.shopping-dialog-status');
-  const dialogDeleteBtn = dialog.querySelector('.shopping-delete-item');
-  const dialogSaveBtn = dialog.querySelector('.shopping-save-item');
-  const dialogCancelBtn = dialog.querySelector('.shopping-cancel-item');
-  const dialogCloseBtn = dialog.querySelector('.shopping-dialog-close');
-
-  function field(name) {
-    return dialogForm.elements.namedItem(name);
-  }
-
-  function closeEditor() {
-    editingOriginalProduct = '';
-    dialogStatus.textContent = '';
-    if (dialog.open) dialog.close();
-  }
-
-  function openEditor(item = null) {
-    if (!shoppingWriteReady) {
-      if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping item editing needs the latest backend deployment';
-      return;
-    }
-
-    editingOriginalProduct = String(item?.product || '');
-    dialogTitle.textContent = item ? 'Edit shopping item' : 'Add shopping item';
-    field('store').value = String(item?.store || '');
-    field('category').value = String(item?.category || '');
-    field('product').value = String(item?.product || '');
-    field('thaiProductName').value = String(item?.thaiProductName || '');
-    field('price').value = String(item?.price || '');
-    field('note').value = String(item?.note || '');
-    field('source').value = String(item?.source || '');
-    dialogDeleteBtn.hidden = !item;
-    dialogStatus.textContent = '';
-
-    if (typeof dialog.showModal === 'function') dialog.showModal();
-    else dialog.setAttribute('open', '');
-
-    setTimeout(() => field('product').focus(), 0);
-  }
-
-  async function saveEditor(event) {
-    event.preventDefault();
-
-    const product = String(field('product').value || '').trim();
-    if (!product) {
-      dialogStatus.textContent = 'Product is required.';
-      field('product').focus();
-      return;
-    }
-
-    const wasEditing = Boolean(editingOriginalProduct);
-    const existing = shoppingItems.find(item => String(item.product || '') === editingOriginalProduct);
-
-    dialogSaveBtn.disabled = true;
-    dialogDeleteBtn.disabled = true;
-    dialogStatus.textContent = 'Saving…';
-
-    try {
-      await postShopping('shoppingUpsert', {
-        originalProduct: editingOriginalProduct,
-        store: field('store').value,
-        category: field('category').value,
-        product,
-        thaiProductName: field('thaiProductName').value,
-        price: field('price').value,
-        note: field('note').value,
-        source: field('source').value,
-        bought: existing ? String(boolValue(existing.bought)).toLowerCase() : 'false'
-      });
-
-      closeEditor();
-      if (noteSaveStatus) noteSaveStatus.textContent = wasEditing ? 'Shopping item updated' : 'Shopping item added';
-      await loadShopping(true);
-    } catch (error) {
-      dialogStatus.textContent = error.message;
-    } finally {
-      dialogSaveBtn.disabled = false;
-      dialogDeleteBtn.disabled = false;
-    }
-  }
-
-  async function deleteEditor() {
-    const product = editingOriginalProduct;
-    if (!product) return;
-    if (!window.confirm(`Delete “${product}” from the shopping list?`)) return;
-
-    dialogSaveBtn.disabled = true;
-    dialogDeleteBtn.disabled = true;
-    dialogStatus.textContent = 'Deleting…';
-
-    try {
-      await postShopping('shoppingDelete', { product });
-      closeEditor();
-      if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping item deleted';
-      await loadShopping(true);
-    } catch (error) {
-      dialogStatus.textContent = error.message;
-    } finally {
-      dialogSaveBtn.disabled = false;
-      dialogDeleteBtn.disabled = false;
-    }
-  }
-
-  dialogForm.addEventListener('submit', saveEditor);
-  dialogDeleteBtn.addEventListener('click', deleteEditor);
-  dialogCancelBtn.addEventListener('click', closeEditor);
-  dialogCloseBtn.addEventListener('click', closeEditor);
 
   function productFromItemCell(cell) {
     const text = String(cell?.textContent || '').trim();
@@ -314,37 +162,6 @@
     const cell = document.createElement('td');
     cell.textContent = String(text || '');
     row.append(cell);
-    return cell;
-  }
-
-  function addItemActions() {
-    const controls = document.createElement('div');
-    controls.className = 'shopping-list-actions';
-
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'shopping-add-btn';
-    addBtn.textContent = '+ Add item';
-    addBtn.addEventListener('click', () => openEditor());
-
-    controls.append(addBtn);
-    noteBody.append(controls);
-  }
-
-  function addRowEditButton(cell, item) {
-    if (!shoppingWriteReady) return;
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'shopping-row-edit';
-    button.textContent = 'Edit';
-    button.setAttribute('aria-label', `Edit ${item.product}`);
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopPropagation();
-      openEditor(item);
-    });
-    cell.append(button);
   }
 
   function renderSheetShopping() {
@@ -368,8 +185,6 @@
       intro.className = 'note-paragraph';
       intro.textContent = 'Shopping list is synced directly with Google Sheets.';
       noteBody.append(intro);
-
-      if (shoppingWriteReady) addItemActions();
 
       const groups = new Map();
       shoppingItems.forEach(item => {
@@ -431,8 +246,7 @@
           row.append(createCheckboxCell(item, row));
           appendTextCell(row, itemText(item));
           appendTextCell(row, item.price);
-          const noteCell = appendTextCell(row, item.note);
-          addRowEditButton(noteCell, item);
+          appendTextCell(row, item.note);
           tbody.append(row);
         });
         table.append(tbody);
@@ -524,14 +338,12 @@
         );
         loaded = true;
         sheetRenderReady = Number(data.version || 0) >= 2;
-        shoppingWriteReady = Number(data.version || 0) >= 3;
 
         if (sheetRenderReady) delete noteBody.dataset.shoppingSource;
         updateMode();
       } catch (error) {
         loaded = false;
         sheetRenderReady = false;
-        shoppingWriteReady = false;
         decorateLegacy();
         if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping list could not refresh from Google Sheets';
       } finally {

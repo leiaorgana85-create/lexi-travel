@@ -172,18 +172,63 @@
       .replace(/\s*→\s*/g, ' → ');
   }
 
-  function flightSummary(event, move) {
-    if (!event) return 'Not added';
+  function detailTokens(event) {
+    return String(event?.Details || '')
+      .split('·')
+      .map(value => value.trim())
+      .filter(Boolean);
+  }
+
+  function operationalToken(value) {
+    const token = compactTime(value);
+
+    const layover = token.match(/^Layover\s+([A-Z]{3})\s+(.+)$/i);
+    if (layover) return `${layover[1].toUpperCase()} layover · ${layover[2]}`;
+
+    const leg = token.match(/^([A-Z0-9]{2,3}\s?\d{2,4})\s+([A-Z]{3})\s*(?:→|->|–>|—>|>)\s*([A-Z]{3})(.*)$/i);
+    if (leg) {
+      const suffix = leg[4].trim();
+      return `${leg[1].replace(/\s+/g, '')} · ${leg[2].toUpperCase()} → ${leg[3].toUpperCase()}${suffix ? ` ${suffix}` : ''}`;
+    }
+
+    return token;
+  }
+
+  function flightPlan(event, move) {
+    if (!event) return { headline: 'Not added', lines: [] };
 
     const time = compactTime(event.Time || '');
     const title = String(event.Title || '').trim();
     const origin = locationCode(move.origin).toUpperCase();
     const destination = locationCode(move.destination).toUpperCase();
     const routeOnly = new RegExp(`^\\s*${origin}\\s*[→>-]+\\s*${destination}\\s*$`, 'i').test(title);
+    const tokens = detailTokens(event);
 
-    if (time && routeOnly) return time;
-    if (time && title) return `${time} · ${title}`;
-    return title || 'Added';
+    const flightNumberMatch = String(event.Details || '').match(/\b([A-Z]{2}\s?\d{2,4})\b/i);
+    const flightNumber = flightNumberMatch ? flightNumberMatch[1].replace(/\s+/g, '').toUpperCase() : '';
+    const nonstopToken = tokens.find(token => /^Nonstop\b/i.test(token));
+    const connectionTokens = tokens.filter(token =>
+      /^Layover\b/i.test(token) ||
+      /^([A-Z0-9]{2,3}\s?\d{2,4})\s+[A-Z]{3}\s*(?:→|->|–>|—>|>)/i.test(token)
+    );
+
+    if (nonstopToken) {
+      const nonstop = nonstopToken.replace(/^Nonstop\s*/i, '').trim();
+      const pieces = [time, flightNumber, 'Nonstop'];
+      if (nonstop) pieces.push(nonstop);
+      return { headline: pieces.filter(Boolean).join(' · '), lines: [] };
+    }
+
+    if (connectionTokens.length) {
+      return {
+        headline: time || (routeOnly ? title : title || 'Added'),
+        lines: connectionTokens.map(operationalToken)
+      };
+    }
+
+    if (time && routeOnly) return { headline: time, lines: [] };
+    if (time && title) return { headline: `${time} · ${title}`, lines: [] };
+    return { headline: title || 'Added', lines: [] };
   }
 
   function accommodationSummary(location) {
@@ -241,12 +286,12 @@
     route.append(origin, arrow, destination);
     top.append(date, route);
 
+    const flight = flightPlan(flightForMove(move), move);
     const details = document.createElement('div');
     details.className = 'plan-next-move-details';
-    details.append(
-      detailRow('Flight', flightSummary(flightForMove(move), move)),
-      detailRow('Stay', accommodationSummary(move.destination))
-    );
+    details.append(detailRow('Flight', flight.headline));
+    flight.lines.forEach(line => details.append(detailRow('', line)));
+    details.append(detailRow('Stay', accommodationSummary(move.destination)));
 
     item.append(top, details);
     return item;

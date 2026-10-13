@@ -71,6 +71,25 @@
       .sort((a, b) => locationStart(b).localeCompare(locationStart(a)))[0] || null;
   }
 
+  function eventCategory(event) {
+    return String(event?.Category || '').trim().toLowerCase();
+  }
+
+  function routeFromEvent(event) {
+    const category = eventCategory(event);
+    if (!category.includes('flight') && !category.includes('travel')) return null;
+
+    const title = String(event?.Title || '').trim().toUpperCase();
+    const match = title.match(/([A-Z]{3})\s*(?:→|->|–>|—>|>)\s*([A-Z]{3})/);
+    if (!match) return null;
+
+    return { origin: match[1], destination: match[2] };
+  }
+
+  function moveIdentity(date, origin, destination) {
+    return `${date}|${locationCode(origin).toUpperCase()}|${locationCode(destination).toUpperCase()}`;
+  }
+
   function upcomingMoves() {
     const today = keyForDate(new Date());
     const locations = (Array.isArray(appData?.locations) ? appData.locations : [])
@@ -88,20 +107,33 @@
       const origin = previousLocationBefore(start, locations);
       if (!origin || locationIdentity(origin) === locationIdentity(destination)) continue;
 
-      const identity = `${start}|${locationIdentity(origin)}|${locationIdentity(destination)}`;
+      const identity = moveIdentity(start, origin, destination);
       if (seen.has(identity)) continue;
       seen.add(identity);
       moves.push({ origin, destination, date: start });
     }
 
-    return moves;
-  }
+    const flightEvents = (Array.isArray(appData?.events) ? appData.events : [])
+      .map(event => ({ event, date: dateKey(event?.Date), route: routeFromEvent(event) }))
+      .filter(item => item.date && item.date >= today && item.route)
+      .sort((a, b) => a.date.localeCompare(b.date));
 
-  function eventCategory(event) {
-    return String(event?.Category || '').trim().toLowerCase();
+    for (const { event, date, route } of flightEvents) {
+      const origin = { Label: route.origin };
+      const destination = { Label: route.destination };
+      const identity = moveIdentity(date, origin, destination);
+      if (seen.has(identity)) continue;
+
+      seen.add(identity);
+      moves.push({ origin, destination, date, flightEvent: event });
+    }
+
+    return moves.sort((a, b) => a.date.localeCompare(b.date));
   }
 
   function flightForMove(move) {
+    if (move.flightEvent) return move.flightEvent;
+
     const origin = locationCode(move.origin).toUpperCase();
     const destination = locationCode(move.destination).toUpperCase();
     const events = (Array.isArray(appData?.events) ? appData.events : [])

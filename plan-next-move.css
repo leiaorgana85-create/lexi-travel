@@ -60,6 +60,11 @@
   text-align: right;
 }
 
+.plan-next-move-duration {
+  color: #9ca3ad;
+  font-weight: 600;
+}
+
 .plan-next-move-details {
   display: grid;
   gap: 3px;
@@ -109,4 +114,8 @@ html[data-theme="dark"] .plan-next-move-empty {
 html[data-theme="dark"] .plan-next-move-item,
 html[data-theme="dark"] .plan-next-move-details {
   border-color: #2a303b;
+}
+
+html[data-theme="dark"] .plan-next-move-duration {
+  color: #8c95a1;
 }

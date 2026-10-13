@@ -15,7 +15,7 @@
 //   Add `flightLegsOnEdit_(e);` near the top of the existing onEdit(e).
 //   The helper exits immediately unless FLIGHT_LEGS or AIRPORT_TZ was edited.
 //
-// After first installation/deployment, run `rebuildAllFlightCalculations_()` once.
+// After first installation/deployment, run `rebuildAllFlightCalculations()` once.
 
 function flightLegsSheet_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('FLIGHT_LEGS');
@@ -325,6 +325,11 @@ function rebuildAllFlightCalculations_() {
   const eventIds = [...new Set(flightAllLegRows_().map(row => row.eventId).filter(Boolean))];
   eventIds.forEach(eventId => rebuildFlightEvent_(eventId));
   return eventIds.length;
+}
+
+// Public wrapper so the one-time rebuild appears in the Apps Script Run menu.
+function rebuildAllFlightCalculations() {
+  return rebuildAllFlightCalculations_();
 }
 
 function flightLegsOnEdit_(e) {

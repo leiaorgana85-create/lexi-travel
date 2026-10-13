@@ -6,9 +6,17 @@
 
   let refreshPromise = null;
   let lastRefreshAt = 0;
+  let buildCheckPromise = null;
+  let lastBuildCheckAt = 0;
 
   function editorOpen() {
     return Boolean(paneDetails.querySelector('.calendar-event-editor'));
+  }
+
+  function unsavedEditorOpen() {
+    return Boolean(
+      document.querySelector('.calendar-event-editor, .lexi-plain-editor, #planAddRow:not([hidden])')
+    );
   }
 
   function calendarVisible() {
@@ -35,17 +43,64 @@
     return refreshPromise;
   }
 
-  // Returning from Google Sheets (or another app/tab) should pull fresh calendar rows.
+  function buildFromHtml(html) {
+    const match = String(html || '').match(/<html[^>]*\sdata-build=["']([^"']+)["']/i);
+    return match ? match[1] : '';
+  }
+
+  async function checkForNewShell(force = false) {
+    if (buildCheckPromise) return buildCheckPromise;
+    if (!force && Date.now() - lastBuildCheckAt < 60000) return;
+
+    lastBuildCheckAt = Date.now();
+    buildCheckPromise = (async () => {
+      try {
+        const probeUrl = new URL('index.html', window.location.href);
+        probeUrl.searchParams.set('lexi_build_probe', String(Date.now()));
+
+        const response = await fetch(probeUrl.toString(), {
+          cache: 'no-store',
+          credentials: 'same-origin'
+        });
+        if (!response.ok) return;
+
+        const latestBuild = buildFromHtml(await response.text());
+        const runningBuild = document.documentElement.dataset.build || 'legacy';
+        if (!latestBuild || latestBuild === runningBuild || unsavedEditorOpen()) return;
+
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.delete('lexi_build_probe');
+        nextUrl.searchParams.set('build', latestBuild);
+        window.location.replace(nextUrl.toString());
+      } catch (error) {
+        // A failed version probe should never block the app.
+      } finally {
+        buildCheckPromise = null;
+      }
+    })();
+
+    return buildCheckPromise;
+  }
+
+  // Returning from Google Sheets (or another app/tab) should pull fresh calendar rows
+  // and also reconcile the Home Screen shell with the latest deployed build.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) refreshFromGoogle(true);
+    if (!document.hidden) {
+      checkForNewShell(true);
+      refreshFromGoogle(true);
+    }
   });
 
   window.addEventListener('focus', () => {
+    checkForNewShell(false);
     refreshFromGoogle(false);
   });
 
-  // A normal reload of Lexi Travel should also reconcile with Google once the page settles.
+  // A normal launch/reload should check the shell before reconciling Google data.
   window.addEventListener('pageshow', () => {
-    setTimeout(() => refreshFromGoogle(true), 150);
+    setTimeout(() => {
+      checkForNewShell(true);
+      refreshFromGoogle(true);
+    }, 150);
   });
 })();

@@ -82,7 +82,6 @@
     const title = String(event?.Title || '').trim().toUpperCase();
     const match = title.match(/([A-Z]{3})\s*(?:→|->|–>|—>|>)\s*([A-Z]{3})/);
     if (!match) return null;
-
     return { origin: match[1], destination: match[2] };
   }
 
@@ -140,15 +139,13 @@
       .filter(event => dateKey(event?.Date) === move.date);
 
     const ranked = events.map(event => {
-      const title = String(event?.Title || '').trim();
+      const title = String(event?.Title || '').trim().toUpperCase();
       const category = eventCategory(event);
-      const text = `${category} ${title}`.toLowerCase();
       let score = 0;
       if (category.includes('flight')) score += 5;
       if (category.includes('travel')) score += 4;
-      if (text.includes('flight')) score += 3;
-      if (origin && title.toUpperCase().includes(origin)) score += 2;
-      if (destination && title.toUpperCase().includes(destination)) score += 2;
+      if (origin && title.includes(origin)) score += 2;
+      if (destination && title.includes(destination)) score += 2;
       return { event, score };
     }).sort((a, b) => b.score - a.score);
 
@@ -158,90 +155,63 @@
   function formatMoveDate(key) {
     const date = parseKey(key);
     if (!date) return '';
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric'
-    }).format(date);
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
   }
 
-  function compactTime(value) {
+  function compactText(value) {
     return String(value || '')
       .trim()
       .replace(/\s*AM\b/gi, 'a')
-      .replace(/\s*PM\b/gi, 'p')
-      .replace(/\s*→\s*/g, ' → ');
+      .replace(/\s*PM\b/gi, 'p');
   }
 
-  function detailTokens(event) {
-    return String(event?.Details || '')
-      .split('·')
-      .map(value => value.trim())
-      .filter(Boolean);
+  function compactRange(value) {
+    return compactText(value)
+      .replace(/\s*(?:→|–|—|-)\s*/g, '–');
   }
 
-  function operationalToken(value) {
-    const token = compactTime(value);
+  function travelTime(event) {
+    const explicit = String(event?.['Travel Time'] || event?.TravelTime || '').trim();
+    if (explicit) return explicit;
 
-    const layover = token.match(/^Layover\s+([A-Z]{3})\s+(.+)$/i);
-    if (layover) return `${layover[1].toUpperCase()} layover · ${layover[2]}`;
-
-    const total = token.match(/^Total\s+travel\s+(.+)$/i);
-    if (total) return `Total travel · ${total[1]}`;
-
-    const leg = token.match(/^([A-Z0-9]{2,3}\s?\d{2,4})\s+([A-Z]{3})\s*(?:→|->|–>|—>|>)\s*([A-Z]{3})(.*)$/i);
-    if (leg) {
-      const suffix = leg[4].trim();
-      const durationMatch = suffix.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
-      const timing = durationMatch ? durationMatch[1].trim() : suffix;
-      const duration = durationMatch ? durationMatch[2].trim() : '';
-      const parts = [
-        leg[1].replace(/\s+/g, ''),
-        `${leg[2].toUpperCase()} → ${leg[3].toUpperCase()}`
-      ];
-      if (timing) parts.push(timing);
-      if (duration) parts.push(duration);
-      return parts.join(' · ');
-    }
-
-    return token;
+    const details = String(event?.Details || '');
+    const total = details.match(/(?:Total\s+travel|Nonstop)\s+([0-9]+h(?:\s*[0-9]+m)?)/i);
+    return total ? total[1].replace(/(\d)h(?=\d)/, '$1h ') : '';
   }
 
-  function flightPlan(event, move) {
-    if (!event) return { headline: 'Not added', lines: [] };
+  function legacyFlightPlan(event) {
+    const details = String(event?.Details || '');
+    const tokens = details.split('·').map(value => value.trim()).filter(Boolean);
+    const lines = [];
 
-    const time = compactTime(event.Time || '');
-    const title = String(event.Title || '').trim();
-    const origin = locationCode(move.origin).toUpperCase();
-    const destination = locationCode(move.destination).toUpperCase();
-    const routeOnly = new RegExp(`^\\s*${origin}\\s*[→>-]+\\s*${destination}\\s*$`, 'i').test(title);
-    const tokens = detailTokens(event);
+    for (const token of tokens) {
+      if (/^Layover\b/i.test(token)) {
+        const match = token.match(/^Layover\s+([A-Z]{3})\s+(.+)$/i);
+        if (match) lines.push(`${match[1].toUpperCase()} layover · ${match[2]}`);
+        continue;
+      }
 
-    const flightNumberMatch = String(event.Details || '').match(/\b([A-Z]{2}\s?\d{2,4})\b/i);
-    const flightNumber = flightNumberMatch ? flightNumberMatch[1].replace(/\s+/g, '').toUpperCase() : '';
-    const nonstopToken = tokens.find(token => /^Nonstop\b/i.test(token));
-    const connectionTokens = tokens.filter(token =>
-      /^Layover\b/i.test(token) ||
-      /^Total\s+travel\b/i.test(token) ||
-      /^([A-Z0-9]{2,3}\s?\d{2,4})\s+[A-Z]{3}\s*(?:→|->|–>|—>|>)/i.test(token)
-    );
-
-    if (nonstopToken) {
-      const nonstop = nonstopToken.replace(/^Nonstop\s*/i, '').trim();
-      const pieces = [time, flightNumber, 'Nonstop'];
-      if (nonstop) pieces.push(nonstop);
-      return { headline: pieces.filter(Boolean).join(' · '), lines: [] };
+      const leg = token.match(/^([A-Z0-9]{2,3}\s?\d{2,4})\s+([A-Z]{3})\s*(?:→|->|–>|—>|>)\s*([A-Z]{3})(.*)$/i);
+      if (leg) {
+        const suffix = compactText(leg[4].trim()).replace(/\s*\([^)]*\)\s*$/, '').trim();
+        lines.push(`${leg[1].replace(/\s+/g, '')} · ${leg[2].toUpperCase()} → ${leg[3].toUpperCase()}${suffix ? ` · ${suffix}` : ''}`);
+      }
     }
 
-    if (connectionTokens.length) {
-      return {
-        headline: time || (routeOnly ? title : title || 'Added'),
-        lines: connectionTokens.map(operationalToken)
-      };
-    }
+    if (lines.length) return lines;
 
-    if (time && routeOnly) return { headline: time, lines: [] };
-    if (time && title) return { headline: `${time} · ${title}`, lines: [] };
-    return { headline: title || 'Added', lines: [] };
+    const flightNumber = details.match(/\b([A-Z]{2}\s?\d{2,4})\b/i)?.[1]?.replace(/\s+/g, '').toUpperCase() || '';
+    if (/\bNonstop\b/i.test(details) && flightNumber) return [`${flightNumber} · Nonstop`];
+    return [];
+  }
+
+  function flightPlanLines(event) {
+    const explicit = String(event?.['Flight Plan'] || event?.FlightPlan || '').trim();
+    const lines = explicit
+      ? explicit.split(/\n+/).map(line => compactText(line)).filter(Boolean)
+      : legacyFlightPlan(event);
+
+    return lines;
   }
 
   function accommodationSummary(location) {
@@ -275,6 +245,7 @@
     const item = document.createElement('div');
     item.className = 'plan-next-move-item';
 
+    const flight = flightForMove(move);
     const top = document.createElement('div');
     top.className = 'plan-next-move-top';
 
@@ -284,26 +255,27 @@
 
     const route = document.createElement('div');
     route.className = 'plan-next-move-route';
+    route.textContent = `${locationCode(move.origin) || '—'} → ${locationCode(move.destination) || '—'}`;
 
-    const origin = document.createElement('span');
-    origin.textContent = locationCode(move.origin) || '—';
+    const trip = document.createElement('div');
+    trip.className = 'plan-next-move-trip';
+    const overallTime = compactRange(flight?.Time || '');
+    const duration = travelTime(flight);
+    trip.textContent = [overallTime, duration ? `(${duration})` : ''].filter(Boolean).join(' ');
 
-    const arrow = document.createElement('span');
-    arrow.className = 'plan-next-move-arrow';
-    arrow.textContent = '→';
-    arrow.setAttribute('aria-hidden', 'true');
+    top.append(date, route, trip);
 
-    const destination = document.createElement('span');
-    destination.textContent = locationCode(move.destination) || '—';
-
-    route.append(origin, arrow, destination);
-    top.append(date, route);
-
-    const flight = flightPlan(flightForMove(move), move);
     const details = document.createElement('div');
     details.className = 'plan-next-move-details';
-    details.append(detailRow('Flight', flight.headline));
-    flight.lines.forEach(line => details.append(detailRow('', line)));
+
+    const planLines = flightPlanLines(flight);
+    if (planLines.length) {
+      details.append(detailRow('Flight', planLines[0]));
+      planLines.slice(1).forEach(line => details.append(detailRow('', line)));
+    } else {
+      details.append(detailRow('Flight', flight ? 'Added' : 'Not added'));
+    }
+
     details.append(detailRow('Stay', accommodationSummary(move.destination)));
 
     item.append(top, details);

@@ -31,17 +31,14 @@
     );
   }
 
-  function applyLocationTone(cell, dateKey) {
+  function applyLocationTone(cell) {
     const codeEl = cell.querySelector('.day-location-code');
     if (!codeEl) return;
 
+    // Keep every city code visually neutral. Travel/location changes are still
+    // communicated by the text itself without adding another calendar color.
     codeEl.classList.remove('city-pus', 'city-bkk', 'city-other');
-    const location = typeof locationForDate === 'function' ? locationForDate(dateKey) : null;
-    const code = String(location?.Label || codeEl.textContent || '').trim().toUpperCase();
-
-    if (code === 'PUS') codeEl.classList.add('city-pus');
-    else if (code === 'BKK') codeEl.classList.add('city-bkk');
-    else codeEl.classList.add('city-other');
+    codeEl.style.color = 'var(--text)';
   }
 
   function refreshCalendarEventLabels() {
@@ -49,7 +46,7 @@
       const dateKey = cell.getAttribute('aria-label');
       if (!dateKey || typeof eventsForDate !== 'function') return;
 
-      applyLocationTone(cell, dateKey);
+      applyLocationTone(cell);
 
       const events = eventsForDate(dateKey).slice(0, 2);
       const labels = cell.querySelectorAll('.day-event');

@@ -1,5 +1,6 @@
 (() => {
   const DRAFT_STORAGE = 'lexiTravelNoteDraftsV1';
+  const SHOPPING_NOTE_ID = 'bangkok-shopping-list';
   const notesList = document.getElementById('notesList');
   const noteBody = document.getElementById('noteBody');
   const noteSaveStatus = document.getElementById('noteSaveStatus');
@@ -293,6 +294,11 @@
     if (decorating) return;
     const id = selectedNoteId();
     if (!id) {
+      formatBar.hidden = true;
+      return;
+    }
+
+    if (id === SHOPPING_NOTE_ID || noteBody.classList.contains('shopping-list-note')) {
       formatBar.hidden = true;
       return;
     }

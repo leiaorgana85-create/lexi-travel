@@ -3,11 +3,32 @@
   const shoppingView = document.getElementById('shoppingView');
   const shoppingBody = document.getElementById('shoppingListBody');
   const shoppingStatus = document.getElementById('shoppingStatus');
+  const CACHE_KEY = 'lexiTravelShoppingCacheV1';
 
   if (!shoppingTab || !shoppingView || !shoppingBody || !shoppingStatus) return;
 
   let loading = false;
-  let cachedItems = null;
+  let cachedItems = readCache();
+
+  function readCache() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      return parsed && Array.isArray(parsed.items) ? parsed.items : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeCache(items) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        items: Array.isArray(items) ? items : []
+      }));
+    } catch (error) {
+      // Cache failure should never block Shopping.
+    }
+  }
 
   function boolValue(value) {
     return value === true || String(value || '').trim().toLowerCase() === 'true';
@@ -169,6 +190,7 @@
               bought: String(boughtNow).toLowerCase()
             });
             item.bought = boughtNow;
+            if (cachedItems) writeCache(cachedItems);
             shoppingStatus.textContent = 'Saved';
           } catch (error) {
             checkbox.checked = previous;
@@ -190,31 +212,43 @@
     shoppingStatus.textContent = 'Tap a box when purchased';
   }
 
-  async function loadShopping({ showCached = true } = {}) {
-    if (!shoppingView.classList.contains('active') || loading) return;
+  async function loadShopping({ showCached = true, allowInactive = false } = {}) {
+    const active = shoppingView.classList.contains('active');
+    if ((!active && !allowInactive) || loading) return;
 
     const key = localStorage.getItem(KEY_STORAGE);
     if (!key) {
-      shoppingStatus.textContent = '';
-      setMessage('Open Settings and save the Lexi Travel API key once.', true);
+      if (active) {
+        shoppingStatus.textContent = '';
+        setMessage('Open Settings and save the Lexi Travel API key once.', true);
+      }
       return;
     }
 
-    if (showCached && cachedItems) render(cachedItems);
-    else {
-      shoppingStatus.textContent = 'Loading…';
-      setMessage('Loading shopping list…');
+    if (active) {
+      if (showCached && cachedItems) {
+        render(cachedItems);
+      } else {
+        shoppingStatus.textContent = 'Loading…';
+        setMessage('Loading shopping list…');
+      }
     }
 
     loading = true;
     try {
       const data = await postShopping('shoppingList');
       cachedItems = Array.isArray(data.items) ? data.items : [];
+      writeCache(cachedItems);
       if (shoppingView.classList.contains('active')) render(cachedItems);
     } catch (error) {
       if (shoppingView.classList.contains('active')) {
-        shoppingStatus.textContent = '';
-        setMessage(`Shopping list could not load: ${error.message}`, true);
+        if (cachedItems) {
+          render(cachedItems);
+          shoppingStatus.textContent = 'Showing saved list · refresh failed';
+        } else {
+          shoppingStatus.textContent = '';
+          setMessage(`Shopping list could not load: ${error.message}`, true);
+        }
       }
     } finally {
       loading = false;
@@ -225,5 +259,10 @@
     setTimeout(() => loadShopping({ showCached: true }), 0);
   });
 
-  if (shoppingView.classList.contains('active')) loadShopping({ showCached: false });
+  if (cachedItems && shoppingView.classList.contains('active')) render(cachedItems);
+  if (shoppingView.classList.contains('active')) {
+    loadShopping({ showCached: true });
+  } else if (localStorage.getItem(KEY_STORAGE)) {
+    setTimeout(() => loadShopping({ showCached: false, allowInactive: true }), 1800);
+  }
 })();

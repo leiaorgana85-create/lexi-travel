@@ -225,6 +225,21 @@
     return preferred.replace(/^(airbnb|hotel|accommodation|stay)\s*:\s*/i, '').trim() || 'Not added';
   }
 
+  function appendDurationText(element, value) {
+    const parts = String(value || '').split(/(\(?(?:\d+h(?:\s+\d+m)?|\d+m)\)?)/gi);
+    parts.forEach(part => {
+      if (!part) return;
+      if (/^\(?(?:\d+h(?:\s+\d+m)?|\d+m)\)?$/i.test(part)) {
+        const span = document.createElement('span');
+        span.className = 'plan-next-move-duration';
+        span.textContent = part;
+        element.append(span);
+      } else {
+        element.append(document.createTextNode(part));
+      }
+    });
+  }
+
   function detailRow(label, value) {
     const row = document.createElement('div');
     row.className = 'plan-next-move-detail-row';
@@ -235,7 +250,7 @@
 
     const valueEl = document.createElement('span');
     valueEl.className = 'plan-next-move-value';
-    valueEl.textContent = value;
+    appendDurationText(valueEl, value);
 
     row.append(labelEl, valueEl);
     return row;
@@ -261,7 +276,14 @@
     trip.className = 'plan-next-move-trip';
     const overallTime = compactRange(flight?.Time || '');
     const duration = travelTime(flight);
-    trip.textContent = [overallTime, duration ? `(${duration})` : ''].filter(Boolean).join(' ');
+    if (overallTime) trip.append(document.createTextNode(overallTime));
+    if (duration) {
+      if (overallTime) trip.append(document.createTextNode(' '));
+      const durationEl = document.createElement('span');
+      durationEl.className = 'plan-next-move-duration';
+      durationEl.textContent = `(${duration})`;
+      trip.append(durationEl);
+    }
 
     top.append(date, route, trip);
 

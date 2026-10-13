@@ -181,16 +181,17 @@
       formatBar.hidden = true;
       noteBody.innerHTML = '';
 
+      const wrap = document.createElement('div');
+      wrap.className = 'lexi-plain-render';
+
       if (!text) {
         const empty = document.createElement('div');
         empty.className = 'note-empty';
         empty.textContent = 'This note is empty.';
-        noteBody.append(empty);
+        wrap.append(empty);
+        noteBody.append(wrap);
         return;
       }
-
-      const wrap = document.createElement('div');
-      wrap.className = 'lexi-plain-render';
 
       text.split('\n').forEach((line, index) => {
         const row = document.createElement('div');

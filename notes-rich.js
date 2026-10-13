@@ -131,7 +131,14 @@
   }
 
   formatButtons.forEach(button => {
-    button.addEventListener('click', () => applyFormat(button.dataset.format || ''));
+    button.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      applyFormat(button.dataset.format || '');
+    });
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      if (event.detail === 0) applyFormat(button.dataset.format || '');
+    });
   });
 
   function handleEditorEnter(event) {

@@ -177,18 +177,13 @@
 
     const time = compactTime(event.Time || '');
     const title = String(event.Title || '').trim();
-    const status = String(event.Status || '').trim();
     const origin = locationCode(move.origin).toUpperCase();
     const destination = locationCode(move.destination).toUpperCase();
     const routeOnly = new RegExp(`^\\s*${origin}\\s*[→>-]+\\s*${destination}\\s*$`, 'i').test(title);
 
-    let summary = '';
-    if (time && routeOnly) summary = time;
-    else if (time && title) summary = `${time} · ${title}`;
-    else summary = title || 'Added';
-
-    if (status && !/^planned$/i.test(status)) return `${status} · ${summary}`;
-    return summary;
+    if (time && routeOnly) return time;
+    if (time && title) return `${time} · ${title}`;
+    return title || 'Added';
   }
 
   function accommodationSummary(location) {

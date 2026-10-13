@@ -58,6 +58,19 @@
   font-size: 10.5px;
 }
 
+/* Bangkok Schedule only: give the two time columns a little more room and take it from Activity. */
+#notesView:has(.note-list-item.active[data-note-id="bangkok-work-schedule"]) #noteBody .note-table tr > :nth-child(2):nth-last-child(4) {
+  width: 15%;
+}
+
+#notesView:has(.note-list-item.active[data-note-id="bangkok-work-schedule"]) #noteBody .note-table tr > :nth-child(3):nth-last-child(3) {
+  width: 17%;
+}
+
+#notesView:has(.note-list-item.active[data-note-id="bangkok-work-schedule"]) #noteBody .note-table tr > :nth-child(4):nth-last-child(2) {
+  width: 27%;
+}
+
 /* Plan: increase only the actual to-do item text. */
 .plan-check-text {
   font-size: 12.5px;

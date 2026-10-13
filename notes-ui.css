@@ -32,6 +32,10 @@
   font-weight: 700;
 }
 
+.notes-mini-btn.active {
+  background: var(--blue-soft);
+}
+
 .notes-close-btn {
   min-width: 22px;
   min-height: 22px;
@@ -78,6 +82,45 @@
 
 .note-list-pin.active {
   opacity: 0.9;
+}
+
+.note-reorder-controls {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+  align-items: center;
+  gap: 1px;
+}
+
+.notes-list.reorder-mode .note-list-item {
+  padding-right: 48px;
+}
+
+.notes-list.reorder-mode .note-list-pin {
+  display: none;
+}
+
+.notes-list.reorder-mode .note-reorder-controls {
+  display: flex;
+}
+
+.note-reorder-btn {
+  width: 20px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--blue);
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 800;
+  user-select: none;
+}
+
+.note-reorder-btn:active {
+  background: var(--blue-soft);
 }
 
 .note-toolbar {

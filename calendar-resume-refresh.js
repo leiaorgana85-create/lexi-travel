@@ -1,6 +1,7 @@
 (() => {
   const calendarView = document.getElementById('calendarView');
   const paneDetails = document.getElementById('paneDayDetails');
+  const tabs = [...document.querySelectorAll('.tab')];
 
   if (!calendarView || !paneDetails) return;
 
@@ -50,7 +51,7 @@
 
   async function checkForNewShell(force = false) {
     if (buildCheckPromise) return buildCheckPromise;
-    if (!force && Date.now() - lastBuildCheckAt < 60000) return;
+    if (!force && Date.now() - lastBuildCheckAt < 15000) return;
 
     lastBuildCheckAt = Date.now();
     buildCheckPromise = (async () => {
@@ -102,5 +103,16 @@
       checkForNewShell(true);
       refreshFromGoogle(true);
     }, 150);
+  });
+
+  // If Lexi Travel stays open, continue checking the tiny HTML shell marker.
+  // This does not reload Google data and is skipped while the page is hidden.
+  window.setInterval(() => {
+    if (!document.hidden) checkForNewShell(false);
+  }, 15000);
+
+  // Bottom-tab use is another natural opportunity to detect a freshly deployed shell.
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => checkForNewShell(false));
   });
 })();

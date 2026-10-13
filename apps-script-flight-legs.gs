@@ -1,27 +1,22 @@
 // LEXI Travel structured flight-leg calculations.
 //
-// Source tables:
-//   FLIGHT_LEGS
+// Canonical flight-entry table: FLIGHT_LEGS
 //   Event ID | Leg # | Flight # | From | Depart Date | Depart Time |
-//   To | Arrive Date | Arrive Time | From TZ | To TZ | Segment Time | Layover After
+//   To | Arrive Date | Arrive Time | Display Route | Leg Details |
+//   Trip Details | Link | Status | From TZ | To TZ | Segment Time | Layover After
 //
-//   AIRPORT_TZ (hidden system table)
-//   IATA | IANA Time Zone | Airport / City
+// User workflow after the one-tab schema is installed:
+//   - Edit only the green FLIGHT_LEGS fields B:N.
+//   - Event ID (A) and calculation fields O:R are system-controlled.
+//   - Display Route / Trip Details / Link / Status are trip-level fields; enter
+//     them on Leg 1. Leg Details may be entered separately on each leg.
+//   - EVENTS Flight rows are a generated projection and are not edited directly.
 //
-// Derived EVENTS fields for Flight records:
-//   ID | Date | Time | Category | Travel Time | Flight Plan
-//
-// New-flight entry workflow:
-//   Enter only the green FLIGHT_LEGS fields (B:I).
-//   A complete Leg 1 automatically receives an Event ID and creates its Flight
-//   summary row in EVENTS. Complete Leg 2/3/etc rows entered below it inherit
-//   the same Event ID when the leg sequence and connecting airport match.
+// AIRPORT_TZ is a hidden IATA -> IANA timezone reference table.
 //
 // Integration:
-//   Add `flightLegsOnEdit_(e);` near the top of the existing onEdit(e).
-//   The helper exits immediately unless FLIGHT_LEGS or AIRPORT_TZ was edited.
-//
-// After first installation/deployment, run `rebuildAllFlightCalculations()` once.
+//   The consolidated onEdit(e) must call flightLegsOnEdit_(e).
+//   Run rebuildAllFlightCalculations() manually only when a full rebuild is needed.
 
 function flightLegsSheet_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('FLIGHT_LEGS');
@@ -33,6 +28,30 @@ function airportTzSheet_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('AIRPORT_TZ');
   if (!sheet) throw new Error('Missing sheet: AIRPORT_TZ');
   return sheet;
+}
+
+function flightHeaders_(sheet) {
+  const lastColumn = Math.max(1, sheet.getLastColumn());
+  const names = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+  const map = {};
+  names.forEach((name, index) => {
+    const key = String(name || '').trim();
+    if (key) map[key] = index + 1;
+  });
+  return map;
+}
+
+function flightRequiredColumn_(headers, name) {
+  const column = Number(headers[name] || 0);
+  if (!column) throw new Error('Missing FLIGHT_LEGS column: ' + name);
+  return column;
+}
+
+function flightMetadataEnabled_(headers) {
+  return Boolean(
+    headers['Display Route'] && headers['Leg Details'] && headers['Trip Details'] &&
+    headers['Link'] && headers['Status']
+  );
 }
 
 function flightPad2_(value) {
@@ -113,9 +132,6 @@ function flightLocalToUtcMs_(dateText, timeText, timeZone) {
 
   let guess = targetPseudo;
 
-  // Iteratively solve for the UTC instant which renders as the requested
-  // local wall-clock time in the IANA timezone. This follows date-specific
-  // DST/offset rules instead of assuming a fixed UTC offset.
   for (let i = 0; i < 8; i += 1) {
     const renderedPseudo = flightRenderedPseudoUtcMs_(new Date(guess), timeZone);
     const delta = targetPseudo - renderedPseudo;
@@ -131,7 +147,6 @@ function flightLocalToUtcMs_(dateText, timeText, timeZone) {
     );
   }
 
-  // Detect the rare fall-back DST hour where the same local wall time occurs twice.
   const oneHour = 60 * 60 * 1000;
   const previous = Utilities.formatDate(new Date(guess - oneHour), timeZone, 'yyyy-MM-dd HH:mm');
   const next = Utilities.formatDate(new Date(guess + oneHour), timeZone, 'yyyy-MM-dd HH:mm');
@@ -181,24 +196,51 @@ function flightAirportTimezones_() {
   return map;
 }
 
+function flightReadRowObject_(sheet, headers, rowNumber) {
+  const lastColumn = Math.max(1, sheet.getLastColumn());
+  const values = sheet.getRange(rowNumber, 1, 1, lastColumn).getDisplayValues()[0];
+  const value = name => {
+    const column = Number(headers[name] || 0);
+    return column ? String(values[column - 1] || '').trim() : '';
+  };
+
+  return {
+    rowNumber: rowNumber,
+    eventId: value('Event ID'),
+    legNumber: Number(value('Leg #') || 0),
+    flightNumber: value('Flight #').toUpperCase(),
+    from: value('From').toUpperCase(),
+    departDate: value('Depart Date'),
+    departTime: value('Depart Time'),
+    to: value('To').toUpperCase(),
+    arriveDate: value('Arrive Date'),
+    arriveTime: value('Arrive Time'),
+    displayRoute: value('Display Route'),
+    legDetails: value('Leg Details'),
+    tripDetails: value('Trip Details'),
+    link: value('Link'),
+    status: value('Status')
+  };
+}
+
 function flightAllLegRows_() {
   const sheet = flightLegsSheet_();
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  const values = sheet.getRange(2, 1, lastRow - 1, 13).getDisplayValues();
-  return values.map((row, index) => ({
-    rowNumber: index + 2,
-    eventId: String(row[0] || '').trim(),
-    legNumber: Number(row[1] || 0),
-    flightNumber: String(row[2] || '').trim().toUpperCase(),
-    from: String(row[3] || '').trim().toUpperCase(),
-    departDate: String(row[4] || '').trim(),
-    departTime: String(row[5] || '').trim(),
-    to: String(row[6] || '').trim().toUpperCase(),
-    arriveDate: String(row[7] || '').trim(),
-    arriveTime: String(row[8] || '').trim()
-  })).filter(row => row.eventId);
+  const headers = flightHeaders_(sheet);
+  [
+    'Event ID', 'Leg #', 'Flight #', 'From', 'Depart Date', 'Depart Time',
+    'To', 'Arrive Date', 'Arrive Time', 'From TZ', 'To TZ',
+    'Segment Time', 'Layover After'
+  ].forEach(name => flightRequiredColumn_(headers, name));
+
+  const rows = [];
+  for (let row = 2; row <= lastRow; row += 1) {
+    const item = flightReadRowObject_(sheet, headers, row);
+    if (item.eventId) rows.push(item);
+  }
+  return rows;
 }
 
 function flightLegRowsForEvent_(eventId) {
@@ -223,18 +265,8 @@ function flightEventRow_(eventId) {
 }
 
 function flightReadManualRow_(sheet, rowNumber) {
-  const row = sheet.getRange(rowNumber, 2, 1, 8).getDisplayValues()[0];
-  return {
-    rowNumber: rowNumber,
-    legNumber: Number(row[0] || 0),
-    flightNumber: String(row[1] || '').trim().toUpperCase(),
-    from: String(row[2] || '').trim().toUpperCase(),
-    departDate: String(row[3] || '').trim(),
-    departTime: String(row[4] || '').trim(),
-    to: String(row[5] || '').trim().toUpperCase(),
-    arriveDate: String(row[6] || '').trim(),
-    arriveTime: String(row[7] || '').trim()
-  };
+  const headers = flightHeaders_(sheet);
+  return flightReadRowObject_(sheet, headers, rowNumber);
 }
 
 function flightManualRowHasData_(row) {
@@ -266,10 +298,12 @@ function flightNewEventId_(leg) {
 function flightCreateEvent_(eventId, leg) {
   const sheet = eventsSheet_();
   const eventRow = Math.max(2, sheet.getLastRow() + 1);
+  const title = String(leg.displayRoute || '').trim() || (leg.from + '→' + leg.to);
+
   sheet.getRange(eventRow, 1, 1, 10).setValues([[
     eventId,
     '',
-    leg.from + '→' + leg.to,
+    title,
     '',
     'Flight',
     '',
@@ -285,19 +319,18 @@ function flightPreviousEnteredLeg_(sheet, rowNumber) {
   for (let row = rowNumber - 1; row >= 2; row -= 1) {
     const manual = flightReadManualRow_(sheet, row);
     if (!flightManualRowHasData_(manual)) continue;
-
-    return Object.assign({}, manual, {
-      eventId: String(sheet.getRange(row, 1).getDisplayValue() || '').trim()
-    });
+    return manual;
   }
   return null;
 }
 
 function flightEnsureEventLinkForRow_(sheet, rowNumber) {
-  const existingEventId = String(sheet.getRange(rowNumber, 1).getDisplayValue() || '').trim();
+  const headers = flightHeaders_(sheet);
+  const eventIdColumn = flightRequiredColumn_(headers, 'Event ID');
+  const existingEventId = String(sheet.getRange(rowNumber, eventIdColumn).getDisplayValue() || '').trim();
   if (existingEventId) return existingEventId;
 
-  const leg = flightReadManualRow_(sheet, rowNumber);
+  const leg = flightReadRowObject_(sheet, headers, rowNumber);
   if (!flightManualRowHasData_(leg) || !flightManualRowComplete_(leg)) return '';
 
   if (!Number.isInteger(leg.legNumber) || leg.legNumber < 1) {
@@ -306,7 +339,7 @@ function flightEnsureEventLinkForRow_(sheet, rowNumber) {
 
   if (leg.legNumber === 1) {
     const eventId = flightNewEventId_(leg);
-    sheet.getRange(rowNumber, 1).setValue(eventId);
+    sheet.getRange(rowNumber, eventIdColumn).setValue(eventId);
     flightCreateEvent_(eventId, leg);
     return eventId;
   }
@@ -327,32 +360,54 @@ function flightEnsureEventLinkForRow_(sheet, rowNumber) {
   }
 
   const eventId = previous.eventId;
-  const existingRows = flightLegRowsForEvent_(eventId);
-  const priorAutoTitle = flightAutoRoute_(existingRows);
-  const eventRow = flightEventRow_(eventId);
-  if (!eventRow) throw new Error('Missing EVENTS row for flight Event ID: ' + eventId);
+  if (!flightEventRow_(eventId)) {
+    throw new Error('Missing EVENTS row for flight Event ID: ' + eventId);
+  }
 
-  sheet.getRange(rowNumber, 1).setValue(eventId);
+  sheet.getRange(rowNumber, eventIdColumn).setValue(eventId);
 
-  // Extend the default airport-code route as connecting legs are added, but
-  // preserve any title the user has already customized in EVENTS.
-  const titleCell = eventsSheet_().getRange(eventRow, 3);
-  const currentTitle = String(titleCell.getDisplayValue() || '').trim();
-  const nextAutoTitle = (existingRows.length ? existingRows[0].from : leg.from) + '→' + leg.to;
-  if (!currentTitle || currentTitle === priorAutoTitle) {
-    titleCell.setValue(nextAutoTitle);
+  // Backward-compatible behavior before the one-tab metadata columns are added.
+  if (!flightMetadataEnabled_(headers)) {
+    const existingRows = flightLegRowsForEvent_(eventId);
+    const priorAutoTitle = flightAutoRoute_(existingRows);
+    const eventRow = flightEventRow_(eventId);
+    const titleCell = eventsSheet_().getRange(eventRow, 3);
+    const currentTitle = String(titleCell.getDisplayValue() || '').trim();
+    const nextAutoTitle = (existingRows.length ? existingRows[0].from : leg.from) + '→' + leg.to;
+    if (!currentTitle || currentTitle === priorAutoTitle) titleCell.setValue(nextAutoTitle);
   }
 
   return eventId;
 }
 
+function flightBuildDetails_(calculated) {
+  if (!calculated.length) return '';
+  const lines = [];
+  const tripDetails = String(calculated[0].tripDetails || '').trim();
+  if (tripDetails) lines.push(tripDetails);
+
+  calculated.forEach(leg => {
+    const details = String(leg.legDetails || '').trim();
+    if (details) lines.push(leg.flightNumber + ': ' + details);
+  });
+
+  return lines.join('\n');
+}
+
 function rebuildFlightEvent_(eventId) {
   const legsSheet = flightLegsSheet_();
   const eventSheet = eventsSheet_();
+  const headers = flightHeaders_(legsSheet);
   const timezones = flightAirportTimezones_();
   const rows = flightLegRowsForEvent_(eventId);
 
   if (!rows.length) return;
+
+  const fromTzColumn = flightRequiredColumn_(headers, 'From TZ');
+  const toTzColumn = flightRequiredColumn_(headers, 'To TZ');
+  const segmentColumn = flightRequiredColumn_(headers, 'Segment Time');
+  const layoverColumn = flightRequiredColumn_(headers, 'Layover After');
+  const departDateColumn = flightRequiredColumn_(headers, 'Depart Date');
 
   const calculated = rows.map(row => {
     if (!row.legNumber || !row.flightNumber || !row.from || !row.to ||
@@ -401,19 +456,17 @@ function rebuildFlightEvent_(eventId) {
     }
 
     current.layoverMs = layoverMs;
-
-    legsSheet.getRange(current.rowNumber, 10, 1, 4).setValues([[
-      current.fromTz,
-      current.toTz,
-      flightDurationLabel_(current.segmentMs),
+    legsSheet.getRange(current.rowNumber, fromTzColumn).setValue(current.fromTz);
+    legsSheet.getRange(current.rowNumber, toTzColumn).setValue(current.toTz);
+    legsSheet.getRange(current.rowNumber, segmentColumn).setValue(flightDurationLabel_(current.segmentMs));
+    legsSheet.getRange(current.rowNumber, layoverColumn).setValue(
       layoverMs === null ? '' : flightDurationLabel_(layoverMs)
-    ]]);
+    );
   }
 
   const first = calculated[0];
   const last = calculated[calculated.length - 1];
   const totalMs = last.arriveUtc - first.departUtc;
-
   if (totalMs <= 0) throw new Error('Invalid total flight duration for ' + eventId);
 
   const planLines = [];
@@ -425,29 +478,43 @@ function rebuildFlightEvent_(eventId) {
     );
 
     if (leg.layoverMs !== null) {
-      planLines.push(
-        leg.to + ' layover · ' + flightDurationLabel_(leg.layoverMs)
-      );
+      planLines.push(leg.to + ' layover · ' + flightDurationLabel_(leg.layoverMs));
     }
   });
 
   const eventRow = flightEventRow_(eventId);
   if (!eventRow) throw new Error('Missing EVENTS row for flight Event ID: ' + eventId);
 
-  // For Flight rows, overall calendar date/time are derived from the first
-  // departure and final arrival. Title is seeded automatically from airport
-  // codes when a flight is created, then remains user-overridable in EVENTS.
-  const firstDepartDateValue = legsSheet.getRange(first.rowNumber, 5).getValue();
+  const firstDepartDateValue = legsSheet.getRange(first.rowNumber, departDateColumn).getValue();
   const overallTime = flightCompactTime_(first.departTime) + ' → ' + flightCompactTime_(last.arriveTime);
-  eventSheet.getRange(eventRow, 2).setValue(firstDepartDateValue); // Date
-  eventSheet.getRange(eventRow, 4).setValue(overallTime); // Time
-  eventSheet.getRange(eventRow, 5).setValue('Flight'); // Category
+  const travelTime = flightDurationLabel_(totalMs);
+  const flightPlan = planLines.join('\n');
 
-  // I = Travel Time, J = Flight Plan.
-  eventSheet.getRange(eventRow, 9, 1, 2).setValues([[
-    flightDurationLabel_(totalMs),
-    planLines.join('\n')
-  ]]);
+  if (flightMetadataEnabled_(headers)) {
+    const title = String(first.displayRoute || '').trim() || flightAutoRoute_(calculated);
+    const details = flightBuildDetails_(calculated);
+    const link = String(first.link || '').trim();
+    const status = String(first.status || '').trim();
+
+    // In one-tab mode, every Flight field in EVENTS is a generated projection.
+    eventSheet.getRange(eventRow, 2, 1, 9).setValues([[
+      firstDepartDateValue,
+      title,
+      overallTime,
+      'Flight',
+      details,
+      link,
+      status,
+      travelTime,
+      flightPlan
+    ]]);
+  } else {
+    // Backward-compatible output while the older 13-column sheet is still present.
+    eventSheet.getRange(eventRow, 2).setValue(firstDepartDateValue);
+    eventSheet.getRange(eventRow, 4).setValue(overallTime);
+    eventSheet.getRange(eventRow, 5).setValue('Flight');
+    eventSheet.getRange(eventRow, 9, 1, 2).setValues([[travelTime, flightPlan]]);
+  }
 
   SpreadsheetApp.flush();
 }
@@ -458,7 +525,6 @@ function rebuildAllFlightCalculations_() {
   return eventIds.length;
 }
 
-// Public wrapper so the one-time rebuild appears in the Apps Script Run menu.
 function rebuildAllFlightCalculations() {
   return rebuildAllFlightCalculations_();
 }

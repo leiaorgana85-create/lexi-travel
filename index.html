@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="2026-10-13.2010">
+<html lang="en" data-build="2026-10-13.2026">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="notes-table-layout.css?v=1">
   <link rel="stylesheet" href="shopping-list.css?v=9">
   <link rel="stylesheet" href="plan-ui.css?v=7">
+  <link rel="stylesheet" href="plan-next-move.css?v=1">
   <link rel="stylesheet" href="plan-calendar.css?v=1">
   <link rel="stylesheet" href="theme.css?v=1">
   <link rel="stylesheet" href="readability-tweaks.css?v=5">
@@ -133,6 +134,31 @@
           </div>
         </section>
 
+        <section id="planNextMoveSection" class="plan-section plan-next-move-section" aria-label="Next move">
+          <h3 class="plan-next-move-title">Next Move</h3>
+          <div id="planNextMoveCard" class="plan-next-move-card" hidden>
+            <div class="plan-next-move-top">
+              <div class="plan-next-move-route" aria-label="Next travel route">
+                <span id="planNextMoveOrigin">—</span>
+                <span class="plan-next-move-arrow" aria-hidden="true">→</span>
+                <span id="planNextMoveDestination">—</span>
+              </div>
+              <div id="planNextMoveDate" class="plan-next-move-date"></div>
+            </div>
+            <div class="plan-next-move-details">
+              <div class="plan-next-move-row">
+                <span class="plan-next-move-label">Flight</span>
+                <span id="planNextMoveFlight" class="plan-next-move-value">—</span>
+              </div>
+              <div class="plan-next-move-row">
+                <span class="plan-next-move-label">Stay</span>
+                <span id="planNextMoveStay" class="plan-next-move-value">—</span>
+              </div>
+            </div>
+          </div>
+          <div id="planNextMoveEmpty" class="plan-next-move-empty">Loading…</div>
+        </section>
+
         <section class="plan-section plan-country-section" aria-label="Country days">
           <h3 class="plan-country-title">Country Days</h3>
           <div id="countryStatus" class="status-card">Enter your API key in Settings to load country rules.</div>
@@ -211,6 +237,7 @@
   <script src="shopping-list.js?v=12"></script>
   <script src="plan-dummy-cleanup-20261012.js?v=1"></script>
   <script src="plan-ui.js?v=5"></script>
+  <script src="plan-next-move.js?v=1"></script>
   <script src="plan-calendar-editor-bridge.js?v=3"></script>
   <script src="plan-calendar.js?v=3"></script>
 </body>

@@ -9,7 +9,7 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/lexi-assets/travel-logo.png",
+      "src": "/lexi-assets/travel-logo.png?v=2",
       "type": "image/png",
       "purpose": "any"
     }

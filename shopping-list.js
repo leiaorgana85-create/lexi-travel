@@ -9,19 +9,33 @@
   if (!notesTab || !notesList || !noteBody) return;
 
   let loading = false;
+  let cachedItems = null;
 
-  function selectedNoteId() {
-    const active = notesList.querySelector('.note-list-item.active');
-    if (!active) return '';
-    if (active.dataset.noteId) return active.dataset.noteId;
+  function noteIdFromButton(button) {
+    if (!button) return '';
+    if (button.dataset.noteId) return String(button.dataset.noteId);
 
-    const title = String(active.childNodes[0]?.textContent || active.textContent || '').trim();
+    const title = String(button.childNodes[0]?.textContent || button.textContent || '').trim();
     const match = (appData.notes || []).find(note => String(note.Title || '').trim() === title);
     return String(match?.ID || '');
   }
 
+  function selectedNoteId() {
+    return noteIdFromButton(notesList.querySelector('.note-list-item.active'));
+  }
+
   function isShoppingNote() {
     return selectedNoteId() === NOTE_ID;
+  }
+
+  function cleanupShoppingMode() {
+    noteBody.classList.remove('shopping-list-note');
+  }
+
+  function setShoppingToolbar() {
+    if (noteEditBtn) noteEditBtn.hidden = true;
+    const deleteBtn = document.getElementById('noteDeleteBtn');
+    if (deleteBtn) deleteBtn.hidden = true;
   }
 
   function boolValue(value) {
@@ -109,9 +123,7 @@
 
     noteBody.innerHTML = '';
     noteBody.classList.add('shopping-list-note');
-    if (noteEditBtn) noteEditBtn.hidden = true;
-    const deleteBtn = document.getElementById('noteDeleteBtn');
-    if (deleteBtn) deleteBtn.hidden = true;
+    setShoppingToolbar();
 
     const groups = new Map();
     items.forEach(item => {
@@ -195,14 +207,22 @@
     if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping list · tap a box when purchased';
   }
 
-  async function showShoppingIfSelected() {
+  function showLoading() {
+    if (!isShoppingNote()) return;
+    noteBody.classList.add('shopping-list-note');
+    setShoppingToolbar();
+    noteBody.innerHTML = '<div class="note-empty">Loading shopping list…</div>';
+    if (noteSaveStatus) noteSaveStatus.textContent = '';
+  }
+
+  async function refreshShopping() {
     if (!isShoppingNote() || loading) return;
     loading = true;
 
     try {
       const data = await postShopping('shoppingList');
-      if (!isShoppingNote()) return;
-      render(Array.isArray(data.items) ? data.items : []);
+      cachedItems = Array.isArray(data.items) ? data.items : [];
+      if (isShoppingNote()) render(cachedItems);
     } catch (error) {
       if (isShoppingNote() && noteSaveStatus) {
         noteSaveStatus.textContent = `Shopping list could not load: ${error.message}`;
@@ -212,14 +232,37 @@
     }
   }
 
+  function showShoppingIfSelected() {
+    if (!isShoppingNote()) {
+      cleanupShoppingMode();
+      return;
+    }
+
+    if (cachedItems) render(cachedItems);
+    else showLoading();
+
+    refreshShopping();
+  }
+
   notesList.addEventListener('click', event => {
-    const target = event.target instanceof Element ? event.target.closest('.note-list-item') : null;
-    if (!target) return;
-    setTimeout(showShoppingIfSelected, 0);
+    const button = event.target instanceof Element ? event.target.closest('.note-list-item') : null;
+    if (!button) return;
+
+    if (noteIdFromButton(button) !== NOTE_ID) {
+      cleanupShoppingMode();
+      return;
+    }
+
+    showShoppingIfSelected();
   });
 
   notesTab.addEventListener('click', () => {
     setTimeout(showShoppingIfSelected, 0);
+  });
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    if (tab === notesTab) return;
+    tab.addEventListener('click', cleanupShoppingMode);
   });
 
   setTimeout(showShoppingIfSelected, 0);

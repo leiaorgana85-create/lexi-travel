@@ -209,11 +209,16 @@
     const buttons = [...notesList.querySelectorAll('.note-list-item')];
 
     buttons.forEach((button, index) => {
-      const note = notes[index];
-      if (!note) return;
+      let id = String(button.dataset.noteId || '');
+      let note = id ? noteById(id) : null;
 
-      const id = String(note.ID || '');
-      button.dataset.noteId = id;
+      if (!note) {
+        note = notes[index];
+        if (!note) return;
+        id = String(note.ID || '');
+        button.dataset.noteId = id;
+      }
+
       button.classList.toggle('pinned-note', isTrue(note.Pinned));
 
       let pin = button.querySelector('.note-list-pin');

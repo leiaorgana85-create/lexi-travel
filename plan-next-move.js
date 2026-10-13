@@ -1,15 +1,9 @@
 (() => {
-  const section = document.getElementById('planNextMoveSection');
   const card = document.getElementById('planNextMoveCard');
-  const originEl = document.getElementById('planNextMoveOrigin');
-  const destinationEl = document.getElementById('planNextMoveDestination');
-  const dateEl = document.getElementById('planNextMoveDate');
-  const flightEl = document.getElementById('planNextMoveFlight');
-  const stayEl = document.getElementById('planNextMoveStay');
   const emptyEl = document.getElementById('planNextMoveEmpty');
   const planTab = document.querySelector('.tab[data-view="countryView"]');
 
-  if (!section || !card || !originEl || !destinationEl || !dateEl || !flightEl || !stayEl || !emptyEl) return;
+  if (!card || !emptyEl) return;
 
   function dateKey(value) {
     if (typeof normalizeDateString === 'function') return normalizeDateString(value);
@@ -77,25 +71,30 @@
       .sort((a, b) => locationStart(b).localeCompare(locationStart(a)))[0] || null;
   }
 
-  function nextMove() {
+  function upcomingMoves() {
     const today = keyForDate(new Date());
     const locations = (Array.isArray(appData?.locations) ? appData.locations : [])
       .filter(location => locationStart(location))
       .slice()
       .sort((a, b) => locationStart(a).localeCompare(locationStart(b)));
 
+    const moves = [];
+    const seen = new Set();
+
     for (const destination of locations) {
       const start = locationStart(destination);
       if (!start || start < today) continue;
 
       const origin = previousLocationBefore(start, locations);
-      if (!origin) continue;
-      if (locationIdentity(origin) === locationIdentity(destination)) continue;
+      if (!origin || locationIdentity(origin) === locationIdentity(destination)) continue;
 
-      return { origin, destination, date: start };
+      const identity = `${start}|${locationIdentity(origin)}|${locationIdentity(destination)}`;
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      moves.push({ origin, destination, date: start });
     }
 
-    return null;
+    return moves;
   }
 
   function eventCategory(event) {
@@ -128,7 +127,6 @@
     const date = parseKey(key);
     if (!date) return '';
     return new Intl.DateTimeFormat('en-US', {
-      weekday: 'short',
       month: 'short',
       day: 'numeric'
     }).format(date);
@@ -147,13 +145,18 @@
 
     const time = compactTime(event.Time || '');
     const title = String(event.Title || '').trim();
+    const status = String(event.Status || '').trim();
     const origin = locationCode(move.origin).toUpperCase();
     const destination = locationCode(move.destination).toUpperCase();
     const routeOnly = new RegExp(`^\\s*${origin}\\s*[→>-]+\\s*${destination}\\s*$`, 'i').test(title);
 
-    if (time && routeOnly) return time;
-    if (time && title) return `${time} · ${title}`;
-    return title || 'Added';
+    let summary = '';
+    if (time && routeOnly) summary = time;
+    else if (time && title) summary = `${time} · ${title}`;
+    else summary = title || 'Added';
+
+    if (status && !/^planned$/i.test(status)) return `${status} · ${summary}`;
+    return summary;
   }
 
   function accommodationSummary(location) {
@@ -167,24 +170,73 @@
     return preferred.replace(/^(airbnb|hotel|accommodation|stay)\s*:\s*/i, '').trim() || 'Not added';
   }
 
-  function render() {
-    const move = nextMove();
+  function detailRow(label, value) {
+    const row = document.createElement('div');
+    row.className = 'plan-next-move-detail-row';
 
-    if (!move) {
+    const labelEl = document.createElement('span');
+    labelEl.className = 'plan-next-move-label';
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'plan-next-move-value';
+    valueEl.textContent = value;
+
+    row.append(labelEl, valueEl);
+    return row;
+  }
+
+  function moveItem(move) {
+    const item = document.createElement('div');
+    item.className = 'plan-next-move-item';
+
+    const top = document.createElement('div');
+    top.className = 'plan-next-move-top';
+
+    const date = document.createElement('div');
+    date.className = 'plan-next-move-date';
+    date.textContent = formatMoveDate(move.date);
+
+    const route = document.createElement('div');
+    route.className = 'plan-next-move-route';
+
+    const origin = document.createElement('span');
+    origin.textContent = locationCode(move.origin) || '—';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'plan-next-move-arrow';
+    arrow.textContent = '→';
+    arrow.setAttribute('aria-hidden', 'true');
+
+    const destination = document.createElement('span');
+    destination.textContent = locationCode(move.destination) || '—';
+
+    route.append(origin, arrow, destination);
+    top.append(date, route);
+
+    const details = document.createElement('div');
+    details.className = 'plan-next-move-details';
+    details.append(
+      detailRow('Flight', flightSummary(flightForMove(move), move)),
+      detailRow('Stay', accommodationSummary(move.destination))
+    );
+
+    item.append(top, details);
+    return item;
+  }
+
+  function render() {
+    const moves = upcomingMoves();
+    card.innerHTML = '';
+
+    if (!moves.length) {
       card.hidden = true;
       emptyEl.hidden = false;
       emptyEl.textContent = 'No upcoming move planned.';
       return;
     }
 
-    const flight = flightForMove(move);
-
-    originEl.textContent = locationCode(move.origin) || '—';
-    destinationEl.textContent = locationCode(move.destination) || '—';
-    dateEl.textContent = formatMoveDate(move.date);
-    flightEl.textContent = flightSummary(flight, move);
-    stayEl.textContent = accommodationSummary(move.destination);
-
+    moves.forEach(move => card.append(moveItem(move)));
     emptyEl.hidden = true;
     card.hidden = false;
   }

@@ -64,7 +64,7 @@ function doPost(e) {
     }
 
     if (action === 'shoppingcapabilities') {
-      return json_({ ok: true, shoppingWrite: true, version: 1 });
+      return json_({ ok: true, shoppingWrite: true, version: 2 });
     }
 
     if (action === 'shoppinglist') {
@@ -239,32 +239,49 @@ function shoppingSheet_() {
 function shoppingColumns_(sheet) {
   const lastColumn = sheet.getLastColumn();
   const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
-  const productColumn = headers.indexOf('Product') + 1;
-  const boughtColumn = headers.indexOf('Bought') + 1;
+  const column = name => headers.indexOf(name) + 1;
 
-  if (!productColumn) throw new Error('Missing SHOPPING_LIST Product column');
-  if (!boughtColumn) throw new Error('Missing SHOPPING_LIST Bought column');
+  const columns = {
+    store: column('Store'),
+    category: column('Category'),
+    product: column('Product'),
+    thaiProductName: column('Thai product name'),
+    note: column('Purpose / note'),
+    price: column('Approx. price (THB; USD)'),
+    bought: column('Bought')
+  };
 
-  return { productColumn, boughtColumn };
+  if (!columns.product) throw new Error('Missing SHOPPING_LIST Product column');
+  if (!columns.bought) throw new Error('Missing SHOPPING_LIST Bought column');
+
+  return columns;
 }
 
 function shoppingList_() {
   const sheet = shoppingSheet_();
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { ok: true, items: [] };
+  if (lastRow < 2) return { ok: true, version: 2, items: [] };
 
   const columns = shoppingColumns_(sheet);
   const width = sheet.getLastColumn();
   const values = sheet.getRange(2, 1, lastRow - 1, width).getValues();
 
+  const valueAt = (row, columnNumber) =>
+    columnNumber ? String(row[columnNumber - 1] || '').trim() : '';
+
   const items = values
     .map(row => ({
-      product: String(row[columns.productColumn - 1] || '').trim(),
-      bought: noteBool_(row[columns.boughtColumn - 1])
+      store: valueAt(row, columns.store),
+      category: valueAt(row, columns.category),
+      product: valueAt(row, columns.product),
+      thaiProductName: valueAt(row, columns.thaiProductName),
+      note: valueAt(row, columns.note),
+      price: valueAt(row, columns.price),
+      bought: noteBool_(row[columns.bought - 1])
     }))
     .filter(item => item.product);
 
-  return { ok: true, items: items };
+  return { ok: true, version: 2, items: items };
 }
 
 function shoppingSetBought_(p) {
@@ -277,7 +294,7 @@ function shoppingSetBought_(p) {
 
   const columns = shoppingColumns_(sheet);
   const products = sheet
-    .getRange(2, columns.productColumn, lastRow - 1, 1)
+    .getRange(2, columns.product, lastRow - 1, 1)
     .getDisplayValues();
 
   let targetRow = 0;
@@ -291,7 +308,7 @@ function shoppingSetBought_(p) {
   if (!targetRow) return { ok: false, error: 'Shopping item not found' };
 
   const bought = noteBool_(p.bought);
-  sheet.getRange(targetRow, columns.boughtColumn).setValue(bought);
+  sheet.getRange(targetRow, columns.bought).setValue(bought);
   SpreadsheetApp.flush();
 
   return { ok: true, product: product, bought: bought };

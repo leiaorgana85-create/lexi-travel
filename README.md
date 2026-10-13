@@ -268,3 +268,27 @@ These are recognized improvements, not permission to change unrelated behavior:
 - Continue validating Calendar ↔ Plan To Do routing so both views stay consistent.
 
 When updating this guide, modify the existing README rather than creating multiple competing rule documents. This file is the single canonical standing document for Lexi Travel.
+
+## 16. iPhone Home Screen deployment
+
+Use the same installation method proven for Lexi Music. **Do not use an iOS Shortcut as the Lexi Travel launcher.** A Shortcut can hand the URL to the default browser (for example Brave), which is not the same standalone web-app context.
+
+Install the real standalone web app from **Safari**:
+
+1. In Safari, open `https://leiaorgana85-create.github.io/lexi-travel/`.
+2. Tap **Share → Add to Home Screen**.
+3. If iOS shows **Open as Web App**, leave it enabled.
+4. Confirm the preview shows the Lexi Travel icon.
+5. Tap **Add**.
+6. Launch the new Home Screen icon and confirm it opens **standalone** with no Safari or Brave address bar.
+7. If the standalone app is not already connected, open **⚙︎ Settings** and enter the Lexi Travel API key there. Do not paste or commit the key anywhere else.
+
+Current Home Screen configuration:
+- `manifest.json` name: `LEXI Travel`
+- `display`: `standalone`
+- `start_url`: `./`
+- `scope`: `./`
+- icon: `/lexi-assets/travel-logo.png`
+- `index.html` includes the manifest plus iOS standalone web-app metadata.
+
+The Home Screen icon asset lives in the shared `leiaorgana85-create/lexi-assets` repository as `travel-logo.png`.

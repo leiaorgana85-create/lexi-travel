@@ -200,7 +200,7 @@
       );
     }),
     makeTool('check', 'Check', () => {
-      replaceSelectedLines(line => `☐ ${line}`);
+      replaceSelectedLines(line => `[ ] ${line}`);
     }),
     makeTool('indent', 'Indent', () => {
       replaceSelectedLines(line => `  ${line}`);

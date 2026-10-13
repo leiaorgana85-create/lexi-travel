@@ -22,15 +22,40 @@
   pointer-events: none;
 }
 
-/* Notes body/read text: one step larger. */
+/* Notes body/read text: one step larger with slightly more line spacing. */
 .note-paragraph,
 .lexi-plain-render {
   font-size: 13.5px;
 }
 
+.note-paragraph {
+  line-height: 1.42;
+}
+
+.lexi-plain-render,
+.lexi-note-line,
+.lexi-note-marker {
+  line-height: 1.45;
+}
+
 /* Desktop editor follows the same readability increase; iOS remains 16px via existing anti-zoom rule. */
 .lexi-plain-editor {
   font-size: 14px;
+  line-height: 1.46;
+}
+
+/* Bangkok Schedule only: slightly larger schedule body without affecting other notes. */
+#notesView:has(.note-list-item.active[data-note-id="bangkok-work-schedule"]) #noteBody .note-section-title {
+  font-size: 13px;
+}
+
+#notesView:has(.note-list-item.active[data-note-id="bangkok-work-schedule"]) #noteBody .note-table {
+  font-size: 11.5px;
+  line-height: 1.18;
+}
+
+#notesView:has(.note-list-item.active[data-note-id="bangkok-work-schedule"]) #noteBody .note-table th {
+  font-size: 10.5px;
 }
 
 /* Plan: increase only the actual to-do item text. */

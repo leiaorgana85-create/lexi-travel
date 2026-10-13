@@ -185,10 +185,22 @@
     const layover = token.match(/^Layover\s+([A-Z]{3})\s+(.+)$/i);
     if (layover) return `${layover[1].toUpperCase()} layover · ${layover[2]}`;
 
+    const total = token.match(/^Total\s+travel\s+(.+)$/i);
+    if (total) return `Total travel · ${total[1]}`;
+
     const leg = token.match(/^([A-Z0-9]{2,3}\s?\d{2,4})\s+([A-Z]{3})\s*(?:→|->|–>|—>|>)\s*([A-Z]{3})(.*)$/i);
     if (leg) {
       const suffix = leg[4].trim();
-      return `${leg[1].replace(/\s+/g, '')} · ${leg[2].toUpperCase()} → ${leg[3].toUpperCase()}${suffix ? ` ${suffix}` : ''}`;
+      const durationMatch = suffix.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+      const timing = durationMatch ? durationMatch[1].trim() : suffix;
+      const duration = durationMatch ? durationMatch[2].trim() : '';
+      const parts = [
+        leg[1].replace(/\s+/g, ''),
+        `${leg[2].toUpperCase()} → ${leg[3].toUpperCase()}`
+      ];
+      if (timing) parts.push(timing);
+      if (duration) parts.push(duration);
+      return parts.join(' · ');
     }
 
     return token;
@@ -209,6 +221,7 @@
     const nonstopToken = tokens.find(token => /^Nonstop\b/i.test(token));
     const connectionTokens = tokens.filter(token =>
       /^Layover\b/i.test(token) ||
+      /^Total\s+travel\b/i.test(token) ||
       /^([A-Z0-9]{2,3}\s?\d{2,4})\s+[A-Z]{3}\s*(?:→|->|–>|—>|>)/i.test(token)
     );
 

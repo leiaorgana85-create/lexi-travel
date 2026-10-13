@@ -17,14 +17,6 @@
     return categoryOf(event) === 'time off';
   }
 
-  function isWeekendDateKey(dateKey) {
-    const match = String(dateKey || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) return false;
-    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-    const day = date.getDay();
-    return day === 0 || day === 6;
-  }
-
   function compactClock(value) {
     return String(value || '')
       .trim()
@@ -160,11 +152,10 @@
       const allEvents = eventsForDate(dateKey);
       const specialEvents = allEvents.filter(isSpecialEvent);
       const regularEvents = allEvents.filter(event => !isSpecialEvent(event) && !isTimeOffEvent(event));
-      const redDate = isWeekendDateKey(dateKey) ||
-        allEvents.some(event => categoryOf(event) === 'holiday' || isTimeOffEvent(event));
+      const redDate = allEvents.some(event => categoryOf(event) === 'holiday' || isTimeOffEvent(event));
 
-      // Weekends, Holiday and Time Off all mark the date number red. Time Off is
-      // intentionally visual-only in the month cell; it remains in the day pane.
+      // Only Holiday and Time Off mark the date number red. Time Off is intentionally
+      // visual-only in the month cell; it remains available in the selected-day pane.
       cell.classList.toggle('red-date', redDate);
 
       // Rebuild only the timed/regular event rows. Holiday/Event/Birthday never

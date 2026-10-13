@@ -84,7 +84,8 @@
         icon.setAttribute('aria-hidden', 'true');
         button.prepend(icon);
       }
-      icon.textContent = iconForNote(note);
+      const nextIcon = iconForNote(note);
+      if (icon.textContent !== nextIcon) icon.textContent = nextIcon;
 
       const protectedNote = protectedIds.has(id);
       button.classList.toggle('protected-note', protectedNote);

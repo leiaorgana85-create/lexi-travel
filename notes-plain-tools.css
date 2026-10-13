@@ -1,0 +1,29 @@
+.note-plain-tool-btn {
+  min-width: 28px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.note-plain-tool-btn:disabled {
+  opacity: 0.28;
+}
+
+.lexi-note-link {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.lexi-note-divider-row {
+  display: block;
+  min-height: 12px;
+  padding: 5px 0;
+}
+
+.lexi-note-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #dfe4ea;
+}

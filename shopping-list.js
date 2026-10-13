@@ -355,11 +355,11 @@
   }
 
   const observer = new MutationObserver(() => {
+    if (selectedNoteId() !== NOTE_ID) return;
     scheduleDecorate();
-    if (selectedNoteId() === NOTE_ID && !loaded) loadShopping();
+    if (!loaded) loadShopping();
   });
-  observer.observe(noteBody, { childList: true, subtree: true });
-  observer.observe(notesList, { attributes: true, subtree: true, attributeFilter: ['class'] });
+  observer.observe(notesList, { childList: true, subtree: true });
 
   notesTab.addEventListener('click', () => setTimeout(() => loadShopping(true), 0));
   notesList.addEventListener('click', () => setTimeout(() => loadShopping(true), 0));

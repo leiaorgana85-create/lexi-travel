@@ -1,48 +1,13 @@
 (() => {
-  const NOTE_ID = 'bangkok-shopping-list';
-  const NOTE_TITLE = 'Bangkok Shopping List';
-  const notesTab = document.querySelector('.tab[data-view="notesView"]');
-  const notesView = document.getElementById('notesView');
-  const notesList = document.getElementById('notesList');
-  const noteTitle = document.getElementById('noteTitle');
-  const noteBody = document.getElementById('noteBody');
-  const noteSaveStatus = document.getElementById('noteSaveStatus');
-  const noteEditBtn = document.getElementById('noteEditBtn');
+  const shoppingTab = document.querySelector('.tab[data-view="shoppingView"]');
+  const shoppingView = document.getElementById('shoppingView');
+  const shoppingBody = document.getElementById('shoppingListBody');
+  const shoppingStatus = document.getElementById('shoppingStatus');
 
-  if (!notesTab || !notesList || !noteBody) return;
+  if (!shoppingTab || !shoppingView || !shoppingBody || !shoppingStatus) return;
 
   let loading = false;
   let cachedItems = null;
-  let shoppingSelected = false;
-
-  function buttonTitle(button) {
-    if (!button) return '';
-    const first = button.childNodes[0];
-    return String(first?.textContent || button.textContent || '').trim();
-  }
-
-  function isShoppingButton(button) {
-    if (!button) return false;
-    if (String(button.dataset.noteId || '') === NOTE_ID) return true;
-    return buttonTitle(button) === NOTE_TITLE;
-  }
-
-  function shoppingIsCurrent() {
-    if (!notesView?.classList.contains('active')) return false;
-    if (shoppingSelected) return true;
-    if (String(noteTitle?.textContent || '').trim() === NOTE_TITLE) return true;
-    return isShoppingButton(notesList.querySelector('.note-list-item.active'));
-  }
-
-  function cleanupShoppingMode() {
-    noteBody.classList.remove('shopping-list-note');
-  }
-
-  function setShoppingToolbar() {
-    if (noteEditBtn) noteEditBtn.hidden = true;
-    const deleteBtn = document.getElementById('noteDeleteBtn');
-    if (deleteBtn) deleteBtn.hidden = true;
-  }
 
   function boolValue(value) {
     return value === true || String(value || '').trim().toLowerCase() === 'true';
@@ -95,56 +60,40 @@
     return store || 'Other';
   }
 
-  function itemLabel(item) {
-    return [item.category, item.product, item.thaiProductName]
-      .map(value => String(value || '').trim())
-      .filter(Boolean)
-      .join(' · ');
+  function preferredSections(groups) {
+    const preferred = [
+      'Big C',
+      'Pharmacy',
+      'Watsons Terminal 21',
+      'BTS Asok Station ticket office',
+      'ENSO official LINE shop',
+      'Phone / eSIM'
+    ];
+
+    return [...groups.keys()].sort((a, b) => {
+      const ai = preferred.indexOf(a);
+      const bi = preferred.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
   }
 
-  async function setBought(item, checkbox, row) {
-    const previous = !checkbox.checked;
-    const bought = checkbox.checked;
-    checkbox.disabled = true;
-    row.classList.toggle('shopping-bought', bought);
-
-    try {
-      await postShopping('shoppingSetBought', {
-        product: item.product,
-        bought: String(bought).toLowerCase()
-      });
-      item.bought = bought;
-      if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping list synced';
-    } catch (error) {
-      checkbox.checked = previous;
-      row.classList.toggle('shopping-bought', previous);
-      if (noteSaveStatus) noteSaveStatus.textContent = `Could not save checkbox: ${error.message}`;
-    } finally {
-      checkbox.disabled = false;
-    }
-  }
-
-  function showMessage(message) {
-    if (!shoppingIsCurrent()) return;
-    noteBody.classList.add('shopping-list-note');
-    setShoppingToolbar();
-    noteBody.innerHTML = '';
+  function setMessage(message, isError = false) {
+    shoppingBody.innerHTML = '';
     const empty = document.createElement('div');
-    empty.className = 'note-empty';
+    empty.className = `shopping-message${isError ? ' error' : ''}`;
     empty.textContent = message;
-    noteBody.append(empty);
+    shoppingBody.append(empty);
   }
 
   function render(items) {
-    if (!shoppingIsCurrent()) return;
-
-    noteBody.innerHTML = '';
-    noteBody.classList.add('shopping-list-note');
-    setShoppingToolbar();
+    shoppingBody.innerHTML = '';
 
     if (!items.length) {
-      showMessage('No shopping items found.');
-      if (noteSaveStatus) noteSaveStatus.textContent = '';
+      setMessage('No shopping items found.');
+      shoppingStatus.textContent = '';
       return;
     }
 
@@ -155,153 +104,126 @@
       groups.get(section).push(item);
     });
 
-    const preferredOrder = [
-      'Big C',
-      'Pharmacy',
-      'Watsons Terminal 21',
-      'BTS Asok Station ticket office',
-      'ENSO official LINE shop',
-      'Phone / eSIM'
-    ];
-
-    const sections = [...groups.keys()].sort((a, b) => {
-      const ai = preferredOrder.indexOf(a);
-      const bi = preferredOrder.indexOf(b);
-      if (ai === -1 && bi === -1) return a.localeCompare(b);
-      if (ai === -1) return 1;
-      if (bi === -1) return -1;
-      return ai - bi;
-    });
-
-    sections.forEach(sectionName => {
+    preferredSections(groups).forEach(sectionName => {
       const section = document.createElement('section');
-      section.className = 'note-schedule';
+      section.className = 'shopping-section';
 
       const heading = document.createElement('h3');
-      heading.className = 'note-section-title';
+      heading.className = 'shopping-section-title';
       heading.textContent = sectionName;
       section.append(heading);
 
-      const table = document.createElement('table');
-      table.className = 'note-table';
+      const list = document.createElement('div');
+      list.className = 'shopping-items';
 
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      ['', 'Item', 'Price', 'Use / note'].forEach((label, index) => {
-        const th = document.createElement('th');
-        th.textContent = label;
-        if (index === 0) th.className = 'shopping-buy-col';
-        headerRow.append(th);
-      });
-      thead.append(headerRow);
-      table.append(thead);
-
-      const tbody = document.createElement('tbody');
       groups.get(sectionName).forEach(item => {
-        const row = document.createElement('tr');
+        const row = document.createElement('label');
+        row.className = 'shopping-item';
         const bought = boolValue(item.bought);
         row.classList.toggle('shopping-bought', bought);
 
-        const buyCell = document.createElement('td');
-        buyCell.className = 'shopping-buy-col';
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'shopping-buy-check';
         checkbox.checked = bought;
         checkbox.setAttribute('aria-label', `Mark ${item.product} bought`);
-        checkbox.addEventListener('change', () => setBought(item, checkbox, row));
-        buyCell.append(checkbox);
-        row.append(buyCell);
 
-        [itemLabel(item), item.price, item.note].forEach(value => {
-          const cell = document.createElement('td');
-          cell.textContent = String(value || '');
-          row.append(cell);
+        const content = document.createElement('span');
+        content.className = 'shopping-item-content';
+
+        const name = document.createElement('span');
+        name.className = 'shopping-item-name';
+        name.textContent = String(item.product || '');
+        content.append(name);
+
+        const metaParts = [item.category, item.thaiProductName]
+          .map(value => String(value || '').trim())
+          .filter(Boolean);
+        if (metaParts.length) {
+          const meta = document.createElement('span');
+          meta.className = 'shopping-item-meta';
+          meta.textContent = metaParts.join(' · ');
+          content.append(meta);
+        }
+
+        const detailParts = [item.price, item.note]
+          .map(value => String(value || '').trim())
+          .filter(Boolean);
+        if (detailParts.length) {
+          const detail = document.createElement('span');
+          detail.className = 'shopping-item-detail';
+          detail.textContent = detailParts.join(' · ');
+          content.append(detail);
+        }
+
+        checkbox.addEventListener('change', async () => {
+          const previous = !checkbox.checked;
+          const boughtNow = checkbox.checked;
+          checkbox.disabled = true;
+          row.classList.toggle('shopping-bought', boughtNow);
+          shoppingStatus.textContent = 'Saving…';
+
+          try {
+            await postShopping('shoppingSetBought', {
+              product: item.product,
+              bought: String(boughtNow).toLowerCase()
+            });
+            item.bought = boughtNow;
+            shoppingStatus.textContent = 'Saved';
+          } catch (error) {
+            checkbox.checked = previous;
+            row.classList.toggle('shopping-bought', previous);
+            shoppingStatus.textContent = `Could not save: ${error.message}`;
+          } finally {
+            checkbox.disabled = false;
+          }
         });
 
-        tbody.append(row);
+        row.append(checkbox, content);
+        list.append(row);
       });
 
-      table.append(tbody);
-      section.append(table);
-      noteBody.append(section);
+      section.append(list);
+      shoppingBody.append(section);
     });
 
-    if (noteSaveStatus) noteSaveStatus.textContent = 'Shopping list · tap a box when purchased';
+    shoppingStatus.textContent = 'Tap a box when purchased';
   }
 
-  async function refreshShopping() {
-    if (!shoppingIsCurrent() || loading) return;
-    loading = true;
+  async function loadShopping({ showCached = true } = {}) {
+    if (!shoppingView.classList.contains('active') || loading) return;
 
+    const key = localStorage.getItem(KEY_STORAGE);
+    if (!key) {
+      shoppingStatus.textContent = '';
+      setMessage('Open Settings and save the Lexi Travel API key once.', true);
+      return;
+    }
+
+    if (showCached && cachedItems) render(cachedItems);
+    else {
+      shoppingStatus.textContent = 'Loading…';
+      setMessage('Loading shopping list…');
+    }
+
+    loading = true;
     try {
       const data = await postShopping('shoppingList');
       cachedItems = Array.isArray(data.items) ? data.items : [];
-      if (shoppingIsCurrent()) render(cachedItems);
+      if (shoppingView.classList.contains('active')) render(cachedItems);
     } catch (error) {
-      if (shoppingIsCurrent()) {
-        showMessage(error.message === 'Not connected'
-          ? 'Shopping list needs the Lexi Travel connection. Open Settings and save the API key once.'
-          : 'Shopping list could not load. Try opening it again.');
-        if (noteSaveStatus) noteSaveStatus.textContent = `Shopping list could not load: ${error.message}`;
+      if (shoppingView.classList.contains('active')) {
+        shoppingStatus.textContent = '';
+        setMessage(`Shopping list could not load: ${error.message}`, true);
       }
     } finally {
       loading = false;
     }
   }
 
-  function showShoppingIfCurrent() {
-    if (!shoppingIsCurrent()) {
-      cleanupShoppingMode();
-      return;
-    }
-
-    setShoppingToolbar();
-    if (cachedItems) render(cachedItems);
-    else showMessage('Loading shopping list…');
-    refreshShopping();
-  }
-
-  function syncSelectionFromUi() {
-    const active = notesList.querySelector('.note-list-item.active');
-    shoppingSelected = isShoppingButton(active) || String(noteTitle?.textContent || '').trim() === NOTE_TITLE;
-    showShoppingIfCurrent();
-  }
-
-  const baseLoadAllData = loadAllData;
-  loadAllData = async function (...args) {
-    const result = await baseLoadAllData(...args);
-    setTimeout(syncSelectionFromUi, 0);
-    return result;
-  };
-
-  notesList.addEventListener('click', event => {
-    const button = event.target instanceof Element ? event.target.closest('.note-list-item') : null;
-    if (!button) return;
-
-    shoppingSelected = isShoppingButton(button);
-    if (!shoppingSelected) {
-      cleanupShoppingMode();
-      return;
-    }
-
-    setTimeout(showShoppingIfCurrent, 0);
-    setTimeout(syncSelectionFromUi, 120);
-  }, true);
-
-  notesTab.addEventListener('click', () => {
-    setTimeout(syncSelectionFromUi, 0);
-    setTimeout(syncSelectionFromUi, 150);
-    setTimeout(syncSelectionFromUi, 500);
+  shoppingTab.addEventListener('click', () => {
+    setTimeout(() => loadShopping({ showCached: true }), 0);
   });
 
-  document.querySelectorAll('.tab').forEach(tab => {
-    if (tab === notesTab) return;
-    tab.addEventListener('click', () => {
-      shoppingSelected = false;
-      cleanupShoppingMode();
-    });
-  });
-
-  setTimeout(syncSelectionFromUi, 0);
+  if (shoppingView.classList.contains('active')) loadShopping({ showCached: false });
 })();

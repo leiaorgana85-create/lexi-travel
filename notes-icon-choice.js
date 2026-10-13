@@ -1,4 +1,5 @@
 (() => {
+  const DRAFT_STORAGE = 'lexiTravelNoteDraftsV1';
   const notesList = document.getElementById('notesList');
   if (!notesList) return;
 
@@ -8,6 +9,20 @@
     } catch (error) {
       return null;
     }
+  }
+
+  function effectiveTitle(note) {
+    let title = String(note?.Title || '');
+    try {
+      const drafts = JSON.parse(localStorage.getItem(DRAFT_STORAGE) || '{}') || {};
+      const draft = drafts[String(note?.ID || '')];
+      if (draft && Object.prototype.hasOwnProperty.call(draft, 'Title')) {
+        title = String(draft.Title || '');
+      }
+    } catch (error) {
+      // Fall back to the loaded note title.
+    }
+    return title.trim() || 'Untitled Note';
   }
 
   function splitLeadingEmoji(title) {
@@ -47,26 +62,49 @@
     ) || null;
   }
 
+  function makeCustomIcon(button) {
+    const icon = document.createElement('span');
+    icon.className = 'note-list-custom-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.display = 'inline-block';
+    icon.style.width = '17px';
+    icon.style.marginRight = '3px';
+    icon.style.fontSize = '12px';
+    icon.style.lineHeight = '1';
+    icon.style.verticalAlign = '-1px';
+    icon.style.textAlign = 'center';
+    button.prepend(icon);
+    return icon;
+  }
+
   function decorate() {
     notesList.querySelectorAll('.note-list-item[data-note-id]').forEach(button => {
       const note = noteById(button.dataset.noteId);
       if (!note) return;
 
-      const custom = splitLeadingEmoji(note.Title);
-      if (!custom) return;
+      // Automatic icons from the older enhancement layer are intentionally hidden.
+      // Do not remove them: removing them would make that layer recreate them and
+      // could restart the MutationObserver loop that froze Notes.
+      button.querySelectorAll('.note-list-icon').forEach(icon => {
+        if (icon.style.display !== 'none') icon.style.display = 'none';
+      });
 
-      let icon = button.querySelector('.note-list-icon');
-      if (!icon) {
-        icon = document.createElement('span');
-        icon.className = 'note-list-icon';
-        icon.setAttribute('aria-hidden', 'true');
-        button.prepend(icon);
+      const rawTitle = effectiveTitle(note);
+      const custom = splitLeadingEmoji(rawTitle);
+      let customIcon = button.querySelector('.note-list-custom-icon');
+
+      if (custom) {
+        if (!customIcon) customIcon = makeCustomIcon(button);
+        if (customIcon.textContent !== custom.icon) customIcon.textContent = custom.icon;
+      } else if (customIcon) {
+        customIcon.remove();
+        customIcon = null;
       }
-      if (icon.textContent !== custom.icon) icon.textContent = custom.icon;
 
       const textNode = titleTextNode(button);
-      if (textNode && textNode.nodeValue !== custom.displayTitle) {
-        textNode.nodeValue = custom.displayTitle;
+      const displayTitle = custom ? custom.displayTitle : rawTitle;
+      if (textNode && textNode.nodeValue !== displayTitle) {
+        textNode.nodeValue = displayTitle;
       }
     });
   }

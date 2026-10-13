@@ -3,11 +3,14 @@
   const paneLocation = document.getElementById('paneDayLocation');
   const paneDetails = document.getElementById('paneDayDetails');
   const grid = document.getElementById('calendarGrid');
+  const prevMonthBtn = document.getElementById('prevMonthBtn');
+  const nextMonthBtn = document.getElementById('nextMonthBtn');
 
   if (!paneTitle || !paneLocation || !paneDetails || !grid) return;
 
   let selectedDateKey = typeof toDateKey === 'function' ? toDateKey(new Date()) : '';
   let lastRenderedMonthKey = '';
+  let userSelectedDate = false;
 
   function compactDetailText(value) {
     return String(value || '')
@@ -175,10 +178,10 @@
 
       let target = null;
 
-      // Whenever the user enters the current month, today is the default selected
-      // day. On ordinary data refreshes within the same month, preserve a manual
-      // selection instead.
-      if (monthChanged && monthKey === todayMonthKey) {
+      // Until the user deliberately taps a date, today owns the selection whenever
+      // the current month is displayed. This prevents other refresh layers from
+      // racing in and selecting the first day of the month.
+      if (!userSelectedDate && monthKey === todayMonthKey) {
         target = grid.querySelector(`.day-cell:not(.other-month)[aria-label="${todayKey}"]`);
       }
 
@@ -196,6 +199,17 @@
       if (target) renderPane(target.getAttribute('aria-label'));
     });
   }
+
+  grid.addEventListener('click', event => {
+    const target = event.target instanceof Element ? event.target.closest('.day-cell') : null;
+    if (target) userSelectedDate = true;
+  }, true);
+
+  [prevMonthBtn, nextMonthBtn].filter(Boolean).forEach(button => {
+    button.addEventListener('click', () => {
+      userSelectedDate = false;
+    }, true);
+  });
 
   const observer = new MutationObserver(syncSelectionAfterRender);
   observer.observe(grid, { childList: true });

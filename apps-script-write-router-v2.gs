@@ -64,7 +64,7 @@ function doPost(e) {
     }
 
     if (action === 'shoppingcapabilities') {
-      return json_({ ok: true, shoppingWrite: true, version: 2 });
+      return json_({ ok: true, shoppingWrite: true, version: 3 });
     }
 
     if (action === 'shoppinglist') {
@@ -73,6 +73,14 @@ function doPost(e) {
 
     if (action === 'shoppingsetbought') {
       return json_(shoppingSetBought_(e.parameter || {}));
+    }
+
+    if (action === 'shoppingupsert') {
+      return json_(shoppingUpsert_(e.parameter || {}));
+    }
+
+    if (action === 'shoppingdelete') {
+      return json_(shoppingDelete_(e.parameter || {}));
     }
 
     return json_({ ok: false, error: 'Unknown write action' });
@@ -248,6 +256,7 @@ function shoppingColumns_(sheet) {
     thaiProductName: column('Thai product name'),
     note: column('Purpose / note'),
     price: column('Approx. price (THB; USD)'),
+    source: column('Source'),
     bought: column('Bought')
   };
 
@@ -257,10 +266,28 @@ function shoppingColumns_(sheet) {
   return columns;
 }
 
+function shoppingFindRowByProduct_(sheet, columns, product) {
+  const wanted = String(product || '').trim();
+  if (!wanted) return 0;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const products = sheet
+    .getRange(2, columns.product, lastRow - 1, 1)
+    .getDisplayValues();
+
+  for (let i = 0; i < products.length; i += 1) {
+    if (String(products[i][0] || '').trim() === wanted) return i + 2;
+  }
+
+  return 0;
+}
+
 function shoppingList_() {
   const sheet = shoppingSheet_();
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { ok: true, version: 2, items: [] };
+  if (lastRow < 2) return { ok: true, version: 3, items: [] };
 
   const columns = shoppingColumns_(sheet);
   const width = sheet.getLastColumn();
@@ -277,11 +304,12 @@ function shoppingList_() {
       thaiProductName: valueAt(row, columns.thaiProductName),
       note: valueAt(row, columns.note),
       price: valueAt(row, columns.price),
+      source: valueAt(row, columns.source),
       bought: noteBool_(row[columns.bought - 1])
     }))
     .filter(item => item.product);
 
-  return { ok: true, version: 2, items: items };
+  return { ok: true, version: 3, items: items };
 }
 
 function shoppingSetBought_(p) {
@@ -289,21 +317,8 @@ function shoppingSetBought_(p) {
   if (!product) return { ok: false, error: 'Missing product' };
 
   const sheet = shoppingSheet_();
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { ok: false, error: 'Shopping item not found' };
-
   const columns = shoppingColumns_(sheet);
-  const products = sheet
-    .getRange(2, columns.product, lastRow - 1, 1)
-    .getDisplayValues();
-
-  let targetRow = 0;
-  for (let i = 0; i < products.length; i += 1) {
-    if (String(products[i][0] || '').trim() === product) {
-      targetRow = i + 2;
-      break;
-    }
-  }
+  const targetRow = shoppingFindRowByProduct_(sheet, columns, product);
 
   if (!targetRow) return { ok: false, error: 'Shopping item not found' };
 
@@ -312,6 +327,73 @@ function shoppingSetBought_(p) {
   SpreadsheetApp.flush();
 
   return { ok: true, product: product, bought: bought };
+}
+
+function shoppingUpsert_(p) {
+  const originalProduct = String(p.originalProduct || '').trim();
+  const product = String(p.product || '').trim();
+
+  if (!product) return { ok: false, error: 'Product is required' };
+
+  const sheet = shoppingSheet_();
+  const columns = shoppingColumns_(sheet);
+  const width = sheet.getLastColumn();
+
+  let targetRow = 0;
+  if (originalProduct) {
+    targetRow = shoppingFindRowByProduct_(sheet, columns, originalProduct);
+    if (!targetRow) return { ok: false, error: 'Shopping item no longer exists' };
+  }
+
+  const duplicateRow = shoppingFindRowByProduct_(sheet, columns, product);
+  if (duplicateRow && duplicateRow !== targetRow) {
+    return { ok: false, error: 'A shopping item with that Product already exists' };
+  }
+
+  let values;
+  if (targetRow) {
+    values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
+  } else {
+    targetRow = sheet.getLastRow() + 1;
+    values = Array(width).fill('');
+    values[columns.bought - 1] = false;
+  }
+
+  if (columns.store) values[columns.store - 1] = String(p.store || '').trim();
+  if (columns.category) values[columns.category - 1] = String(p.category || '').trim();
+  values[columns.product - 1] = product;
+  if (columns.thaiProductName) values[columns.thaiProductName - 1] = String(p.thaiProductName || '').trim();
+  if (columns.note) values[columns.note - 1] = String(p.note || '').trim();
+  if (columns.price) values[columns.price - 1] = String(p.price || '').trim();
+  if (columns.source) values[columns.source - 1] = String(p.source || '').trim();
+  if (Object.prototype.hasOwnProperty.call(p, 'bought')) {
+    values[columns.bought - 1] = noteBool_(p.bought);
+  }
+
+  sheet.getRange(targetRow, 1, 1, width).setValues([values]);
+  SpreadsheetApp.flush();
+
+  return {
+    ok: true,
+    created: !originalProduct,
+    originalProduct: originalProduct,
+    product: product
+  };
+}
+
+function shoppingDelete_(p) {
+  const product = String(p.product || '').trim();
+  if (!product) return { ok: false, error: 'Missing product' };
+
+  const sheet = shoppingSheet_();
+  const columns = shoppingColumns_(sheet);
+  const targetRow = shoppingFindRowByProduct_(sheet, columns, product);
+
+  if (!targetRow) return { ok: true, product: product, alreadyMissing: true };
+
+  sheet.deleteRow(targetRow);
+  SpreadsheetApp.flush();
+  return { ok: true, product: product, deleted: true };
 }
 
 function onEdit(e) {

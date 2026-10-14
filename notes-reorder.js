@@ -2,11 +2,15 @@
   const ORDER_STORAGE = 'lexiTravelNoteOrderV1';
   const notesList = document.getElementById('notesList');
   const sidebarActions = document.querySelector('.notes-sidebar-actions');
+  const notesTab = document.querySelector('.tab[data-view="notesView"]');
 
   if (!notesList || !sidebarActions) return;
 
   let applyingOrder = false;
   let reorderMode = false;
+  let orderCapability = null;
+  let capabilityPromise = null;
+  let persistPromise = null;
 
   function readOrder() {
     try {
@@ -30,6 +34,69 @@
       .map(button => String(button.dataset.noteId || ''))
       .filter(Boolean);
     localStorage.setItem(ORDER_STORAGE, JSON.stringify(ids));
+    return ids;
+  }
+
+  async function postOrderAction(action, fields = {}) {
+    const key = localStorage.getItem(KEY_STORAGE);
+    if (!key) throw new Error('Not connected');
+
+    const body = new URLSearchParams({ key, action });
+    for (const [name, value] of Object.entries(fields)) {
+      body.set(name, value == null ? '' : String(value));
+    }
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body,
+      cache: 'no-store',
+      redirect: 'follow'
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.error || 'Note order sync failed');
+    return data;
+  }
+
+  async function supportsDurableOrder(force = false) {
+    if (!localStorage.getItem(KEY_STORAGE)) return false;
+    if (!force && orderCapability !== null) return orderCapability;
+    if (capabilityPromise) return capabilityPromise;
+
+    capabilityPromise = (async () => {
+      try {
+        const data = await postOrderAction('noteCapabilities');
+        orderCapability = Boolean(data.noteOrder);
+      } catch (error) {
+        orderCapability = false;
+      } finally {
+        capabilityPromise = null;
+      }
+      return orderCapability;
+    })();
+
+    return capabilityPromise;
+  }
+
+  async function persistOrder(ids) {
+    const orderedIds = (ids || []).map(String).filter(Boolean);
+    if (orderedIds.length < 2 || persistPromise) return persistPromise;
+
+    persistPromise = (async () => {
+      try {
+        if (!await supportsDurableOrder()) return false;
+        await postOrderAction('noteOrder', { ids: JSON.stringify(orderedIds) });
+        return true;
+      } catch (error) {
+        orderCapability = null;
+        return false;
+      } finally {
+        persistPromise = null;
+      }
+    })();
+
+    return persistPromise;
   }
 
   function applySavedOrder() {
@@ -83,7 +150,8 @@
       } else {
         notesList.insertBefore(buttons[targetIndex], buttons[index]);
       }
-      saveCurrentOrder();
+      const ids = saveCurrentOrder();
+      persistOrder(ids);
     } finally {
       applyingOrder = false;
     }
@@ -145,6 +213,15 @@
     reorderMode = !reorderMode;
     reorderBtn.setAttribute('aria-pressed', String(reorderMode));
     notesList.classList.toggle('reorder-mode', reorderMode);
+  });
+
+  notesTab?.addEventListener('click', () => {
+    const saved = readOrder();
+    if (saved.length > 1) {
+      supportsDurableOrder(true).then(supported => {
+        if (supported) persistOrder(saved);
+      });
+    }
   });
 
   const observer = new MutationObserver(() => {

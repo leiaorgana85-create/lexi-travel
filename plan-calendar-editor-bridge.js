@@ -46,6 +46,13 @@
     writePlan(data);
   }
 
+  function removeLocalPlanItem(month, id) {
+    const data = readPlan();
+    const items = Array.isArray(data[month]) ? data[month] : [];
+    data[month] = items.filter(item => String(item.id) !== String(id));
+    writePlan(data);
+  }
+
   function planText(title, time) {
     const cleanTitle = String(title || '').trim();
     const cleanTime = String(time || '').trim();
@@ -105,6 +112,13 @@
     }
   }
 
+  function clearEventDraft(id) {
+    const drafts = readJson(EVENT_DRAFT_STORAGE_KEY, {});
+    if (!drafts || typeof drafts !== 'object' || Array.isArray(drafts)) return;
+    delete drafts[id];
+    writeJson(EVENT_DRAFT_STORAGE_KEY, drafts);
+  }
+
   document.addEventListener('submit', event => {
     const form = event.target instanceof Element
       ? event.target.closest('.calendar-event-editor')
@@ -147,10 +161,6 @@
     all[month] = items;
     writePlan(all);
 
-    if (existingEventId) {
-      markEventDeletedLocally(existingEventId);
-    }
-
     // Use Calendar's own Cancel handler so its private editor state is closed cleanly.
     const cancelButton = [...form.querySelectorAll('button')]
       .find(button => String(button.textContent || '').trim() === 'Cancel');
@@ -158,37 +168,48 @@
 
     if (status) status.textContent = 'Saving…';
 
-    const writes = [
-      postAction('planUpsert', {
-        id: item.id,
-        month,
-        text: item.text,
-        dueDate: item.dueDate,
-        completed: 'false',
-        sortOrder: String(items.length)
-      })
-    ];
-
-    if (existingEventId) {
-      writes.push(postAction('eventDelete', { id: existingEventId }));
-    }
-
-    Promise.all(writes)
-      .then(() => {
-        markSynced(month, item.id);
+    (async () => {
+      let planCreatedRemotely = false;
+      try {
+        // First create the durable Plan record. Do not hide/delete the Calendar
+        // event until that succeeds.
+        await postAction('planUpsert', {
+          id: item.id,
+          month,
+          text: item.text,
+          dueDate: item.dueDate,
+          completed: 'false',
+          sortOrder: String(items.length)
+        });
+        planCreatedRemotely = true;
 
         if (existingEventId) {
-          const drafts = readJson(EVENT_DRAFT_STORAGE_KEY, {});
-          if (drafts && typeof drafts === 'object' && !Array.isArray(drafts)) {
-            delete drafts[existingEventId];
-            writeJson(EVENT_DRAFT_STORAGE_KEY, drafts);
+          try {
+            await postAction('eventDelete', { id: existingEventId });
+          } catch (deleteError) {
+            // Roll back the new Plan record so one logical item cannot remain active
+            // in both EVENTS and PLAN_ITEMS after a partial conversion failure.
+            try {
+              await postAction('planDelete', { id: item.id });
+              removeLocalPlanItem(month, item.id);
+              if (status) status.textContent = 'Conversion failed · original event kept';
+              return;
+            } catch (rollbackError) {
+              if (status) status.textContent = 'Conversion incomplete · check Calendar and Plan';
+              return;
+            }
           }
+
+          markEventDeletedLocally(existingEventId);
+          clearEventDraft(existingEventId);
         }
 
+        markSynced(month, item.id);
         if (status) status.textContent = 'Synced';
-      })
-      .catch(() => {
-        if (status) status.textContent = 'Saved locally · sync failed';
-      });
+      } catch (error) {
+        if (!planCreatedRemotely) removeLocalPlanItem(month, item.id);
+        if (status) status.textContent = 'Conversion failed · original event kept';
+      }
+    })();
   }, true);
 })();

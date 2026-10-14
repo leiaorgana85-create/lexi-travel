@@ -1,6 +1,6 @@
 # Lexi Travel — Standing App Guide
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 This README is the canonical standing guide for the Lexi Travel app. Future work should read this file before making changes. It records the app’s architecture, data rules, deployment rules, maintenance policy, and non-negotiable implementation constraints.
 
@@ -17,33 +17,37 @@ The physical iPhone 13 mini PWA is the authoritative UI test target. Desktop/bro
 
 ## 2. Product model
 
-Lexi Travel has three primary user-facing areas:
+Lexi Travel has four primary user-facing areas:
 
 ### Calendar
 For things tied to an exact date/time or date-specific travel context.
 
-Canonical Calendar categories:
+Canonical Calendar concepts include:
 - `Flight`
 - `Appointment`
 - `Event`
 - `Holiday`
 - `To Do`
+- `Time Off` for special date marking where already present in the data.
 
-`Flight` is a system-backed Calendar category: create and edit flight schedules in `FLIGHT_LEGS`, not in the normal Calendar event editor. The app's New/Edit Event category dropdown intentionally offers only `Appointment`, `Event`, `Holiday`, and `To Do` so a standalone Flight event cannot be created accidentally.
+`Flight` is a system-backed Calendar category: create and edit flight schedules in `FLIGHT_LEGS`, not in the normal Calendar event editor. The app's New/Edit Event category dropdown intentionally offers only `Appointment`, `Event`, `Holiday`, and `To Do` so a standalone Flight event cannot be created accidentally. `Time Off` is supported by the calendar rendering layer but is not currently exposed as a normal editor choice.
 
 Birthdays, anniversaries, reminders, and similar untimed occasions use `Event`; do not create separate category families unless there is a strong product reason.
 
-### Notes
-For reference material, itineraries, schedules, tables, reusable information, and longer-form content that is not fundamentally a calendar event or task.
-
 ### Plan
-For monthly task management plus Country Days.
+For monthly task management, Upcoming Moves, and Country Days.
 
 A Plan item may have an optional exact Due Date.
 - No Due Date → Plan only.
 - Due Date present → same task appears in Plan and Calendar.
 
 The governing principle is: **one To Do, one underlying record, two views when dated.**
+
+### Notes
+For reference material, itineraries, schedules, tables, reusable information, and longer-form content that is not fundamentally a calendar event or task.
+
+### Shopping
+For the Bangkok shopping list. `SHOPPING_LIST` is the durable source of truth. The app is the normal surface for viewing the list and toggling `Bought`; structured item creation/editing remains Sheet/admin-driven until a dedicated app editor exists.
 
 ## 3. Source-of-truth rules
 
@@ -55,39 +59,39 @@ Schema:
 
 For normal non-flight events, `Travel Time` and `Flight Plan` remain blank.
 
-For Flight events, `EVENTS` is an app-facing summary/projection of the structured flight record rather than the schedule-entry source:
-- `ID`, `Date`, `Time`, `Category`, `Travel Time`, and `Flight Plan` are **system/derived or technical** and are light grey in the Sheet. Do not edit them manually.
-- `Date` and `Time` are rebuilt from the first departure and final arrival in `FLIGHT_LEGS`.
-- `Category` remains `Flight` and is system-controlled for these rows.
-- `Travel Time` contains total elapsed journey duration, e.g. `9h 45m`.
-- `Flight Plan` is the system-generated multi-line itinerary consumed by Upcoming Moves.
-- `Title` remains manual trip-level display metadata, e.g. `BKK→DNG`, because the displayed city label can intentionally differ from the airport code such as `DAD`.
-- `Details`, `Link`, and `Status` remain manual trip-level metadata. `Details` is for secondary booking/reference information such as airline, fare, reservation code, baggage, terminal, aircraft, and similar information. Do not duplicate route/time/segment information there.
+For Flight events, `EVENTS` is entirely an app-facing projection of the structured flight record. In the current one-tab flight architecture, **do not manually edit Flight rows in `EVENTS`**. Their displayed fields are rebuilt from `FLIGHT_LEGS`:
+- `Date` and `Time` come from the first departure and final arrival.
+- `Title` comes from Leg 1 `Display Route`, falling back to the first origin → final destination airport route.
+- `Category` is `Flight`.
+- `Details` is built from Leg 1 `Trip Details` plus any per-leg `Leg Details`.
+- `Link` and `Status` come from Leg 1.
+- `Travel Time` is total elapsed journey duration.
+- `Flight Plan` is the generated multi-line itinerary consumed by Upcoming Moves.
 
-Normal Calendar events continue to use `EVENTS` as their editable source record. Existing Flight rows remain visible in Calendar but are intentionally read-only in the normal app event editor.
+Normal non-flight Calendar events continue to use `EVENTS` as their editable source record. Existing Flight rows remain visible in Calendar but are intentionally read-only in the normal app event editor.
 
 Upcoming Moves flight hierarchy:
 - Top row: `Date | Route | overall Time (Travel Time)`.
 - Flight section: generated segment rows including flight number, airports, local times and each segment duration; connection rows show layover airport and layover duration.
 - Stay section: destination accommodation/location summary.
 - Do not display reservation code, baggage, terminal, aircraft, or `Booked` status in Upcoming Moves; those belong in Calendar Details.
-- Legacy Details parsing may remain only as backward-compatible fallback for old rows. New flight segment data belongs in `FLIGHT_LEGS`, not free-form Details.
+- Legacy Details parsing may remain only as backward-compatible fallback for old rows. New flight segment data belongs in `FLIGHT_LEGS`, not free-form `EVENTS.Details`.
 
 ### Structured flight legs
-`FLIGHT_LEGS` is the canonical operational schedule for flights.
+`FLIGHT_LEGS` is the canonical operational schedule and metadata source for flights.
 
-Schema:
-`Event ID | Leg # | Flight # | From | Depart Date | Depart Time | To | Arrive Date | Arrive Time | From TZ | To TZ | Segment Time | Layover After`
+Current schema:
+`Event ID | Leg # | Flight # | From | Depart Date | Depart Time | To | Arrive Date | Arrive Time | Display Route | Leg Details | Trip Details | Link | Status | From TZ | To TZ | Segment Time | Layover After`
 
 Color convention across the workbook uses exactly two colors:
 - **Light green** = user-editable/manual input.
 - **Light grey** = system-generated, derived, or technical; do not edit manually.
 
-For `FLIGHT_LEGS`, `Leg #` through `Arrive Time` are green. `Event ID`, timezone columns, `Segment Time`, and `Layover After` are grey.
-
-Manual columns are `Leg #`, `Flight #`, `From`, `Depart Date`, `Depart Time`, `To`, `Arrive Date`, `Arrive Time`.
-
-System columns are `Event ID`, `From TZ`, `To TZ`, `Segment Time`, and `Layover After`.
+For `FLIGHT_LEGS`:
+- Manual/editable: columns `B:N` — `Leg #`, `Flight #`, `From`, `Depart Date`, `Depart Time`, `To`, `Arrive Date`, `Arrive Time`, `Display Route`, `Leg Details`, `Trip Details`, `Link`, `Status`.
+- System/derived: `Event ID` plus `From TZ`, `To TZ`, `Segment Time`, `Layover After`.
+- `Display Route`, `Trip Details`, `Link`, and `Status` are trip-level metadata and belong on Leg 1.
+- `Leg Details` may differ by leg.
 
 Rules:
 - `Depart Date/Time` and `Arrive Date/Time` are the scheduled **local airport times**.
@@ -101,10 +105,15 @@ Rules:
 - Total journey time is final segment arrival instant − first segment departure instant.
 - If an airport has no timezone mapping, fail visibly rather than guess.
 - If a local time falls in a nonexistent or ambiguous DST transition hour, fail visibly for manual review rather than silently choose an offset.
+- Every linked trip must have consecutive Leg numbers `1, 2, 3...` and each leg's `From` airport must equal the previous leg's `To` airport.
+
+Supported removal workflow after the flight-hardening backend is installed: **clear the editable B:N cells for the leg rather than structurally deleting the Sheet row.** The system cells are then cleared automatically; a surviving itinerary is revalidated/rebuilt, and clearing the final leg removes the generated `EVENTS` Flight projection. Do not use row deletion as the normal flight-removal workflow.
 
 `AIRPORT_TZ` is hidden because it is system metadata, not normal trip-entry data. Add an airport mapping only when a new IATA code is needed.
 
-The repo module `apps-script-flight-legs.gs` implements these calculations and writes derived results back to `FLIGHT_LEGS` and `EVENTS`.
+Repo modules:
+- `apps-script-flight-legs.gs` — timezone resolution, segment/layover/total duration and projection rebuilds.
+- `apps-script-flight-hardening.gs` — linked-trip sequence/connection validation and safe clear/removal lifecycle.
 
 ### To Dos / Plan items
 All To Dos are stored in `PLAN_ITEMS`, not duplicated into `EVENTS`.
@@ -123,7 +132,8 @@ Calendar-to-Plan behavior:
 - Creating a new Calendar item with category `To Do`, `Todo`, or `To-Do` routes the item into `PLAN_ITEMS`.
 - It must not create a duplicate `EVENTS` row.
 - A brand-new Calendar To Do receives a normal Plan ID.
-- Converting an existing Calendar event to category `To Do` moves it to `PLAN_ITEMS`, preserves the original Event ID as the Plan item ID, and removes the old `EVENTS` row.
+- Converting an existing Calendar event to category `To Do` preserves the original Event ID as the Plan item ID.
+- The conversion is sequenced: create the durable Plan record first, then remove the Event. If Event deletion fails, the app attempts to archive/roll back the newly created Plan record so the original Event remains the sole active record.
 - Preserving the ID on conversion is the standing identity rule so the same logical record remains traceable across `EVENTS` → `PLAN_ITEMS`.
 
 Plan-to-Appointment behavior:
@@ -135,6 +145,8 @@ Plan-to-Appointment behavior:
 - If the To Do text begins with a recognizable time followed by `·`, the conversion can reuse that time and remove the time prefix from the Appointment title.
 - The conversion attempts to roll back the new Event if archiving the Plan item fails, to avoid duplicate active records.
 
+Plan maintains local dirty/tombstone state and retries pending writes during later Sheet reconciliation.
+
 ### Notes
 Notes are stored in `NOTES`.
 
@@ -143,12 +155,27 @@ Schema:
 
 Notes may contain either plain text or structured JSON used by the richer Notes renderer. Technical fields may remain hidden in the Sheet UI.
 
-### Location / travel data
+Notes keep local drafts so editing remains usable during a temporary backend/network failure. Unsynced note creates/edits/deletes are retried on later app/tab resumes. The repository backend target also supports durable manual note ordering through `NOTES.Sort Order`; until that updated backend is installed, the existing local order remains the fallback.
+
+### Shopping
+`SHOPPING_LIST` is the durable shopping source.
+
+Schema:
+`Store | Category | Product | Thai product name | Purpose / note | Approx. price (THB; USD) | Source | Bought`
+
+Rules:
+- The app reads the structured list and groups items for display.
+- `Bought` is the normal app-editable field today.
+- Item detail creation/editing remains Sheet/admin-driven until a dedicated app editor exists.
+- Product name is the current stable lookup key; duplicate Product values are rejected by the backend write helpers.
+- Backend create logic must reuse the first blank Product row and must not assume `getLastRow()+1` is writable, because checkbox/default cells can make the Sheet's apparent last row equal its grid limit.
+
+### Location / country-day data
 - `LOCATIONS`: date ranges, country, city, label, notes.
 - `COUNTRIES`: country-day rules and limits.
 - `DAY_OVERRIDES`: explicit day-count overrides when needed.
 
-Country rule detail may remain in Google Sheets even when intentionally hidden from the Plan UI.
+Country Days calculates the configured `Calendar Year Limit`. When `Rolling 12 Limit` is numeric, the app also calculates the maximum count in any inclusive 365-day window from the live `LOCATIONS` + `DAY_OVERRIDES` data and displays it as the rolling-12-month peak. Free-form `Rule Notes` are displayed as constraints but are **not automatically machine-enforced unless separately implemented**.
 
 ## 4. Annual archive policy
 
@@ -166,9 +193,10 @@ Once per year, normally in January:
 - `EVENTS`: prior-year event rows may be removed from live after the archive is verified.
 - `FLIGHT_LEGS`: prior-year flight-leg rows may be removed after the corresponding `EVENTS` history is safely archived.
 - `PLAN_ITEMS`: prior-year Plan rows, including completed and archived/deleted rows, may be removed from live after verification.
-- `LOCATIONS`: prior-year location history may be removed from live once safely archived, provided the current app no longer needs those rows for active calculations.
-- `DAY_OVERRIDES`: prior-year overrides may be removed when they no longer affect active calculations.
+- `LOCATIONS`: prior-year location history may be removed only when it no longer affects active calculations. **If any enabled country uses a rolling-12 rule, retain all location history needed for the current rolling window.**
+- `DAY_OVERRIDES`: prior-year overrides may be removed only when they no longer affect active calculations; retain overrides needed for any current rolling-12 window.
 - `NOTES`: do **not** blindly archive by age. Keep evergreen/reference notes live. Move only notes that are genuinely obsolete or intentionally archived.
+- `SHOPPING_LIST`: keep current operational shopping items live; archive/remove obsolete lists deliberately rather than by calendar year alone.
 - `COUNTRIES`: keep current rule rows live unless explicitly superseded.
 - `AIRPORT_TZ`: keep current airport timezone mappings live; it is reference metadata rather than trip history.
 
@@ -187,6 +215,8 @@ Target architecture:
 - `PLAN_ITEMS`: fetch one month at a time; exclude archived rows from normal views.
 - `EVENTS`: fetch only the visible calendar month, ideally with a small previous/current/next-month buffer.
 - `NOTES`: load a lightweight note index first; fetch the full body only when a note is opened.
+- `SHOPPING_LIST`: load the current operational list; cache it locally for fast reopen.
+- Country-day loading must retain enough location/override history to calculate any configured rolling-12 rule correctly.
 - Keep recently viewed data in local cache so the UI opens immediately while Google refreshes in the background.
 
 Important current state:
@@ -203,30 +233,37 @@ Important localStorage keys include:
 - `lexiTravelMonthlyPlanDeletedV1` — pending Plan deletions/tombstones.
 - `lexiTravelCalendarCacheV1` — Calendar cache.
 - `lexiTravelEventDraftsV1` — unsynced/local Calendar drafts.
+- `lexiTravelNoteDraftsV1` — unsynced/local Note drafts/tombstones.
+- `lexiTravelNoteOrderV1` — local Notes ordering fallback/migration source.
+- `lexiTravelShoppingCacheV1` — Shopping cache.
+- `lexiTravelCountryRulesCacheV1` — Country-rules cache.
 - `lexiTravelTheme` — Light/Dark theme preference.
 
 Clearing browser/site data can remove these local values. The Google Sheet remains the durable backend for synced content.
 
-Never treat localStorage as the only permanent source of user data.
+Never treat localStorage as the only permanent source of user data. Calendar and Notes retain pending local changes and retry them when the app resumes; successful synchronization must converge back to the Sheet source of truth.
 
 ## 7. Apps Script backend structure
 
 The Apps Script project is bound to the Lexi Travel data workbook.
 
-Current conceptual split:
-- `Code.gs` — GET/data read handling and shared helpers.
-- `NotesSync.gs` — consolidated POST router plus Notes write helpers.
-- `CalendarSync.gs` — event write helpers.
-- `PlanSync.gs` — Plan write/list/delete helpers.
-- `FlightLegs.gs` — structured flight-leg timezone, segment, layover, total-duration and `Flight Plan` calculations. Repo source: `apps-script-flight-legs.gs`.
+Canonical repo-side split:
+- `Code.gs` — GET/data read handling and shared helpers. The current live `Code.gs` still needs to be captured/compared before the 2026-10-14 backend hardening is installed.
+- `NotesSync.gs` — **one consolidated POST router** plus Notes and Shopping write helpers. Repo source: `apps-script-write-router-v2.gs`.
+- `CalendarSync.gs` — event write helpers. Repo source: `apps-script-calendar-sync.gs`.
+- `PlanSync.gs` — Plan write/list/delete helpers. Repo source: `apps-script-plan-sync.gs`.
+- `FlightLegs.gs` — structured flight timezone, segment, layover, total-duration and projection calculations. Repo source: `apps-script-flight-legs.gs`.
+- `FlightHardening.gs` — linked-trip validation and safe clear/removal lifecycle. Repo source: `apps-script-flight-hardening.gs`.
 
-The consolidated `onEdit(e)` must call `flightLegsOnEdit_(e)` so edits to `FLIGHT_LEGS` or `AIRPORT_TZ` recalculate derived flight data.
+There must be only one installed `doPost(e)` implementation. The obsolete standalone Notes-only router was removed from the repository on 2026-10-14; do not reinstall it.
+
+The consolidated `onEdit(e)` target calls `flightHardeningOnEdit_(e)` immediately before `flightLegsOnEdit_(e)`, then routes normal `EVENTS`, `PLAN_ITEMS`, and `NOTES` edit handling.
 
 After installing the flight-leg module for the first time, run `rebuildAllFlightCalculations()` once to rebuild all current outputs. The trailing-underscore implementation helper remains private to Apps Script.
 
-**Current flight automation state (2026-10-13):** `FlightLegs.gs` is installed in the bound Apps Script project, the consolidated `onEdit(e)` calls `flightLegsOnEdit_(e)`, and automatic recalculation has been verified with a live edit test. `rebuildAllFlightCalculations()` is the public one-time/manual rebuild wrapper for the private `rebuildAllFlightCalculations_()` helper.
+**Installed production state:** the previously verified bound project contains the flight calculation module and recalculation hook. **2026-10-14 repo hardening is not yet claimed live**: the current bound `Code.gs` must first be captured/reviewed, then the relevant bound files must be updated as a new version of the existing Web App deployment and regression-tested.
 
-POST routing supports Notes, Events, and Plan operations. The active deployment should be updated as a **new version of the existing Web App deployment**, preserving the existing URL.
+The repo-target POST router supports Notes, Events, Plan, Shopping, durable Notes ordering, and the existing capability checks. The active deployment must be updated as a **new version of the existing Web App deployment**, preserving the existing URL.
 
 Do not casually create a second deployment or change the production endpoint.
 
@@ -293,21 +330,23 @@ Dark mode should be implemented as shared theme overrides, not by duplicating th
 - The annual archive workbook is the long-term historical record.
 - The live workbook is an operational database, not a forever-growing archive.
 - Never delete historical live rows until an archive copy has been created and verified.
+- Do not archive data still required by rolling-12 or other active calculations.
 
 ## 13. Key design decisions that should not be reversed casually
 
 - To Do is a Plan record, not an Event record.
 - A dated To Do appears in both Plan and Calendar without duplication.
 - Undated To Dos remain Plan-only.
-- Event → To Do conversion preserves the original Event ID in `PLAN_ITEMS`.
+- Event → To Do conversion preserves the original Event ID in `PLAN_ITEMS` and uses sequenced writes with rollback protection.
 - To Do → Appointment is an explicit type conversion, not continuous reverse sync.
 - To Do → Appointment preserves the same ID, creates one active `EVENTS` record, and archives the Plan record.
 - Holiday/Event are separate Calendar visual concepts; birthdays and similar untimed occasions use Event.
-- Country Days lives under Plan.
+- Country Days lives under Plan; numeric rolling-12 limits are calculated, while free-form rule notes remain informational unless explicitly implemented.
 - Notes are for reference material, not a substitute for Calendar or Plan.
-- Flight operational schedule is stored structurally in `FLIGHT_LEGS`; do not move new flight segment logic back into free-form `Details`.
+- Shopping uses `SHOPPING_LIST` as the durable source; do not create a second independently editable shopping database.
+- Flight operational schedule and metadata are stored structurally in `FLIGHT_LEGS`; do not move new flight data back into free-form `EVENTS.Details`.
 - Flight durations must use date-specific IANA airport timezones; do not calculate them from displayed clock times alone or fixed UTC offsets.
-- `EVENTS.Travel Time` and `EVENTS.Flight Plan` are derived outputs, not manual flight-entry fields.
+- Flight `EVENTS` rows are generated projections, not manual flight-entry rows.
 - Technical columns may be hidden in Sheets to keep manual editing clean.
 - Separate yearly archive workbooks are preferred over year-specific tabs in the live workbook.
 - The app must preserve the existing production Web App URL when deploying backend updates.
@@ -321,7 +360,8 @@ Before making a substantial change, verify:
 - Does this change require an Apps Script deployment as well as a GitHub Pages change?
 - Has the exact current source been fetched before writing?
 - Has the exact Sheet target been read before writing?
-- Does this change preserve existing synced Notes/Calendar/Plan behavior?
+- Does this change preserve existing synced Notes/Calendar/Plan/Shopping behavior?
+- If country-day rules changed, is enough history retained for rolling calculations?
 - Has cache propagation been considered before concluding a code change failed?
 - Has the final behavior been tested on the physical iPhone when it affects mobile UI?
 
@@ -329,6 +369,7 @@ Before making a substantial change, verify:
 
 These are recognized improvements, not permission to change unrelated behavior:
 
+- Capture and compare the current installed `Code.gs` before promoting the 2026-10-14 backend hardening to the bound Apps Script project.
 - Convert Calendar data loading from whole-table reads to month-filtered reads.
 - Convert Notes loading to lightweight index + on-demand body fetch.
 - Add a deliberate annual archive workflow, and eventually automate it.

@@ -20,7 +20,7 @@ function doPost(e) {
       .toLowerCase();
 
     if (action === 'notecapabilities') {
-      return json_({ ok: true, noteWrite: true, version: 1 });
+      return json_({ ok: true, noteWrite: true, noteOrder: true, version: 2 });
     }
 
     if (action === 'noteupsert') {
@@ -29,6 +29,10 @@ function doPost(e) {
 
     if (action === 'notepin') {
       return json_(notePin_(e.parameter || {}));
+    }
+
+    if (action === 'noteorder') {
+      return json_(noteOrder_(e.parameter || {}));
     }
 
     if (action === 'notedelete') {
@@ -64,7 +68,7 @@ function doPost(e) {
     }
 
     if (action === 'shoppingcapabilities') {
-      return json_({ ok: true, shoppingWrite: true, version: 3 });
+      return json_({ ok: true, shoppingWrite: true, version: 4 });
     }
 
     if (action === 'shoppinglist') {
@@ -179,6 +183,37 @@ function notePin_(p) {
   return { ok: true, id: id, pinned: values[4] };
 }
 
+function noteOrder_(p) {
+  let ids;
+  try {
+    ids = JSON.parse(String(p.ids || '[]'));
+  } catch (error) {
+    return { ok: false, error: 'Invalid note order payload' };
+  }
+
+  if (!Array.isArray(ids) || !ids.length) {
+    return { ok: false, error: 'Missing note order' };
+  }
+
+  const orderedIds = ids.map(id => String(id || '').trim()).filter(Boolean);
+  if (new Set(orderedIds).size !== orderedIds.length) {
+    return { ok: false, error: 'Duplicate note ID in order' };
+  }
+
+  const sheet = notesSheet_();
+  const now = new Date();
+
+  orderedIds.forEach((id, index) => {
+    const row = noteFindRow_(sheet, id);
+    if (!row) throw new Error('Note not found: ' + id);
+    sheet.getRange(row, 6).setValue(index + 1);
+    sheet.getRange(row, 7).setValue(now);
+  });
+
+  SpreadsheetApp.flush();
+  return { ok: true, count: orderedIds.length, updatedAt: now.toISOString() };
+}
+
 function noteDelete_(p) {
   const id = String(p.id || '').trim();
   if (!id) return { ok: false, error: 'Missing note ID' };
@@ -284,10 +319,29 @@ function shoppingFindRowByProduct_(sheet, columns, product) {
   return 0;
 }
 
+function shoppingFirstBlankProductRow_(sheet, columns) {
+  const maxRows = sheet.getMaxRows();
+  if (maxRows < 2) {
+    sheet.insertRowsAfter(maxRows, 2 - maxRows);
+    return 2;
+  }
+
+  const products = sheet
+    .getRange(2, columns.product, maxRows - 1, 1)
+    .getDisplayValues();
+
+  for (let i = 0; i < products.length; i += 1) {
+    if (!String(products[i][0] || '').trim()) return i + 2;
+  }
+
+  sheet.insertRowAfter(maxRows);
+  return maxRows + 1;
+}
+
 function shoppingList_() {
   const sheet = shoppingSheet_();
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { ok: true, version: 3, items: [] };
+  if (lastRow < 2) return { ok: true, version: 4, items: [] };
 
   const columns = shoppingColumns_(sheet);
   const width = sheet.getLastColumn();
@@ -309,7 +363,7 @@ function shoppingList_() {
     }))
     .filter(item => item.product);
 
-  return { ok: true, version: 3, items: items };
+  return { ok: true, version: 4, items: items };
 }
 
 function shoppingSetBought_(p) {
@@ -354,8 +408,8 @@ function shoppingUpsert_(p) {
   if (targetRow) {
     values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
   } else {
-    targetRow = sheet.getLastRow() + 1;
-    values = Array(width).fill('');
+    targetRow = shoppingFirstBlankProductRow_(sheet, columns);
+    values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
     values[columns.bought - 1] = false;
   }
 

@@ -13,6 +13,7 @@
 
   let writeCapability = null;
   let capabilityPromise = null;
+  let retryPromise = null;
   let backgroundRefreshPromise = null;
   let lastBackgroundRefreshAt = 0;
   let suppressFastClick = false;
@@ -110,6 +111,7 @@
     const result = await actualLoadAllData(...args);
     writeCache();
     mergeEventDrafts();
+    if (localStorage.getItem(KEY_STORAGE)) retryPendingWrites(false);
     return result;
   };
   loadAllData = wrappedLoadAllData;
@@ -170,7 +172,10 @@
     setTimeout(() => {
       loadAllData = loader;
       suppressFastClick = false;
-      if (localStorage.getItem(KEY_STORAGE)) refreshInBackground(loader);
+      if (localStorage.getItem(KEY_STORAGE)) {
+        refreshInBackground(loader);
+        retryPendingWrites(true);
+      }
     }, 0);
   }, true);
 
@@ -506,5 +511,80 @@
     }
   }
 
-  if (localStorage.getItem(KEY_STORAGE)) ensureWriteCapability(true);
+  function draftNeedsRetry(draft) {
+    if (!draft || typeof draft !== 'object') return false;
+    if (draft._localDeleted) return true;
+    return !draft._syncedAt || Number(draft.savedAt || 0) > Number(draft._syncedAt || 0);
+  }
+
+  async function retryPendingWrites(forceCapability = false) {
+    if (retryPromise) return retryPromise;
+    if (!localStorage.getItem(KEY_STORAGE)) return false;
+
+    retryPromise = (async () => {
+      try {
+        if (!await ensureWriteCapability(forceCapability)) return false;
+
+        const drafts = readDrafts();
+        let changed = false;
+
+        for (const [id, draft] of Object.entries(drafts)) {
+          if (!draftNeedsRetry(draft)) continue;
+
+          try {
+            if (draft._localDeleted) {
+              await postWrite('eventDelete', { id });
+              delete drafts[id];
+              changed = true;
+              continue;
+            }
+
+            await postWrite('eventUpsert', {
+              id,
+              date: draft.Date || '',
+              title: draft.Title || '',
+              time: draft.Time || '',
+              category: draft.Category || '',
+              details: draft.Details || '',
+              link: draft.Link || '',
+              status: draft.Status || ''
+            });
+
+            drafts[id] = {
+              ...draft,
+              _localNew: false,
+              _syncedAt: Date.now()
+            };
+            changed = true;
+          } catch (error) {
+            writeCapability = null;
+          }
+        }
+
+        if (changed) {
+          writeDrafts(drafts);
+          writeCache();
+        }
+        return changed;
+      } finally {
+        retryPromise = null;
+      }
+    })();
+
+    return retryPromise;
+  }
+
+  window.lexiCalendarRetryPendingWrites = retryPendingWrites;
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && localStorage.getItem(KEY_STORAGE)) retryPendingWrites(true);
+  });
+  window.addEventListener('pageshow', () => {
+    if (localStorage.getItem(KEY_STORAGE)) retryPendingWrites(true);
+  });
+
+  if (localStorage.getItem(KEY_STORAGE)) {
+    ensureWriteCapability(true);
+    retryPendingWrites(false);
+  }
 })();

@@ -8,6 +8,7 @@
 
   let writeCapability = null;
   let capabilityPromise = null;
+  let retryPromise = null;
 
   function readDrafts() {
     try {
@@ -117,6 +118,7 @@
 
       if (noteSaveStatus) noteSaveStatus.textContent = 'Synced to Google Sheets';
     } catch (error) {
+      writeCapability = null;
       if (noteSaveStatus) noteSaveStatus.textContent = `Saved locally · sync failed: ${error.message}`;
     }
   }
@@ -135,7 +137,14 @@
         id,
         pinned: String(note.Pinned === true || String(note.Pinned).toUpperCase() === 'TRUE').toLowerCase()
       });
+
+      const drafts = readDrafts();
+      if (drafts[id]) {
+        drafts[id] = { ...drafts[id], _syncedAt: Date.now() };
+        writeDrafts(drafts);
+      }
     } catch (error) {
+      writeCapability = null;
       if (noteSaveStatus) noteSaveStatus.textContent = `Pin saved locally · sync failed: ${error.message}`;
     }
   }
@@ -145,11 +154,76 @@
 
     try {
       await postWrite('noteDelete', { id });
+      const drafts = readDrafts();
+      if (drafts[id]) {
+        delete drafts[id];
+        writeDrafts(drafts);
+      }
       if (noteSaveStatus) noteSaveStatus.textContent = 'Deleted from Google Sheets';
     } catch (error) {
+      writeCapability = null;
       if (noteSaveStatus) noteSaveStatus.textContent = `Deleted locally · sync failed: ${error.message}`;
     }
   }
+
+  function draftNeedsRetry(draft) {
+    if (!draft || typeof draft !== 'object') return false;
+    if (draft._localDeleted) return true;
+    return !draft._syncedAt || Number(draft.savedAt || 0) > Number(draft._syncedAt || 0);
+  }
+
+  async function retryPendingWrites(forceCapability = false) {
+    if (retryPromise) return retryPromise;
+    if (!localStorage.getItem(KEY_STORAGE)) return false;
+
+    retryPromise = (async () => {
+      try {
+        if (!await ensureWriteCapability(forceCapability)) return false;
+        const drafts = readDrafts();
+        let changed = false;
+
+        for (const [id, draft] of Object.entries(drafts)) {
+          if (!draftNeedsRetry(draft)) continue;
+
+          try {
+            if (draft._localDeleted) {
+              await postWrite('noteDelete', { id });
+              delete drafts[id];
+              changed = true;
+              continue;
+            }
+
+            const base = (appData.notes || []).find(note => String(note.ID || '') === String(id)) || {};
+            const note = { ...base, ...draft };
+            await postWrite('noteUpsert', {
+              id,
+              title: note.Title || 'Untitled Note',
+              body: note.Body || '',
+              pinned: String(note.Pinned === true || String(note.Pinned).toUpperCase() === 'TRUE').toLowerCase()
+            });
+
+            drafts[id] = {
+              ...draft,
+              _localNew: false,
+              _syncedAt: Date.now()
+            };
+            changed = true;
+          } catch (error) {
+            writeCapability = null;
+          }
+        }
+
+        if (changed) writeDrafts(drafts);
+        return changed;
+      } finally {
+        retryPromise = null;
+      }
+    })();
+
+    return retryPromise;
+  }
+
+  window.lexiNotesRetryPendingWrites = retryPendingWrites;
 
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
@@ -180,6 +254,7 @@
 
   notesTab.addEventListener('click', () => {
     ensureWriteCapability(true);
+    retryPendingWrites(true);
 
     setTimeout(() => {
       if (!noteSaveStatus) return;
@@ -193,7 +268,15 @@
     }, 0);
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && localStorage.getItem(KEY_STORAGE)) retryPendingWrites(true);
+  });
+  window.addEventListener('pageshow', () => {
+    if (localStorage.getItem(KEY_STORAGE)) retryPendingWrites(true);
+  });
+
   if (localStorage.getItem(KEY_STORAGE)) {
     ensureWriteCapability(true);
+    retryPendingWrites(false);
   }
 })();

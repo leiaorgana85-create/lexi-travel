@@ -66,6 +66,7 @@ function flightHardeningOnEdit_(e) {
   const firstRow = Math.max(2, e.range.getRow());
   const lastRow = e.range.getRow() + e.range.getNumRows() - 1;
   const affectedEventIds = new Set();
+  const rebuildAfterClear = new Set();
 
   for (let rowNumber = firstRow; rowNumber <= lastRow; rowNumber += 1) {
     const row = flightReadRowObject_(sheet, headers, rowNumber);
@@ -80,6 +81,7 @@ function flightHardeningOnEdit_(e) {
         flightHardeningDeleteGeneratedEvent_(eventId);
       } else {
         affectedEventIds.add(eventId);
+        rebuildAfterClear.add(eventId);
       }
       continue;
     }
@@ -88,4 +90,5 @@ function flightHardeningOnEdit_(e) {
   }
 
   affectedEventIds.forEach(eventId => flightHardeningValidateTrip_(eventId));
+  rebuildAfterClear.forEach(eventId => rebuildFlightEvent_(eventId));
 }

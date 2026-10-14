@@ -107,7 +107,7 @@ Rules:
 - If a local time falls in a nonexistent or ambiguous DST transition hour, fail visibly for manual review rather than silently choose an offset.
 - Every linked trip must have consecutive Leg numbers `1, 2, 3...` and each leg's `From` airport must equal the previous leg's `To` airport.
 
-Supported removal workflow after the flight-hardening backend is installed: **clear the editable B:N cells for the leg rather than structurally deleting the Sheet row.** The system cells are then cleared automatically; a surviving itinerary is revalidated/rebuilt, and clearing the final leg removes the generated `EVENTS` Flight projection. Do not use row deletion as the normal flight-removal workflow.
+Supported removal workflow with the installed flight-hardening backend: **clear the editable B:N cells for the leg rather than structurally deleting the Sheet row.** The system cells are then cleared automatically; a surviving itinerary is revalidated/rebuilt, and clearing the final leg removes the generated `EVENTS` Flight projection. Do not use row deletion as the normal flight-removal workflow.
 
 `AIRPORT_TZ` is hidden because it is system metadata, not normal trip-entry data. Add an airport mapping only when a new IATA code is needed.
 
@@ -155,7 +155,7 @@ Schema:
 
 Notes may contain either plain text or structured JSON used by the richer Notes renderer. Technical fields may remain hidden in the Sheet UI.
 
-Notes keep local drafts so editing remains usable during a temporary backend/network failure. Unsynced note creates/edits/deletes are retried on later app/tab resumes. The repository backend target also supports durable manual note ordering through `NOTES.Sort Order`; until that updated backend is installed, the existing local order remains the fallback.
+Notes keep local drafts so editing remains usable during a temporary backend/network failure. Unsynced note creates/edits/deletes are retried on later app/tab resumes. The installed backend supports durable manual note ordering through `NOTES.Sort Order`; local order remains a temporary fallback/cache rather than the source of truth.
 
 ### Shopping
 `SHOPPING_LIST` is the durable shopping source.
@@ -168,7 +168,7 @@ Rules:
 - `Bought` is the normal app-editable field today.
 - Item detail creation/editing remains Sheet/admin-driven until a dedicated app editor exists.
 - Product name is the current stable lookup key; duplicate Product values are rejected by the backend write helpers.
-- Backend create logic must reuse the first blank Product row and must not assume `getLastRow()+1` is writable, because checkbox/default cells can make the Sheet's apparent last row equal its grid limit.
+- Backend create logic reuses the first blank Product row and does not assume `getLastRow()+1` is writable, because checkbox/default cells can make the Sheet's apparent last row equal its grid limit.
 
 ### Location / country-day data
 - `LOCATIONS`: date ranges, country, city, label, notes.
@@ -248,7 +248,7 @@ Never treat localStorage as the only permanent source of user data. Calendar and
 The Apps Script project is bound to the Lexi Travel data workbook.
 
 Canonical repo-side split:
-- `Code.gs` — GET/data read handling and shared helpers. The current live `Code.gs` still needs to be captured/compared before the 2026-10-14 backend hardening is installed.
+- `Code.gs` — GET/data read handling and shared helpers. The installed source was captured/reviewed on 2026-10-14 and is tracked as `apps-script-code.gs`; no functional change to `Code.gs` was required for this hardening release.
 - `NotesSync.gs` — **one consolidated POST router** plus Notes and Shopping write helpers. Repo source: `apps-script-write-router-v2.gs`.
 - `CalendarSync.gs` — event write helpers. Repo source: `apps-script-calendar-sync.gs`.
 - `PlanSync.gs` — Plan write/list/delete helpers. Repo source: `apps-script-plan-sync.gs`.
@@ -257,13 +257,13 @@ Canonical repo-side split:
 
 There must be only one installed `doPost(e)` implementation. The obsolete standalone Notes-only router was removed from the repository on 2026-10-14; do not reinstall it.
 
-The consolidated `onEdit(e)` target calls `flightHardeningOnEdit_(e)` immediately before `flightLegsOnEdit_(e)`, then routes normal `EVENTS`, `PLAN_ITEMS`, and `NOTES` edit handling.
+The installed consolidated `onEdit(e)` calls `flightHardeningOnEdit_(e)` immediately before `flightLegsOnEdit_(e)`, then routes normal `EVENTS`, `PLAN_ITEMS`, and `NOTES` edit handling.
 
-After installing the flight-leg module for the first time, run `rebuildAllFlightCalculations()` once to rebuild all current outputs. The trailing-underscore implementation helper remains private to Apps Script.
+After installing or materially changing the flight modules, `rebuildAllFlightCalculations()` may be run manually to validate/rebuild all current outputs. The trailing-underscore implementation helper remains private to Apps Script.
 
-**Installed production state:** the previously verified bound project contains the flight calculation module and recalculation hook. **2026-10-14 repo hardening is not yet claimed live**: the current bound `Code.gs` must first be captured/reviewed, then the relevant bound files must be updated as a new version of the existing Web App deployment and regression-tested.
+**Installed production state (2026-10-14):** backend hardening is live on a new version of the existing Web App deployment, preserving the production URL. The bound project contains the consolidated router, FlightHardening, the existing flight calculation module, CalendarSync, PlanSync, and unchanged reviewed Code.gs. A full `rebuildAllFlightCalculations()` completed successfully; FLIGHT_LEGS and generated EVENTS flight outputs were re-read afterward and remained consistent. The owner then confirmed Calendar, Plan/Country Days, Notes and Shopping load in the live app.
 
-The repo-target POST router supports Notes, Events, Plan, Shopping, durable Notes ordering, and the existing capability checks. The active deployment must be updated as a **new version of the existing Web App deployment**, preserving the existing URL.
+The installed POST router supports Notes, Events, Plan, Shopping, durable Notes ordering, and the existing capability checks. Future backend updates must continue to use a **new version of the existing Web App deployment**, preserving the existing URL.
 
 Do not casually create a second deployment or change the production endpoint.
 
@@ -369,7 +369,6 @@ Before making a substantial change, verify:
 
 These are recognized improvements, not permission to change unrelated behavior:
 
-- Capture and compare the current installed `Code.gs` before promoting the 2026-10-14 backend hardening to the bound Apps Script project.
 - Convert Calendar data loading from whole-table reads to month-filtered reads.
 - Convert Notes loading to lightweight index + on-demand body fetch.
 - Add a deliberate annual archive workflow, and eventually automate it.

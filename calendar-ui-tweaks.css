@@ -1,4 +1,4 @@
-/* Calendar editor polish: compact aligned controls and date-adjacent add button. */
+/* Calendar editor polish: compact aligned controls and right-handed day actions. */
 
 .day-pane-head {
   align-items: center;
@@ -9,23 +9,59 @@
   gap: 3px 6px;
 }
 
-.day-pane-summary .calendar-add-btn {
+.calendar-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  min-height: 22px;
-  margin: 0 1px 0 0;
-  padding: 0;
+}
+
+.calendar-top-actions[hidden] {
+  display: none !important;
+}
+
+.calendar-top-action-btn,
+.day-pane-summary .calendar-add-btn.calendar-top-action-btn {
+  flex: 0 0 auto;
+  width: 25px;
+  height: 25px;
+  min-width: 25px;
+  min-height: 25px;
+  margin: 0;
+  padding: 4px;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 5px;
+  border-radius: 6px;
   background: transparent;
   color: var(--blue);
-  font-size: 19px;
-  font-weight: 650;
   line-height: 1;
+}
+
+.calendar-top-action-btn svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.calendar-top-action-btn.danger {
+  color: #9b3d3d;
+}
+
+.calendar-top-action-btn.active {
+  background: #f4f7ff;
+  box-shadow: inset 0 0 0 1px #cbd7e6;
+}
+
+.calendar-top-action-btn[hidden] {
+  display: none !important;
 }
 
 .calendar-pane-actions {
@@ -129,7 +165,7 @@
   gap: 4px;
 }
 
-/* Make the edit affordance visible without adding visual weight. */
+/* Make the edit affordance available to the top action layer without adding visual weight. */
 .pane-event-summary {
   display: flex;
   align-items: center;

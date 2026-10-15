@@ -26,17 +26,59 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* Notes: list/menu is a primary navigation control, so give it a larger tap target. */
+/* Notes toolbar: one compact, vertically aligned row. */
+#notesView .note-toolbar {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 1px 2px;
+}
+
+#notesView .note-title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+#notesView .note-title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.05;
+}
+
+#notesView .note-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-height: 32px;
+}
+
+/* Notes list/menu stays easy to hit without forcing the whole header taller. */
 #notesListBtn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  padding: 5px;
-  font-size: 25px;
+  box-sizing: border-box;
+  width: 36px;
+  height: 34px;
+  min-width: 36px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  font-size: 23px;
   line-height: 1;
-  border-radius: 8px;
+  border-radius: 7px;
   touch-action: manipulation;
+}
+
+/* Keep body close to the toolbar; do not leave a dead status gap. */
+#notesView .note-save-status:empty {
+  display: none;
+}
+
+#notesView .note-body {
+  padding-top: 2px;
 }
 
 /* Reorder is intentionally NOT a hamburger/menu symbol. Use a vertical-move icon. */

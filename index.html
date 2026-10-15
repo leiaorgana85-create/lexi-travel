@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="2026-10-15.1525">
+<html lang="en" data-build="2026-10-15.1526">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -31,7 +31,15 @@
   <div class="app-shell">
     <header class="topbar">
       <h1 class="app-title">Lexi Travel ✈︎</h1>
-      <button id="settingsBtn" class="icon-btn" type="button" aria-label="API settings">⚙︎</button>
+      <div class="topbar-actions" style="display:flex;align-items:center;gap:0">
+        <button id="todayBtn" class="icon-btn" type="button" aria-label="Go to today" title="Today" style="color:var(--blue)">
+          <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">
+            <path d="M7 3v3M17 3v3M4.5 8.5h15M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>
+            <circle cx="12" cy="14" r="2.2"/>
+          </svg>
+        </button>
+        <button id="settingsBtn" class="icon-btn" type="button" aria-label="API settings">⚙︎</button>
+      </div>
     </header>
 
     <main class="content">
@@ -218,6 +226,7 @@
 
   <script src="tab-gesture-guard.js?v=3"></script>
   <script src="app.js?v=5"></script>
+  <script src="today-button.js?v=1"></script>
   <script src="country-fast.js?v=2"></script>
   <script src="calendar-fixes.js?v=19"></script>
   <script src="calendar-special-events.js?v=5"></script>

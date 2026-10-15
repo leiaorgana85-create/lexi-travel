@@ -172,18 +172,15 @@
   min-height: 24px;
 }
 
-/* Harmonize Upcoming Moves primary/secondary type with To-Dos. */
+/* Upcoming Travel header: date, route and time/duration all use the same size. */
 #countryView .plan-next-move-item {
   padding: 6px 7px;
 }
 
-#countryView .plan-next-move-route {
-  font-size: 12px;
-}
-
+#countryView .plan-next-move-route,
 #countryView .plan-next-move-date,
 #countryView .plan-next-move-trip {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 #countryView .plan-next-move-details {

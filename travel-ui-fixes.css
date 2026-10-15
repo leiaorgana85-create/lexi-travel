@@ -44,8 +44,8 @@
 
 #notesView .note-title {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.05;
+  font-size: 14px;
+  line-height: 1.12;
 }
 
 #notesView .note-actions {
@@ -66,7 +66,7 @@
   place-items: center;
   padding: 0;
   margin: 0;
-  font-size: 23px;
+  font-size: 22px;
   line-height: 1;
   border-radius: 7px;
   touch-action: manipulation;

@@ -203,7 +203,7 @@
   reorderBtn.id = 'noteReorderBtn';
   reorderBtn.className = 'notes-mini-btn';
   reorderBtn.type = 'button';
-  reorderBtn.textContent = '≡';
+  reorderBtn.textContent = '↕';
   reorderBtn.setAttribute('aria-label', 'Reorder notes');
   reorderBtn.setAttribute('aria-pressed', 'false');
   reorderBtn.title = 'Reorder notes';

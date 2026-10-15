@@ -1,23 +1,40 @@
 (() => {
   const STORAGE_KEY = 'lexiTravelMonthlyPlanV1';
+  const DELETE_STORAGE_KEY = 'lexiTravelMonthlyPlanDeletedV1';
   const grid = document.getElementById('calendarGrid');
   const paneDetails = document.getElementById('paneDayDetails');
   if (!grid) return;
 
   let refreshFrame = 0;
 
-  function readPlan() {
+  function readObject(key) {
     try {
-      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const parsed = JSON.parse(localStorage.getItem(key) || '{}');
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     } catch (error) {
       return {};
     }
   }
 
+  function writeObject(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  function readPlan() {
+    return readObject(STORAGE_KEY);
+  }
+
   function writePlan(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    writeObject(STORAGE_KEY, data);
     document.dispatchEvent(new CustomEvent('lexi-plan-change'));
+  }
+
+  function readDeleted() {
+    return readObject(DELETE_STORAGE_KEY);
+  }
+
+  function writeDeleted(data) {
+    writeObject(DELETE_STORAGE_KEY, data);
   }
 
   function itemsForDate(dateKey) {
@@ -82,6 +99,32 @@
       text: String(item.text || ''),
       dueDate: String(item.dueDate || ''),
       completed: String(Boolean(item.done)).toLowerCase()
+    });
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        body,
+        cache: 'no-store',
+        redirect: 'follow'
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      return Boolean(data?.ok);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function postPlanDelete(id) {
+    if (typeof KEY_STORAGE === 'undefined' || typeof API_URL === 'undefined') return false;
+    const key = localStorage.getItem(KEY_STORAGE);
+    if (!key) return false;
+
+    const body = new URLSearchParams({
+      key,
+      action: 'planDelete',
+      id: String(id || '')
     });
 
     try {
@@ -167,6 +210,35 @@
     return true;
   }
 
+  async function deleteTodo(item, dateKey) {
+    const id = String(item?.id || '');
+    if (!id) return false;
+    if (!window.confirm(`Delete “${item?.text || 'this to-do'}”?`)) return false;
+
+    const found = findStoredItem(item);
+    if (!found.stored) return false;
+
+    found.data[found.month] = found.items.filter(candidate =>
+      String(candidate?.id || '') !== id
+    );
+    writePlan(found.data);
+
+    const deleted = readDeleted();
+    deleted[id] = found.month;
+    writeDeleted(deleted);
+
+    if (await postPlanDelete(id)) {
+      const latestDeleted = readDeleted();
+      if (latestDeleted[id]) {
+        delete latestDeleted[id];
+        writeDeleted(latestDeleted);
+      }
+    }
+
+    closeTodoEditor(dateKey);
+    return true;
+  }
+
   function openTodoEditor(item) {
     if (!paneDetails) return;
 
@@ -202,6 +274,17 @@
 
     const actions = document.createElement('div');
     actions.className = 'calendar-editor-actions';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'calendar-editor-btn danger';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.addEventListener('click', async () => {
+      deleteBtn.disabled = true;
+      const deleted = await deleteTodo(item, dateKey);
+      if (!deleted) deleteBtn.disabled = false;
+    });
+
     const spacer = document.createElement('span');
     spacer.className = 'calendar-editor-spacer';
 
@@ -216,7 +299,7 @@
     save.className = 'calendar-editor-btn primary';
     save.textContent = 'Save';
 
-    actions.append(spacer, cancel, save);
+    actions.append(deleteBtn, spacer, cancel, save);
     form.append(heading, textLabel, dateLabel, actions);
 
     form.addEventListener('submit', async event => {

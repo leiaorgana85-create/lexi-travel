@@ -1,9 +1,24 @@
 (() => {
+  const STORAGE_KEY = 'lexiTravelMonthlyPlanV1';
   const grid = document.getElementById('calendarGrid');
   const paneDetails = document.getElementById('paneDayDetails');
   if (!grid) return;
 
   let refreshFrame = 0;
+
+  function readPlan() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function writePlan(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    document.dispatchEvent(new CustomEvent('lexi-plan-change'));
+  }
 
   function itemsForDate(dateKey) {
     if (typeof window.lexiPlanItemsForDate !== 'function') return [];
@@ -49,6 +64,178 @@
     return selected?.getAttribute('aria-label') || '';
   }
 
+  function closeTodoEditor(dateKey) {
+    if (dateKey && typeof openDay === 'function') openDay(dateKey);
+    requestAnimationFrame(renderPane);
+  }
+
+  async function postPlanUpsert(item, month) {
+    if (typeof KEY_STORAGE === 'undefined' || typeof API_URL === 'undefined') return false;
+    const key = localStorage.getItem(KEY_STORAGE);
+    if (!key) return false;
+
+    const body = new URLSearchParams({
+      key,
+      action: 'planUpsert',
+      id: String(item.id || ''),
+      month: String(month || ''),
+      text: String(item.text || ''),
+      dueDate: String(item.dueDate || ''),
+      completed: String(Boolean(item.done)).toLowerCase()
+    });
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        body,
+        cache: 'no-store',
+        redirect: 'follow'
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      return Boolean(data?.ok);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function findStoredItem(item) {
+    const data = readPlan();
+    const month = String(item?.month || item?.dueDate || '').slice(0, 7);
+    const items = Array.isArray(data[month]) ? data[month] : [];
+    const stored = items.find(candidate => String(candidate?.id || '') === String(item?.id || ''));
+    return { data, month, items, stored };
+  }
+
+  function markSynced(month, id, snapshot) {
+    const data = readPlan();
+    const items = Array.isArray(data[month]) ? data[month] : [];
+    let changed = false;
+
+    data[month] = items.map(item => {
+      if (String(item?.id || '') !== String(id)) return item;
+      if (
+        String(item?.text || '') !== snapshot.text ||
+        String(item?.dueDate || '') !== snapshot.dueDate ||
+        Boolean(item?.done) !== snapshot.done
+      ) return item;
+      changed = true;
+      return { ...item, _dirty: false };
+    });
+
+    if (changed) writePlan(data);
+  }
+
+  async function saveTodoEdit(item, text, dueDate) {
+    const cleanText = String(text || '').trim();
+    const cleanDate = String(dueDate || '').trim();
+    if (!cleanText || !/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) return false;
+
+    const found = findStoredItem(item);
+    if (!found.stored) return false;
+
+    const targetMonth = cleanDate.slice(0, 7);
+    const updated = {
+      ...found.stored,
+      text: cleanText,
+      dueDate: cleanDate,
+      _dirty: true
+    };
+
+    found.data[found.month] = found.items.filter(candidate =>
+      String(candidate?.id || '') !== String(item.id)
+    );
+
+    const targetItems = targetMonth === found.month
+      ? found.data[found.month]
+      : (Array.isArray(found.data[targetMonth]) ? found.data[targetMonth] : []);
+
+    targetItems.push(updated);
+    found.data[targetMonth] = targetItems;
+    writePlan(found.data);
+
+    const snapshot = {
+      text: cleanText,
+      dueDate: cleanDate,
+      done: Boolean(updated.done)
+    };
+
+    if (await postPlanUpsert(updated, targetMonth)) {
+      markSynced(targetMonth, item.id, snapshot);
+    }
+
+    return true;
+  }
+
+  function openTodoEditor(item) {
+    if (!paneDetails) return;
+
+    const dateKey = selectedDateKey();
+    const form = document.createElement('form');
+    form.className = 'calendar-event-editor calendar-plan-editor';
+    form.noValidate = true;
+
+    const heading = document.createElement('div');
+    heading.className = 'calendar-editor-title';
+    heading.textContent = 'Edit to-do';
+
+    const textLabel = document.createElement('label');
+    textLabel.className = 'calendar-editor-field';
+    const textCaption = document.createElement('span');
+    textCaption.textContent = 'To Do';
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.value = String(item?.text || '');
+    textInput.required = true;
+    textInput.autocomplete = 'off';
+    textLabel.append(textCaption, textInput);
+
+    const dateLabel = document.createElement('label');
+    dateLabel.className = 'calendar-editor-field';
+    const dateCaption = document.createElement('span');
+    dateCaption.textContent = 'Date';
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.value = String(item?.dueDate || dateKey || '');
+    dateInput.required = true;
+    dateLabel.append(dateCaption, dateInput);
+
+    const actions = document.createElement('div');
+    actions.className = 'calendar-editor-actions';
+    const spacer = document.createElement('span');
+    spacer.className = 'calendar-editor-spacer';
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'calendar-editor-btn';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => closeTodoEditor(dateKey));
+
+    const save = document.createElement('button');
+    save.type = 'submit';
+    save.className = 'calendar-editor-btn primary';
+    save.textContent = 'Save';
+
+    actions.append(spacer, cancel, save);
+    form.append(heading, textLabel, dateLabel, actions);
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      save.disabled = true;
+      const saved = await saveTodoEdit(item, textInput.value, dateInput.value);
+      save.disabled = false;
+      if (!saved) {
+        textInput.focus();
+        return;
+      }
+      closeTodoEditor(dateKey);
+    });
+
+    paneDetails.innerHTML = '';
+    paneDetails.append(form);
+    requestAnimationFrame(() => textInput.focus());
+  }
+
   function renderPane() {
     if (!paneDetails || paneDetails.querySelector('.calendar-event-editor')) return;
 
@@ -69,11 +256,26 @@
     items.forEach(item => {
       const row = document.createElement('div');
       row.className = `pane-event pane-plan-todo${item.done ? ' done' : ''}`;
+      row.dataset.planId = String(item.id || '');
 
       const summary = document.createElement('div');
       summary.className = 'pane-event-summary';
-      summary.textContent = `To Do · ${item.text || 'To Do'}`;
 
+      const text = document.createElement('span');
+      text.className = 'pane-event-summary-text';
+      text.textContent = `To Do · ${item.text || 'To Do'}`;
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'pane-event-edit';
+      edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit ${item.text || 'to-do'}`);
+      edit.addEventListener('click', event => {
+        event.stopPropagation();
+        openTodoEditor(item);
+      });
+
+      summary.append(text, edit);
       row.append(summary);
       paneDetails.append(row);
     });

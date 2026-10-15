@@ -76,14 +76,8 @@
 .shopping-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 2px 3px 10px;
-}
-
-.shopping-head h2 {
-  margin: 0;
-  font-size: 14px;
+  justify-content: flex-end;
+  padding: 0 3px 2px;
 }
 
 .shopping-status {
@@ -91,6 +85,10 @@
   color: var(--muted);
   font-size: 10px;
   text-align: right;
+}
+
+.shopping-status:empty {
+  display: none;
 }
 
 .shopping-section {

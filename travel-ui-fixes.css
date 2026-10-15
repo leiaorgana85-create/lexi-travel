@@ -5,6 +5,13 @@
   font-size: 12px;
 }
 
+/* Calendar month arrows: one step larger and optically centered with the month title. */
+.calendar-head .month-btn {
+  font-size: 27px;
+  align-self: center;
+  transform: translateY(-1px);
+}
+
 /* Plan: neutral section hierarchy — dark titles plus a light divider. */
 #countryView .plan-section-head h3,
 #countryView .plan-next-move-title,

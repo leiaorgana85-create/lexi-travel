@@ -8,6 +8,8 @@
 
   if (!paneTitle || !paneLocation || !paneDetails || !grid) return;
 
+  paneTitle.style.color = 'var(--blue)';
+
   let selectedDateKey = typeof toDateKey === 'function' ? toDateKey(new Date()) : '';
   let lastRenderedMonthKey = '';
   let userSelectedDate = false;
@@ -25,7 +27,7 @@
   }
 
   function addPaneLine(event) {
-    const title = compactDetailText(event.Title || event.Category || 'Event');
+    const title = compactDetailText(event.Title || 'Event');
     const time = compactDetailText(event.Time || '');
     const category = String(event.Category || '').trim();
     const details = String(event.Details || '').trim();
@@ -40,7 +42,7 @@
 
     const summaryText = document.createElement('span');
     summaryText.className = 'pane-event-summary-text';
-    summaryText.textContent = [title, time, category].filter(Boolean).join(' ');
+    summaryText.textContent = [title, time].filter(Boolean).join(' ');
     summary.append(summaryText);
 
     if (event.ID) {
@@ -174,7 +176,6 @@
       const monthKey = displayedMonthKey();
       const todayKey = typeof toDateKey === 'function' ? toDateKey(new Date()) : '';
       const todayMonthKey = todayKey.slice(0, 7);
-      const monthChanged = Boolean(monthKey && monthKey !== lastRenderedMonthKey);
 
       let target = null;
 

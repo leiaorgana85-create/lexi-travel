@@ -1,0 +1,253 @@
+/* Plan density/readability pass: tighter rows, consistent typography, outline actions,
+   compact Country Days, and lower bottom navigation. */
+
+/* Lower the fixed bottom navigation while still respecting the iPhone home indicator. */
+.tabbar {
+  padding: 3px 8px max(2px, calc(env(safe-area-inset-bottom) - 8px));
+}
+
+.tab {
+  min-height: 48px;
+  padding: 4px 2px 3px;
+}
+
+.content {
+  padding-bottom: calc(56px + max(2px, calc(env(safe-area-inset-bottom) - 8px)));
+}
+
+/* Keep the three Plan sections visually consistent but denser. */
+#countryView .plan-section {
+  margin-bottom: 9px;
+}
+
+#countryView .plan-section + .plan-section {
+  padding-top: 7px;
+}
+
+#countryView .plan-section-head {
+  min-height: 25px;
+  margin-bottom: 4px;
+}
+
+#countryView .plan-section-head h3,
+#countryView .plan-next-move-title,
+#countryView .plan-country-title {
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+/* Put Add in the To-Do heading line so it does not consume a full list row. */
+#countryView .plan-section:first-of-type {
+  position: relative;
+}
+
+#countryView .plan-section:first-of-type .plan-section-head {
+  padding-right: 31px;
+}
+
+#countryView .plan-section:first-of-type .plan-card {
+  overflow: visible;
+}
+
+#countryView .plan-section:first-of-type .plan-add-wrap {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  z-index: 2;
+  padding: 0;
+  border-top: 0;
+}
+
+#countryView .plan-section:first-of-type .plan-add-wrap:has(.plan-add-row:not([hidden])) {
+  position: static;
+  padding: 4px 5px;
+  border-top: 1px solid #edf0f4;
+}
+
+/* Compact To-Do rows. */
+#countryView .plan-check-row {
+  grid-template-columns: 20px minmax(0, 1fr) 25px 25px;
+  gap: 2px;
+  min-height: 28px;
+  padding: 2px 3px 2px 5px;
+}
+
+#countryView .plan-check {
+  width: 14px;
+  height: 14px;
+}
+
+#countryView .plan-check-main {
+  gap: 4px;
+}
+
+#countryView .plan-check-text {
+  font-size: 12px;
+  line-height: 1.15;
+}
+
+#countryView .plan-check-date {
+  font-size: 9.5px;
+  line-height: 1;
+}
+
+#countryView .plan-empty {
+  padding: 7px 8px;
+  font-size: 11px;
+}
+
+/* Same outline icon language used by Calendar actions. */
+#countryView .plan-add-btn,
+#countryView .plan-edit-btn,
+#countryView .plan-remove-btn {
+  position: relative;
+  width: 25px;
+  height: 25px;
+  min-width: 25px;
+  min-height: 25px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 4px;
+  font-size: 0;
+  line-height: 1;
+}
+
+#countryView .plan-add-btn,
+#countryView .plan-edit-btn {
+  color: var(--blue);
+}
+
+#countryView .plan-remove-btn {
+  color: #9b3d3d;
+}
+
+#countryView .plan-add-btn::before,
+#countryView .plan-edit-btn::before,
+#countryView .plan-remove-btn::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+#countryView .plan-add-btn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5v14M5 12h14' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5v14M5 12h14' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+#countryView .plan-edit-btn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#countryView .plan-remove-btn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* The add/edit form stays compact when expanded. */
+#countryView .plan-add-row {
+  gap: 3px;
+}
+
+#countryView .plan-add-input {
+  padding: 4px 5px;
+}
+
+#countryView .plan-add-save,
+#countryView .plan-add-cancel,
+#countryView .plan-convert-btn,
+#countryView .plan-convert-time,
+#countryView .plan-add-date {
+  min-height: 24px;
+}
+
+/* Harmonize Upcoming Moves primary/secondary type with To-Dos. */
+#countryView .plan-next-move-item {
+  padding: 6px 7px;
+}
+
+#countryView .plan-next-move-route {
+  font-size: 12px;
+}
+
+#countryView .plan-next-move-date,
+#countryView .plan-next-move-trip {
+  font-size: 10px;
+}
+
+#countryView .plan-next-move-details {
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+#countryView .plan-next-move-label {
+  font-size: 9.5px;
+}
+
+#countryView .plan-next-move-value {
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+/* Country Days is a count dashboard, not a second itinerary view.
+   Keep each country to one row and remove the duplicate stay/day line. */
+#countryView #countryStatus.country-year-status {
+  display: none;
+}
+
+#countryView .country-list {
+  gap: 4px;
+  margin-top: 4px;
+}
+
+#countryView .country-card.country-days-card {
+  min-height: 30px;
+  padding: 5px 7px;
+  gap: 0;
+  border-radius: 8px;
+}
+
+#countryView .country-days-head {
+  align-items: center;
+  gap: 8px;
+}
+
+#countryView .country-days-head > div:first-child {
+  min-width: 0;
+}
+
+#countryView .country-days-card .country-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 750;
+}
+
+#countryView .country-days-total {
+  font-size: 11px;
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+#countryView .country-stay-list,
+#countryView .country-days-card .country-rule {
+  display: none;
+}
+
+html[data-theme="dark"] #countryView .plan-section:first-of-type .plan-add-wrap:has(.plan-add-row:not([hidden])) {
+  border-top-color: #2a303b;
+}

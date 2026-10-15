@@ -55,6 +55,11 @@ function hash_(text) {
   const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text || ''), Utilities.Charset.UTF_8);
   return bytes.map(b => ('0' + ((b < 0 ? b + 256 : b).toString(16))).slice(-2)).join('');
 }
+function iso_(value) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) return value.toISOString();
+  return String(value);
+}
 function pinConfigured_() { return Boolean(PropertiesService.getScriptProperties().getProperty('LEXI_NOTES_PIN_HASH')); }
 function validPin_(pin) {
   const saved = PropertiesService.getScriptProperties().getProperty('LEXI_NOTES_PIN_HASH');
@@ -70,8 +75,8 @@ function displayObject_(row) {
   const locked = bool_(o.Locked);
   return {
     ID:String(o.ID||''),
-    'Created At':o['Created At']||'',
-    'Updated At':o['Updated At']||'',
+    'Created At':iso_(o['Created At']),
+    'Updated At':iso_(o['Updated At']),
     Title:String(o.Title||'Untitled Note'),
     Body:locked ? '' : String(o.Body||''),
     Pinned:bool_(o.Pinned),

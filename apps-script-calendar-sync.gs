@@ -29,6 +29,27 @@ function eventsSheet_() {
   return sheet;
 }
 
+function sortEventsByDate_() {
+  const sheet = eventsSheet_();
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+
+  if (lastRow < 3 || lastColumn < 2) {
+    return Math.max(0, lastRow - 1);
+  }
+
+  sheet
+    .getRange(2, 1, lastRow - 1, lastColumn)
+    .sort({ column: 2, ascending: true });
+
+  return lastRow - 1;
+}
+
+// Public maintenance helper for a manual one-off sort if needed.
+function sortEventsByDate() {
+  return sortEventsByDate_();
+}
+
 function eventFindRow_(sheet, id) {
   const lastRow = sheet.getLastRow();
 
@@ -91,6 +112,8 @@ function eventUpsert_(p) {
   }
 
   SpreadsheetApp.flush();
+  sortEventsByDate_();
+  SpreadsheetApp.flush();
 
   return {
     ok: true,
@@ -117,6 +140,8 @@ function eventDelete_(p) {
   }
 
   sheet.deleteRow(row);
+  SpreadsheetApp.flush();
+  sortEventsByDate_();
   SpreadsheetApp.flush();
 
   return {
@@ -149,4 +174,8 @@ function eventSheetOnEdit_(e) {
 
     idCell.setValue('sheet-event-' + Utilities.getUuid());
   }
+
+  SpreadsheetApp.flush();
+  sortEventsByDate_();
+  SpreadsheetApp.flush();
 }

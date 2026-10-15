@@ -201,3 +201,74 @@
     line-height: 34px;
   }
 }
+
+/* Standard Calendar event editor only: make the popup noticeably more compact.
+   Leave the Plan/To Do editor sizing unchanged. */
+.calendar-event-editor:not(.calendar-plan-editor) {
+  gap: 2px;
+  padding: 0 1px 4px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-title {
+  margin-bottom: 0;
+  font-size: 11px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field {
+  gap: 0;
+  font-size: 8px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input,
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field select {
+  height: 26px;
+  min-height: 26px;
+  padding: 2px 4px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field textarea {
+  min-height: 36px;
+  padding: 3px 4px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-actions {
+  margin-top: 0;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-btn {
+  min-height: 23px;
+  padding: 2px 6px;
+  font-size: 9.5px;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field select,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field textarea {
+    width: 121.95% !important;
+    max-width: none !important;
+    font-size: 16px !important;
+    transform: scale(0.82);
+    transform-origin: left top;
+  }
+
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field select,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input[type="date"] {
+    height: 32px;
+    min-height: 32px;
+    margin-bottom: -6px;
+    padding: 2px 5px;
+  }
+
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field textarea {
+    min-height: 46px;
+    margin-bottom: -8px;
+    padding: 4px 5px;
+  }
+
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
+    height: 32px;
+    line-height: 32px;
+  }
+}

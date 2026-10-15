@@ -67,15 +67,31 @@
   editBtn.id = 'calendarEditEventBtn';
   editBtn.className = 'calendar-top-edit-btn';
   editBtn.textContent = 'Edit';
-  editBtn.setAttribute('aria-label', 'Edit event');
+  editBtn.setAttribute('aria-label', 'Edit event or to-do');
   editBtn.hidden = true;
   summary.append(editBtn);
 
   let clearTimer = null;
   let choosingEvent = false;
 
-  function eventRows() {
-    return [...paneDetails.querySelectorAll('.pane-event[data-event-id]')];
+  function editableRows() {
+    return [...paneDetails.querySelectorAll(
+      '.pane-event[data-event-id], .pane-plan-todo[data-plan-id]'
+    )];
+  }
+
+  function editRow(row) {
+    const planId = row?.dataset?.planId || '';
+    if (planId) {
+      const planEdit = row.querySelector('.pane-event-edit');
+      if (planEdit instanceof HTMLElement) planEdit.click();
+      return;
+    }
+
+    const id = row?.dataset?.eventId || '';
+    if (id && typeof window.lexiCalendarEditEvent === 'function') {
+      window.lexiCalendarEditEvent(id);
+    }
   }
 
   function clearChooseMode() {
@@ -84,14 +100,14 @@
       row.classList.remove('calendar-edit-choice');
     });
     editBtn.textContent = 'Edit';
-    editBtn.setAttribute('aria-label', 'Edit event');
+    editBtn.setAttribute('aria-label', 'Edit event or to-do');
   }
 
   function refreshEditButton() {
     enforceCalendarRules();
 
     const editorOpen = Boolean(paneDetails.querySelector('.calendar-event-editor'));
-    const rows = eventRows();
+    const rows = editableRows();
 
     if (editorOpen || !rows.length) {
       clearChooseMode();
@@ -106,39 +122,32 @@
     event.preventDefault();
     event.stopPropagation();
 
-    const rows = eventRows();
+    const rows = editableRows();
     if (!rows.length) return;
 
     if (rows.length === 1) {
       clearChooseMode();
-      const id = rows[0].dataset.eventId || '';
-      if (id && typeof window.lexiCalendarEditEvent === 'function') {
-        window.lexiCalendarEditEvent(id);
-      }
+      editRow(rows[0]);
       return;
     }
 
     choosingEvent = true;
     rows.forEach(row => row.classList.add('calendar-edit-choice'));
     editBtn.textContent = 'Choose';
-    editBtn.setAttribute('aria-label', 'Choose an event to edit');
+    editBtn.setAttribute('aria-label', 'Choose an event or to-do to edit');
   });
 
   paneDetails.addEventListener('click', event => {
     if (!choosingEvent) return;
 
     const target = event.target instanceof Element ? event.target : null;
-    const row = target?.closest('.pane-event[data-event-id]');
+    const row = target?.closest('.pane-event[data-event-id], .pane-plan-todo[data-plan-id]');
     if (!row) return;
 
-    const id = row.dataset.eventId || '';
     clearChooseMode();
-
-    if (id && typeof window.lexiCalendarEditEvent === 'function') {
-      event.preventDefault();
-      event.stopPropagation();
-      window.lexiCalendarEditEvent(id);
-    }
+    event.preventDefault();
+    event.stopPropagation();
+    editRow(row);
   }, true);
 
   function refreshStatus() {

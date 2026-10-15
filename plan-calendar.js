@@ -346,7 +346,7 @@
 
       const text = document.createElement('span');
       text.className = 'pane-event-summary-text';
-      text.textContent = `To Do · ${item.text || 'To Do'}`;
+      text.textContent = item.text || 'To Do';
 
       const edit = document.createElement('button');
       edit.type = 'button';

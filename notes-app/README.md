@@ -16,12 +16,13 @@ Standalone fast-access notes PWA for the Lexi Apps Ecosystem.
 - Existing note opens in read mode so URLs are clickable automatically.
 - Formatting toolbar: bullets, numbered list, checklist, indent/outdent, undo/redo, date insert.
 - Email uses `mailto:`; Share uses the native Web Share sheet when available.
+- No user-facing archive view. Delete soft-archives the record in the Sheet only so accidental deletion is recoverable.
 
 ## Backend / Sheet
 Spreadsheet: `LEXI Notes Data`
 
 NOTES schema:
-`ID | Created At | Updated At | Title | Category | Body | Pinned | Locked | Archived | Sort Order`
+`ID | Created At | Updated At | Title | Body | Pinned | Locked | Archived | Sort Order`
 
 The Apps Script in `backend.gs` must be bound to that spreadsheet. Script Property `LEXI_NOTES_API_KEY` is required. The app stores that API key only in browser localStorage under `lexiNotesApiKey`.
 

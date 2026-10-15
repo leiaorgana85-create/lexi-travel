@@ -460,6 +460,13 @@ function onEdit(e) {
 
   const sheetName = e.range.getSheet().getName();
 
+  // Flight edits can create or move generated EVENTS rows, so sort only after
+  // FlightHardening + FlightLegs have finished rebuilding the projection.
+  if (sheetName === 'FLIGHT_LEGS' || sheetName === 'AIRPORT_TZ') {
+    sortEventsByDate_();
+    return;
+  }
+
   if (sheetName === 'EVENTS') {
     eventSheetOnEdit_(e);
     return;

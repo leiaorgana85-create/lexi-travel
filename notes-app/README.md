@@ -24,7 +24,10 @@ Spreadsheet: `LEXI Notes Data`
 NOTES schema:
 `ID | Created At | Updated At | Title | Body | Pinned | Locked | Archived | Sort Order`
 
-The Apps Script in `backend.gs` must be bound to that spreadsheet. Script Property `LEXI_NOTES_API_KEY` is required. The app stores that API key only in browser localStorage under `lexiNotesApiKey`.
+The Apps Script in `backend.gs` is bound to that spreadsheet. Script Property `LEXI_NOTES_API_KEY` is required. The app stores that API key only in browser localStorage under `lexiNotesApiKey`.
+
+Web app endpoint:
+`https://script.google.com/macros/s/AKfycbwsZrm-TgtziRbM7AkJ538pmozw4CNsZA_tGApk6Osz-Sa9IXqvAl_SRbeMvdC-LUWK/exec`
 
 ## Lock model
 - Locking is per-note.
@@ -37,3 +40,8 @@ The Apps Script in `backend.gs` must be bound to that spreadsheet. Script Proper
 
 ## Deployment
 This standalone PWA is hosted from the `notes-app/` folder of the `lexi-travel` repository. It is logically and data-wise separate from Lexi Travel even though the static files share the same GitHub Pages repository.
+
+App shell:
+`https://leiaorgana85-create.github.io/lexi-travel/notes-app/`
+
+As of 2026-10-15, the bound Apps Script is deployed and the endpoint is wired into the PWA. End-to-end smoke testing is still required before calling the app fully verified.

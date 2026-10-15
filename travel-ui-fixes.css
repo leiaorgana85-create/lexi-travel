@@ -1,0 +1,41 @@
+/* Small corrective pass after the 1518 Travel UI redesign. */
+
+/* Calendar selected-date label: one size smaller while keeping the blue accent. */
+#paneDayTitle {
+  font-size: 12px;
+}
+
+/* Plan: neutral section hierarchy — dark titles plus a light divider. */
+#countryView .plan-section-head h3,
+#countryView .plan-next-move-title,
+#countryView .plan-country-title {
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+#countryView .plan-section-head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+#countryView .plan-next-move-title,
+#countryView .plan-country-title {
+  margin-bottom: 4px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* iPhone Notes drawer: the 1518 full-width rule had higher specificity than
+   the old open-state rule, so list-open was set but the drawer stayed offscreen. */
+@media (max-width: 599px) {
+  #notesView .notes-layout.list-open .notes-sidebar {
+    transform: translateX(0);
+  }
+
+  #notesListBtn {
+    position: relative;
+    z-index: 5;
+    touch-action: manipulation;
+  }
+}

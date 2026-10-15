@@ -1,0 +1,11 @@
+{
+  "name": "Lexi Notes",
+  "short_name": "Lexi Notes",
+  "description": "Fast personal notes backed by the LEXI Notes Data Google Sheet.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090b0f",
+  "theme_color": "#090b0f",
+  "icons": [{"src":"https://leiaorgana85-create.github.io/lexi-assets/travel-logo.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]
+}

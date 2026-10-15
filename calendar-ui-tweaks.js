@@ -10,7 +10,7 @@
 
   if (!paneHead || !summary || !paneDetails || !title || !location || !addBtn || !syncStatus || !paneActions) return;
 
-  const CATEGORY_OPTIONS = ['Appointment', 'Event', 'Holiday', 'To Do'];
+  const CATEGORY_OPTIONS = ['Appointment', 'Event', 'Holiday', 'Time Off', 'To Do'];
 
   function eventById(id) {
     return (Array.isArray(appData?.events) ? appData.events : [])

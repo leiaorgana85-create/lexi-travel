@@ -54,8 +54,9 @@
 
     try {
       const data = await request('authredeem', { token });
-      if (!data?.ok || !data?.key) throw new Error(data?.error || 'Install authorization failed');
-      localStorage.setItem(KEY_STORAGE, String(data.key));
+      const sessionToken = String(data?.sessionToken || '').trim();
+      if (!data?.ok || !sessionToken) throw new Error(data?.error || 'Install authorization failed');
+      localStorage.setItem(KEY_STORAGE, sessionToken);
       clearCookie();
       window.location.replace(window.location.href);
       return true;
@@ -66,13 +67,13 @@
   }
 
   async function prepareSafariInstallToken() {
-    if (isStandalone()) return;
-    let key = '';
-    try { key = String(localStorage.getItem(KEY_STORAGE) || '').trim(); } catch (_) {}
-    if (!key) return;
+    if (isStandalone() || readCookie()) return;
+    let credential = '';
+    try { credential = String(localStorage.getItem(KEY_STORAGE) || '').trim(); } catch (_) {}
+    if (!credential) return;
 
     try {
-      const data = await request('authmint', { key });
+      const data = await request('authmint', { key: credential });
       if (data?.ok && data?.token) setCookie(String(data.token));
     } catch (_) {
       // Backend may not have the transfer endpoint yet. Existing auth keeps working.

@@ -48,7 +48,7 @@ function doGet(e) {
   });
 }
 
-function authGoogleBootstrap(credential, currentKey) {
+function authGoogleBootstrap(credential, currentKey, allowRelink) {
   const identity = verifyLexiGoogleCredential_(credential);
   const props = PropertiesService.getScriptProperties();
   const savedKey = props.getProperty('LEXI_API_KEY');
@@ -56,6 +56,7 @@ function authGoogleBootstrap(credential, currentKey) {
 
   const linkedSub = String(props.getProperty(LEXI_TRAVEL_GOOGLE_SUB_PROPERTY) || '').trim();
   let linkedNow = false;
+  let relinked = false;
 
   if (!linkedSub) {
     if (String(currentKey || '').trim() !== savedKey) {
@@ -64,14 +65,21 @@ function authGoogleBootstrap(credential, currentKey) {
     props.setProperty(LEXI_TRAVEL_GOOGLE_SUB_PROPERTY, identity.sub);
     linkedNow = true;
   } else if (identity.sub !== linkedSub) {
-    throw new Error('This Google account is not linked to Lexi Travel.');
+    if (!allowRelink) {
+      throw new Error('This Google account is not linked to Lexi Travel.');
+    }
+    if (String(currentKey || '').trim() !== savedKey) {
+      throw new Error('Relinking Google requires the current Travel API key on this device.');
+    }
+    props.setProperty(LEXI_TRAVEL_GOOGLE_SUB_PROPERTY, identity.sub);
+    relinked = true;
   }
 
   // Retire the temporary cookie-transfer experiment if any stale server state exists.
   props.deleteProperty(LEXI_INSTALL_HASH_PROPERTY);
   props.deleteProperty(LEXI_INSTALL_EXPIRES_PROPERTY);
 
-  return { ok: true, key: savedKey, linkedNow: linkedNow };
+  return { ok: true, key: savedKey, linkedNow: linkedNow, relinked: relinked };
 }
 
 function verifyLexiGoogleCredential_(credential) {
@@ -125,7 +133,7 @@ function travelAuthBridgeHtml_() {
     google.script.run
       .withSuccessHandler(result => post(String(d.id), true, result, ''))
       .withFailureHandler(error => post(String(d.id), false, null, error && error.message ? error.message : String(error)))
-      .authGoogleBootstrap(String(d.credential || ''), String(d.currentKey || ''));
+      .authGoogleBootstrap(String(d.credential || ''), String(d.currentKey || ''), Boolean(d.allowRelink));
   });
   window.top.postMessage({ type:'lexi-travel-google-auth-ready' }, PARENT_ORIGIN);
 })();

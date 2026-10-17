@@ -1,22 +1,18 @@
+const LEXI_GOOGLE_CLIENT_ID = '543436064136-27a477uk691qocpaft25q925lg88hl98.apps.googleusercontent.com';
+const LEXI_TRAVEL_GOOGLE_SUB_PROPERTY = 'LEXI_TRAVEL_GOOGLE_SUB_V1';
 const LEXI_INSTALL_HASH_PROPERTY = 'LEXI_INSTALL_TOKEN_HASH_V1';
 const LEXI_INSTALL_EXPIRES_PROPERTY = 'LEXI_INSTALL_TOKEN_EXPIRES_V1';
-const LEXI_INSTALL_TTL_MS = 10 * 60 * 1000;
 
 function doGet(e) {
   const p = e && e.parameter ? e.parameter : {};
+
+  if (String(p.authBridge || '') === '1') {
+    return travelAuthBridgeHtml_();
+  }
+
   const action = String(p.action || 'data').toLowerCase();
-
-  if (action === 'authmint') {
-    return json_(mintInstallToken_(p.key));
-  }
-
-  if (action === 'authredeem') {
-    return json_(redeemInstallToken_(p.token));
-  }
-
   const savedKey =
     PropertiesService.getScriptProperties().getProperty('LEXI_API_KEY');
-
   const suppliedKey = p.key || '';
 
   if (!savedKey || suppliedKey !== savedKey) {
@@ -52,62 +48,92 @@ function doGet(e) {
   });
 }
 
-function mintInstallToken_(suppliedKey) {
+function authGoogleBootstrap(credential, currentKey) {
+  const identity = verifyLexiGoogleCredential_(credential);
   const props = PropertiesService.getScriptProperties();
   const savedKey = props.getProperty('LEXI_API_KEY');
-  if (!savedKey || String(suppliedKey || '') !== savedKey) {
-    return { ok: false, error: 'Unauthorized' };
+  if (!savedKey) throw new Error('Travel API key is not configured.');
+
+  const linkedSub = String(props.getProperty(LEXI_TRAVEL_GOOGLE_SUB_PROPERTY) || '').trim();
+  let linkedNow = false;
+
+  if (!linkedSub) {
+    if (String(currentKey || '').trim() !== savedKey) {
+      throw new Error('First Google link requires the current Travel API key on this device.');
+    }
+    props.setProperty(LEXI_TRAVEL_GOOGLE_SUB_PROPERTY, identity.sub);
+    linkedNow = true;
+  } else if (identity.sub !== linkedSub) {
+    throw new Error('This Google account is not linked to Lexi Travel.');
   }
 
-  const token = 'lxi1.' + Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
-  const expiresAt = Date.now() + LEXI_INSTALL_TTL_MS;
-  props.setProperties({
-    [LEXI_INSTALL_HASH_PROPERTY]: lexiInstallHash_(token),
-    [LEXI_INSTALL_EXPIRES_PROPERTY]: String(expiresAt)
-  }, false);
-
-  return {
-    ok: true,
-    token: token,
-    expiresAt: new Date(expiresAt).toISOString()
-  };
-}
-
-function redeemInstallToken_(token) {
-  const value = String(token || '').trim();
-  if (!value) return { ok: false, error: 'Missing install token' };
-
-  const props = PropertiesService.getScriptProperties();
-  const savedHash = props.getProperty(LEXI_INSTALL_HASH_PROPERTY);
-  const expiresAt = Number(props.getProperty(LEXI_INSTALL_EXPIRES_PROPERTY) || 0);
-
-  if (!savedHash || !expiresAt || Date.now() > expiresAt) {
-    props.deleteProperty(LEXI_INSTALL_HASH_PROPERTY);
-    props.deleteProperty(LEXI_INSTALL_EXPIRES_PROPERTY);
-    return { ok: false, error: 'Install token expired' };
-  }
-
-  if (lexiInstallHash_(value) !== savedHash) {
-    return { ok: false, error: 'Invalid install token' };
-  }
-
-  const savedKey = props.getProperty('LEXI_API_KEY');
+  // Retire the temporary cookie-transfer experiment if any stale server state exists.
   props.deleteProperty(LEXI_INSTALL_HASH_PROPERTY);
   props.deleteProperty(LEXI_INSTALL_EXPIRES_PROPERTY);
 
-  if (!savedKey) return { ok: false, error: 'API key is not configured' };
-  return { ok: true, key: savedKey };
+  return { ok: true, key: savedKey, linkedNow: linkedNow };
 }
 
-function lexiInstallHash_(text) {
-  const bytes = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256,
-    String(text || ''),
-    Utilities.Charset.UTF_8
+function verifyLexiGoogleCredential_(credential) {
+  const token = String(credential || '').trim();
+  if (!token) throw new Error('Google sign-in credential is missing.');
+
+  const response = UrlFetchApp.fetch(
+    'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
+    { muteHttpExceptions: true }
   );
-  return bytes
-    .map(byte => ('0' + ((byte < 0 ? byte + 256 : byte).toString(16))).slice(-2))
-    .join('');
+  if (response.getResponseCode() !== 200) {
+    throw new Error('Google sign-in could not be verified.');
+  }
+
+  let data;
+  try {
+    data = JSON.parse(response.getContentText());
+  } catch (_) {
+    throw new Error('Google sign-in response was invalid.');
+  }
+
+  const issuer = String(data.iss || '');
+  if (String(data.aud || '') !== LEXI_GOOGLE_CLIENT_ID) {
+    throw new Error('Google sign-in audience mismatch.');
+  }
+  if (issuer !== 'accounts.google.com' && issuer !== 'https://accounts.google.com') {
+    throw new Error('Google sign-in issuer mismatch.');
+  }
+  if (String(data.email_verified || '').toLowerCase() !== 'true') {
+    throw new Error('Google account email is not verified.');
+  }
+  if (!data.sub || Number(data.exp || 0) * 1000 <= Date.now()) {
+    throw new Error('Google sign-in credential expired.');
+  }
+
+  return { sub: String(data.sub) };
+}
+
+function travelAuthBridgeHtml_() {
+  const html = `<!doctype html><html><body><script>
+(() => {
+  'use strict';
+  const PARENT_ORIGIN = 'https://leiaorgana85-create.github.io';
+  const post = (id, ok, result, error) => {
+    window.top.postMessage({ type:'lexi-travel-google-auth-result', id, ok, result, error }, PARENT_ORIGIN);
+  };
+  window.addEventListener('message', event => {
+    if (event.origin !== PARENT_ORIGIN || event.source !== window.top) return;
+    const d = event.data || {};
+    if (d.type !== 'lexi-travel-google-auth' || !d.id) return;
+    google.script.run
+      .withSuccessHandler(result => post(String(d.id), true, result, ''))
+      .withFailureHandler(error => post(String(d.id), false, null, error && error.message ? error.message : String(error)))
+      .authGoogleBootstrap(String(d.credential || ''), String(d.currentKey || ''));
+  });
+  window.top.postMessage({ type:'lexi-travel-google-auth-ready' }, PARENT_ORIGIN);
+})();
+<\/script></body></html>`;
+
+  return HtmlService
+    .createHtmlOutput(html)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function readTable_(sheetName) {

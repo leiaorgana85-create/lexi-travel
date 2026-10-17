@@ -1,6 +1,6 @@
 # Lexi Travel — Standing App Guide
 
-Last updated: 2026-10-17
+Last updated: 2026-10-14
 
 This README is the canonical standing guide for the Lexi Travel app. Future work should read this file before making changes. It records the app’s architecture, data rules, deployment rules, maintenance policy, and non-negotiable implementation constraints.
 
@@ -14,18 +14,6 @@ This README is the canonical standing guide for the Lexi Travel app. Future work
 - The API key is stored only in the browser under localStorage key `lexiTravelApiKey`. Never commit or expose the key.
 
 The physical iPhone 13 mini PWA is the authoritative UI test target. Desktop/browser previews are useful, but a layout issue is not considered resolved until it is physically confirmed on the iPhone.
-
-### Authentication / Home Screen replacement
-
-- The private Travel API key remains the backend root/recovery credential.
-- Google account linking is a reinstall bootstrap convenience. The first Google link requires the already-authenticated installation to prove possession of the valid Travel API key.
-- Normal launches do **not** require Google authentication. A fresh Home Screen installation may require one Google tap; if the linked Google account is accepted, Apps Script restores the existing Travel API key into that installation's `lexiTravelApiKey` localStorage so the established read/write contract remains unchanged.
-- Apps Script stores only the linked Google account's stable `sub` identifier, not the Google password or an access token.
-- The hidden Apps Script authorization bridge accepts its READY handshake only from the exact iframe created by the PWA and an allowed Apps Script/Google origin; later replies must come from that same window/origin.
-- A different Google account is rejected by default. If an account mismatch occurs while the device still has the valid Travel API key, the UI exposes **Relink this Google account**; the backend changes the linked `sub` only after that explicit action and re-validating the current Travel API key.
-- The temporary cookie-transfer design is retired. No Travel API key or auth-bearing reinstall token is intentionally transferred through a GitHub Pages cookie.
-- The 2026-10-17 audit-hardening source is committed in `auth-transfer.js` and `apps-script-code.gs`. Because `Code.gs` is bound Apps Script source, the current repo `apps-script-code.gs` must still be copied into live `Code.gs` and deployed as a new version of the existing web app before the phone verification gate.
-- End-to-end iPhone Home Screen replacement verification is still pending; do not mark this flow verified until the physical test passes.
 
 ## 2. Product model
 
@@ -241,7 +229,6 @@ Annual archiving and filtered API loading are complementary. We use both.
 
 Important localStorage keys include:
 - `lexiTravelApiKey` — API key; device/browser-local only.
-- `lexiTravelGoogleLinkedV1` — local marker indicating this installation completed Google linking; it is not a credential.
 - `lexiTravelMonthlyPlanV1` — Plan cache.
 - `lexiTravelMonthlyPlanDeletedV1` — pending Plan deletions/tombstones.
 - `lexiTravelCalendarCacheV1` — Calendar cache.
@@ -261,7 +248,7 @@ Never treat localStorage as the only permanent source of user data. Calendar and
 The Apps Script project is bound to the Lexi Travel data workbook.
 
 Canonical repo-side split:
-- `Code.gs` — GET/data read handling, shared helpers, and the Google reinstall-auth bootstrap bridge/ID-token verification. Repo source: `apps-script-code.gs`. The 2026-10-17 auth-hardening source is committed but still requires one final live `Code.gs` redeploy before phone testing.
+- `Code.gs` — GET/data read handling and shared helpers. The installed source was captured/reviewed on 2026-10-14 and is tracked as `apps-script-code.gs`; no functional change to `Code.gs` was required for this hardening release.
 - `NotesSync.gs` — **one consolidated POST router** plus Notes and Shopping write helpers. Repo source: `apps-script-write-router-v2.gs`.
 - `CalendarSync.gs` — event write helpers. Repo source: `apps-script-calendar-sync.gs`.
 - `PlanSync.gs` — Plan write/list/delete helpers. Repo source: `apps-script-plan-sync.gs`.
@@ -274,7 +261,7 @@ The installed consolidated `onEdit(e)` calls `flightHardeningOnEdit_(e)` immedia
 
 After installing or materially changing the flight modules, `rebuildAllFlightCalculations()` may be run manually to validate/rebuild all current outputs. The trailing-underscore implementation helper remains private to Apps Script.
 
-**Installed production baseline:** the 2026-10-14 backend hardening and 2026-10-15 calendar/event sorting updates are owner-confirmed live on the existing Web App URL. The owner also deployed the initial Google-bootstrap version on 2026-10-17. The repository now contains one additional audit-hardening pass for exact iframe binding and explicit credential-backed Google relink; that current `apps-script-code.gs` is not yet live until it is copied into bound `Code.gs` and the existing Web App deployment is released as a new version. No flight, Calendar, Plan, Notes, Shopping or Sheet contract was changed by this auth hardening.
+**Installed production state (2026-10-14):** backend hardening is live on a new version of the existing Web App deployment, preserving the production URL. The bound project contains the consolidated router, FlightHardening, the existing flight calculation module, CalendarSync, PlanSync, and unchanged reviewed Code.gs. A full `rebuildAllFlightCalculations()` completed successfully; FLIGHT_LEGS and generated EVENTS flight outputs were re-read afterward and remained consistent. The owner then confirmed Calendar, Plan/Country Days, Notes and Shopping load in the live app.
 
 The installed POST router supports Notes, Events, Plan, Shopping, durable Notes ordering, and the existing capability checks. Future backend updates must continue to use a **new version of the existing Web App deployment**, preserving the existing URL.
 
@@ -402,8 +389,7 @@ Install the real standalone web app from **Safari**:
 4. Confirm the preview shows the Lexi Travel icon.
 5. Tap **Add**.
 6. Launch the new Home Screen icon and confirm it opens **standalone** with no Safari or Brave address bar.
-7. On a fresh install, use **Connect Google** with the already-linked Google account. The app should restore the Travel API key without manual entry. Use **⚙︎ Settings → API key** only as the recovery path if Google bootstrap is unavailable or the linked account needs recovery.
-8. Keep the old Home Screen installation until the new one has loaded Calendar, Plan / To Dos, Notes and Shopping successfully.
+7. If the standalone app is not already connected, open **⚙︎ Settings** and enter the Lexi Travel API key there. Do not paste or commit the key anywhere else.
 
 Current Home Screen configuration:
 - `manifest.json` name: `LEXI Travel`

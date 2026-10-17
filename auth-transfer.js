@@ -12,6 +12,7 @@
   let bridgeReady = null;
   let bridgeReadyResolve = null;
   let nextId = 1;
+  let pendingRelinkCredential = '';
   const pending = new Map();
 
   const currentKey = () => {
@@ -64,6 +65,7 @@
   window.addEventListener('message', event => {
     const d = event.data || {};
     if (d.type === 'lexi-travel-google-auth-ready') {
+      if (!bridgeFrame?.contentWindow || event.source !== bridgeFrame.contentWindow) return;
       if (!allowedBridgeOrigin(event.origin)) return;
       bridgeTarget = event.source;
       bridgeOrigin = event.origin;
@@ -81,7 +83,7 @@
     d.ok ? item.resolve(d.result) : item.reject(new Error(d.error || 'Google authorization failed.'));
   });
 
-  async function bootstrapWithGoogle(credential) {
+  async function bootstrapWithGoogle(credential, allowRelink = false) {
     await waitBridge();
     return new Promise((resolve, reject) => {
       const id = `travel-auth-${Date.now()}-${nextId++}`;
@@ -94,7 +96,8 @@
         type: 'lexi-travel-google-auth',
         id,
         credential,
-        currentKey: currentKey()
+        currentKey: currentKey(),
+        allowRelink: Boolean(allowRelink)
       }, bridgeOrigin);
     });
   }
@@ -119,6 +122,16 @@
     });
   }
 
+  function applyResult(result, overlay) {
+    const key = String(result?.key || '').trim();
+    if (!result?.ok || !key) throw new Error('Lexi Travel access was not returned.');
+    localStorage.setItem(KEY_STORAGE, key);
+    localStorage.setItem(GOOGLE_LINK_MARKER, '1');
+    pendingRelinkCredential = '';
+    overlay.style.display = 'none';
+    window.location.reload();
+  }
+
   function ensureOverlay() {
     let overlay = document.getElementById('lexiTravelGoogleGate');
     if (overlay) return overlay;
@@ -126,11 +139,30 @@
     overlay = document.createElement('div');
     overlay.id = 'lexiTravelGoogleGate';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(15,17,21,.72);backdrop-filter:blur(6px)';
-    overlay.innerHTML = `<div style="width:min(380px,100%);background:var(--card,#fff);color:var(--text,#111);border:1px solid var(--line,#ddd);border-radius:16px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.28);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><h2 style="margin:0 0 8px;font-size:20px">Connect Google</h2><p id="lexiTravelGoogleCopy" style="margin:0 0 15px;color:var(--muted,#666);font-size:13px;line-height:1.45"></p><div id="lexiTravelGoogleButton" style="min-height:44px;display:flex;justify-content:center"></div><div id="lexiTravelGoogleError" style="min-height:20px;margin-top:9px;color:#c62828;font-size:12px"></div><button id="lexiTravelGoogleLater" type="button" style="width:100%;min-height:38px;margin-top:4px;border:1px solid var(--line,#ccc);border-radius:9px;background:transparent;color:inherit">Use API key instead</button></div>`;
+    overlay.innerHTML = `<div style="width:min(380px,100%);background:var(--card,#fff);color:var(--text,#111);border:1px solid var(--line,#ddd);border-radius:16px;padding:20px;box-shadow:0 18px 60px rgba(0,0,0,.28);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><h2 style="margin:0 0 8px;font-size:20px">Connect Google</h2><p id="lexiTravelGoogleCopy" style="margin:0 0 15px;color:var(--muted,#666);font-size:13px;line-height:1.45"></p><div id="lexiTravelGoogleButton" style="min-height:44px;display:flex;justify-content:center"></div><div id="lexiTravelGoogleError" style="min-height:20px;margin-top:9px;color:#c62828;font-size:12px"></div><button id="lexiTravelGoogleRelink" type="button" hidden style="width:100%;min-height:38px;margin:4px 0 6px;border:1px solid var(--line,#ccc);border-radius:9px;background:transparent;color:inherit">Relink this Google account</button><button id="lexiTravelGoogleLater" type="button" style="width:100%;min-height:38px;margin-top:4px;border:1px solid var(--line,#ccc);border-radius:9px;background:transparent;color:inherit">Use API key instead</button></div>`;
     document.body.appendChild(overlay);
+
     overlay.querySelector('#lexiTravelGoogleLater').addEventListener('click', () => {
+      pendingRelinkCredential = '';
       overlay.style.display = 'none';
       document.getElementById('settingsDialog')?.showModal?.();
+    });
+
+    const relink = overlay.querySelector('#lexiTravelGoogleRelink');
+    relink.addEventListener('click', async () => {
+      const credential = pendingRelinkCredential;
+      const error = overlay.querySelector('#lexiTravelGoogleError');
+      if (!credential || !currentKey()) return;
+      relink.disabled = true;
+      error.textContent = '';
+      try {
+        const result = await bootstrapWithGoogle(credential, true);
+        applyResult(result, overlay);
+      } catch (e) {
+        error.textContent = e?.message || 'Could not relink Google.';
+      } finally {
+        relink.disabled = false;
+      }
     });
     return overlay;
   }
@@ -138,6 +170,9 @@
   async function showGoogleGate() {
     const overlay = ensureOverlay();
     const hasKey = Boolean(currentKey());
+    const relink = overlay.querySelector('#lexiTravelGoogleRelink');
+    pendingRelinkCredential = '';
+    relink.hidden = true;
     overlay.querySelector('#lexiTravelGoogleCopy').textContent = hasKey
       ? 'Connect your Google account once so future Home Screen installs can restore access without typing the API key.'
       : 'Use your linked Google account to restore Lexi Travel access on this install.';
@@ -153,17 +188,20 @@
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async response => {
+          const credential = String(response?.credential || '');
           error.textContent = '';
+          relink.hidden = true;
+          pendingRelinkCredential = '';
           try {
-            const result = await bootstrapWithGoogle(String(response?.credential || ''));
-            const key = String(result?.key || '').trim();
-            if (!result?.ok || !key) throw new Error('Lexi Travel access was not returned.');
-            localStorage.setItem(KEY_STORAGE, key);
-            localStorage.setItem(GOOGLE_LINK_MARKER, '1');
-            overlay.style.display = 'none';
-            window.location.reload();
+            const result = await bootstrapWithGoogle(credential, false);
+            applyResult(result, overlay);
           } catch (e) {
-            error.textContent = e?.message || 'Could not connect Google.';
+            const message = e?.message || 'Could not connect Google.';
+            error.textContent = message;
+            if (/not linked to Lexi Travel/i.test(message) && currentKey()) {
+              pendingRelinkCredential = credential;
+              relink.hidden = false;
+            }
           }
         }
       });

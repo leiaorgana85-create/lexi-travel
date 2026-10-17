@@ -1,6 +1,9 @@
 const LEXI_INSTALL_HASH_PROPERTY = 'LEXI_INSTALL_TOKEN_HASH_V1';
 const LEXI_INSTALL_EXPIRES_PROPERTY = 'LEXI_INSTALL_TOKEN_EXPIRES_V1';
 const LEXI_INSTALL_TTL_MS = 10 * 60 * 1000;
+const LEXI_TRAVEL_SESSION_PROPERTY = 'LEXI_TRAVEL_AUTH_SESSIONS_V1';
+const LEXI_TRAVEL_SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const LEXI_TRAVEL_MAX_SESSIONS = 12;
 
 function doGet(e) {
   const p = e && e.parameter ? e.parameter : {};
@@ -14,12 +17,7 @@ function doGet(e) {
     return json_(redeemInstallToken_(p.token));
   }
 
-  const savedKey =
-    PropertiesService.getScriptProperties().getProperty('LEXI_API_KEY');
-
-  const suppliedKey = p.key || '';
-
-  if (!savedKey || suppliedKey !== savedKey) {
+  if (!travelCredentialAuthorized_(p.key)) {
     return json_({
       ok: false,
       error: 'Unauthorized'
@@ -52,13 +50,12 @@ function doGet(e) {
   });
 }
 
-function mintInstallToken_(suppliedKey) {
-  const props = PropertiesService.getScriptProperties();
-  const savedKey = props.getProperty('LEXI_API_KEY');
-  if (!savedKey || String(suppliedKey || '') !== savedKey) {
+function mintInstallToken_(credential) {
+  if (!travelCredentialAuthorized_(credential)) {
     return { ok: false, error: 'Unauthorized' };
   }
 
+  const props = PropertiesService.getScriptProperties();
   const token = 'lxi1.' + Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   const expiresAt = Date.now() + LEXI_INSTALL_TTL_MS;
   props.setProperties({
@@ -74,29 +71,80 @@ function mintInstallToken_(suppliedKey) {
 }
 
 function redeemInstallToken_(token) {
-  const value = String(token || '').trim();
-  if (!value) return { ok: false, error: 'Missing install token' };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const value = String(token || '').trim();
+    if (!value) return { ok: false, error: 'Missing install token' };
 
-  const props = PropertiesService.getScriptProperties();
-  const savedHash = props.getProperty(LEXI_INSTALL_HASH_PROPERTY);
-  const expiresAt = Number(props.getProperty(LEXI_INSTALL_EXPIRES_PROPERTY) || 0);
+    const props = PropertiesService.getScriptProperties();
+    const savedHash = props.getProperty(LEXI_INSTALL_HASH_PROPERTY);
+    const expiresAt = Number(props.getProperty(LEXI_INSTALL_EXPIRES_PROPERTY) || 0);
 
-  if (!savedHash || !expiresAt || Date.now() > expiresAt) {
+    if (!savedHash || !expiresAt || Date.now() > expiresAt) {
+      props.deleteProperty(LEXI_INSTALL_HASH_PROPERTY);
+      props.deleteProperty(LEXI_INSTALL_EXPIRES_PROPERTY);
+      return { ok: false, error: 'Install token expired' };
+    }
+
+    if (lexiInstallHash_(value) !== savedHash) {
+      return { ok: false, error: 'Invalid install token' };
+    }
+
     props.deleteProperty(LEXI_INSTALL_HASH_PROPERTY);
     props.deleteProperty(LEXI_INSTALL_EXPIRES_PROPERTY);
-    return { ok: false, error: 'Install token expired' };
-  }
 
-  if (lexiInstallHash_(value) !== savedHash) {
-    return { ok: false, error: 'Invalid install token' };
-  }
+    const sessionToken = 'lxt1.' + Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    const now = Date.now();
+    const sessions = readTravelSessions_();
+    sessions.push({ hash: lexiInstallHash_(sessionToken), expiresAt: now + LEXI_TRAVEL_SESSION_TTL_MS });
+    const active = sessions
+      .filter(item => item && item.hash && Number(item.expiresAt) > now)
+      .slice(-LEXI_TRAVEL_MAX_SESSIONS);
+    props.setProperty(LEXI_TRAVEL_SESSION_PROPERTY, JSON.stringify(active));
 
+    return {
+      ok: true,
+      sessionToken: sessionToken,
+      expiresAt: new Date(now + LEXI_TRAVEL_SESSION_TTL_MS).toISOString()
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function travelCredentialAuthorized_(credential) {
+  const value = String(credential || '').trim();
+  if (!value) return false;
+
+  const props = PropertiesService.getScriptProperties();
   const savedKey = props.getProperty('LEXI_API_KEY');
-  props.deleteProperty(LEXI_INSTALL_HASH_PROPERTY);
-  props.deleteProperty(LEXI_INSTALL_EXPIRES_PROPERTY);
+  if (savedKey && value === savedKey) return true;
+  if (!value.startsWith('lxt1.')) return false;
 
-  if (!savedKey) return { ok: false, error: 'API key is not configured' };
-  return { ok: true, key: savedKey };
+  const now = Date.now();
+  const sessions = readTravelSessions_();
+  const active = sessions.filter(item => item && item.hash && Number(item.expiresAt) > now);
+  if (active.length !== sessions.length) {
+    props.setProperty(LEXI_TRAVEL_SESSION_PROPERTY, JSON.stringify(active));
+  }
+
+  const wantedHash = lexiInstallHash_(value);
+  return active.some(item => String(item.hash) === wantedHash);
+}
+
+function requireTravelCredential_(credential) {
+  if (!travelCredentialAuthorized_(credential)) throw new Error('Unauthorized');
+}
+
+function readTravelSessions_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(LEXI_TRAVEL_SESSION_PROPERTY) || '[]';
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
 }
 
 function lexiInstallHash_(text) {

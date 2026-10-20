@@ -1,0 +1,350 @@
+.notes-sidebar {
+  width: min(188px, 56vw);
+  padding: 3px;
+}
+
+.notes-sidebar-head {
+  min-height: 26px;
+  padding: 0 2px 3px;
+}
+
+.notes-sidebar-head strong {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.notes-sidebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.notes-mini-btn {
+  min-width: 24px;
+  min-height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--blue);
+  padding: 0 4px;
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.notes-mini-btn.active {
+  background: var(--blue-soft);
+}
+
+.notes-close-btn {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 2px;
+  font-size: 18px;
+}
+
+.notes-list {
+  gap: 1px;
+  padding-top: 2px;
+}
+
+.note-list-item {
+  position: relative;
+  border-radius: 5px;
+  padding: 5px 27px 5px 6px;
+  font-size: 11.5px;
+  line-height: 1.1;
+  min-height: 28px;
+}
+
+.note-list-item.pinned-note {
+  font-weight: 750;
+}
+
+.note-list-meta {
+  display: none !important;
+}
+
+.note-list-pin {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  opacity: 0.24;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.note-list-pin.active {
+  opacity: 0.9;
+}
+
+.note-reorder-controls {
+  display: none;
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+  align-items: center;
+  gap: 1px;
+}
+
+.notes-list.reorder-mode .note-list-item {
+  padding-right: 48px;
+}
+
+.notes-list.reorder-mode .note-list-pin {
+  display: none;
+}
+
+.notes-list.reorder-mode .note-reorder-controls {
+  display: flex;
+}
+
+.note-reorder-btn {
+  width: 20px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--blue);
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 800;
+  user-select: none;
+}
+
+.note-reorder-btn:active {
+  background: var(--blue-soft);
+}
+
+.note-toolbar {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 3px;
+  min-height: 30px;
+  padding: 0 1px 2px;
+}
+
+.notes-list-btn {
+  min-width: 28px;
+  min-height: 25px;
+  padding: 1px;
+  font-size: 16px;
+}
+
+.note-title {
+  font-size: 13.5px;
+  line-height: 1;
+}
+
+.note-title-input {
+  padding: 2px 4px;
+  font-size: 13.5px;
+}
+
+.note-actions {
+  gap: 1px;
+}
+
+.note-action-btn {
+  min-height: 25px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+.note-delete-btn {
+  color: #9b3d3d;
+}
+
+.note-save-status {
+  min-height: 11px;
+  padding: 1px 2px 0;
+  font-size: 8.5px;
+  line-height: 1.05;
+}
+
+.note-format-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 1px 4px;
+}
+
+.note-format-bar[hidden] {
+  display: none;
+}
+
+.note-format-btn {
+  min-width: 30px;
+  min-height: 27px;
+  padding: 2px 7px;
+  border: 1px solid #dfe4ea;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.note-format-btn:active {
+  background: #f0f3f7;
+}
+
+.note-body {
+  padding: 1px 1px 18px;
+}
+
+.note-schedule {
+  margin: 1px 0 7px;
+}
+
+.note-section-title {
+  padding: 1px 2px 3px;
+  font-size: 12px;
+}
+
+.note-table {
+  font-size: 10.5px;
+  line-height: 1.12;
+}
+
+.note-table th,
+.note-table td {
+  padding: 2px 3px;
+}
+
+.note-table th {
+  font-size: 9.5px;
+}
+
+.note-paragraph {
+  margin: 2px 1px 6px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.note-paragraph[contenteditable="true"]:empty::before {
+  content: '• ';
+  color: #9aa3af;
+}
+
+.lexi-plain-editor {
+  display: block;
+  width: 100%;
+  min-height: 210px;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid #dfe4ea;
+  border-radius: 7px;
+  background: #fff;
+  color: #111;
+  padding: 7px 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.42;
+  white-space: pre-wrap;
+}
+
+.lexi-plain-editor:focus {
+  outline: 1px solid var(--blue);
+  outline-offset: 0;
+}
+
+.lexi-plain-render {
+  padding: 2px 2px 8px;
+  font-size: 12.5px;
+  line-height: 1.38;
+}
+
+.lexi-note-line {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  min-height: 18px;
+}
+
+.lexi-note-text-line {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.lexi-note-blank {
+  display: block;
+  min-height: 8px;
+}
+
+.lexi-note-marker {
+  text-align: center;
+  line-height: 1.38;
+}
+
+.lexi-number-marker {
+  text-align: right;
+  padding-right: 4px;
+}
+
+.lexi-note-text {
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.lexi-check-line {
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+
+.lexi-check-input {
+  width: 14px;
+  height: 14px;
+  margin: 1px 0 0 1px;
+}
+
+.lexi-check-input:checked + .lexi-note-text {
+  text-decoration: line-through;
+  opacity: 0.58;
+}
+
+/* iOS Safari/PWA auto-zooms focused editable text below 16px.
+   Keep read mode compact, but use 16px while editing on WebKit touch devices. */
+@supports (-webkit-touch-callout: none) {
+  .note-title-input,
+  .note-editable[contenteditable="true"],
+  .note-edit-cell[contenteditable="true"],
+  .lexi-plain-editor {
+    font-size: 16px !important;
+    line-height: 1.3;
+  }
+}
+
+@media (min-width: 700px) {
+  .notes-sidebar {
+    width: 195px;
+  }
+}
+
+/* Keep the open sidebar above the workspace and fully tappable on iOS. */
+.notes-layout.list-open .notes-sidebar {
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.notes-layout.list-open .notes-list,
+.notes-layout.list-open .note-list-item,
+.notes-layout.list-open .notes-sidebar-head,
+.notes-layout.list-open .notes-sidebar button {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.notes-layout.list-open .note-workspace {
+  position: relative;
+  z-index: 1;
+}

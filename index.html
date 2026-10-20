@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" data-build="2026-10-15.1526">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="LEXI Travel">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="/lexi-assets/travel-logo.png?v=3">
+  <title>Lexi Travel</title>
+  <script src="theme.js?v=1"></script>
+  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="calendar-fixes.css?v=20">
+  <link rel="stylesheet" href="calendar-special-events.css?v=2">
+  <link rel="stylesheet" href="calendar-sync.css?v=1">
+  <link rel="stylesheet" href="calendar-ui-tweaks.css?v=7">
+  <link rel="stylesheet" href="calendar-edit-top.css?v=2">
+  <link rel="stylesheet" href="notes-ui.css?v=7">
+  <link rel="stylesheet" href="notes-plain-tools.css?v=3">
+  <link rel="stylesheet" href="notes-table-layout.css?v=1">
+  <link rel="stylesheet" href="shopping-list.css?v=10">
+  <link rel="stylesheet" href="plan-ui.css?v=8">
+  <link rel="stylesheet" href="plan-next-move.css?v=5">
+  <link rel="stylesheet" href="plan-calendar.css?v=1">
+  <link rel="stylesheet" href="theme.css?v=1">
+  <link rel="stylesheet" href="ui-system.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <h1 class="app-title">Lexi Travel ✈︎</h1>
+      <div class="topbar-actions" style="display:flex;align-items:center;gap:0">
+        <button id="todayBtn" class="icon-btn" type="button" aria-label="Go to today" title="Today" style="color:var(--blue)">
+          <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round">
+            <path d="M7 3v3M17 3v3M4.5 8.5h15M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/>
+            <circle cx="12" cy="14" r="2.2"/>
+          </svg>
+        </button>
+        <button id="settingsBtn" class="icon-btn" type="button" aria-label="API settings">⚙︎</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section id="calendarView" class="view active" aria-label="Calendar">
+        <div class="section-head calendar-head">
+          <button id="prevMonthBtn" class="month-btn" type="button" aria-label="Previous month">‹</button>
+          <h2 id="monthTitle">October 2026</h2>
+          <button id="nextMonthBtn" class="month-btn" type="button" aria-label="Next month">›</button>
+        </div>
+        <div id="calendarStatus" class="calendar-status"></div>
+        <div class="weekday-row" aria-hidden="true">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid" aria-label="Month calendar"></div>
+
+        <section id="dayPane" class="day-pane" aria-label="Selected day details" aria-live="polite">
+          <div class="day-pane-head">
+            <div class="day-pane-summary">
+              <h3 id="paneDayTitle" class="day-pane-title">Select a day</h3>
+              <div id="paneDayLocation" class="day-pane-location"></div>
+            </div>
+          </div>
+          <div id="paneDayDetails" class="day-pane-details">
+            <div class="pane-empty">Tap a date to see appointments, travel and to-dos.</div>
+          </div>
+        </section>
+      </section>
+
+      <section id="notesView" class="view" aria-label="Notes">
+        <div id="notesLayout" class="notes-layout">
+          <aside class="notes-sidebar" aria-label="Note list">
+            <div class="notes-sidebar-head">
+              <strong>Notes</strong>
+              <button id="notesCloseBtn" class="notes-close-btn" type="button" aria-label="Close note list">×</button>
+            </div>
+            <div id="notesList" class="notes-list"></div>
+          </aside>
+
+          <article class="note-workspace" aria-label="Selected note">
+            <div class="note-toolbar">
+              <button id="notesListBtn" class="notes-list-btn" type="button" aria-label="Open note list">☰</button>
+              <div class="note-title-wrap">
+                <h2 id="noteTitle" class="note-title">Notes</h2>
+                <input id="noteTitleInput" class="note-title-input" type="text" aria-label="Note title" hidden>
+              </div>
+              <div class="note-actions">
+                <button id="noteEditBtn" class="note-action-btn" type="button">Edit</button>
+                <button id="noteCancelBtn" class="note-action-btn" type="button" hidden>Cancel</button>
+                <button id="noteSaveBtn" class="note-action-btn primary" type="button" hidden>Save</button>
+              </div>
+            </div>
+            <div id="noteSaveStatus" class="note-save-status" aria-live="polite"></div>
+            <div id="noteBody" class="note-body">
+              <div class="note-empty">Open Notes to load your saved notes.</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="shoppingView" class="view shopping-view" aria-label="Shopping">
+        <div class="shopping-head">
+          <div id="shoppingStatus" class="shopping-status" aria-live="polite"></div>
+        </div>
+        <div id="shoppingListBody">
+          <div class="shopping-message">Open Shopping to load your list.</div>
+        </div>
+      </section>
+
+      <section id="countryView" class="view plan-view" aria-label="Plan">
+        <section class="plan-section" aria-label="Monthly plan">
+          <div class="plan-section-head">
+            <h3>To-Dos</h3>
+            <div class="plan-month-nav" aria-label="Plan month">
+              <button id="planPrevMonthBtn" type="button" aria-label="Previous plan month">‹</button>
+              <span id="planMonthLabel">October 2026</span>
+              <button id="planNextMonthBtn" type="button" aria-label="Next plan month">›</button>
+            </div>
+          </div>
+
+          <div class="plan-card">
+            <div id="planChecklist" class="plan-checklist"></div>
+            <div class="plan-add-wrap">
+              <button id="planAddBtn" class="plan-add-btn" type="button">+ Add item</button>
+              <div id="planAddRow" class="plan-add-row" hidden>
+                <input id="planAddInput" class="plan-add-input" type="text" autocomplete="off" placeholder="Add something to do this month">
+                <div class="plan-add-date-wrap">
+                  <label class="plan-add-date-label" for="planAddDate">Date · optional</label>
+                  <input id="planAddDate" class="plan-add-date" type="date">
+                </div>
+                <button id="planAddSaveBtn" class="plan-add-save" type="button">Add</button>
+                <button id="planAddCancelBtn" class="plan-add-cancel" type="button">Cancel</button>
+                <div id="planConvertWrap" class="plan-convert-wrap" hidden>
+                  <label class="plan-convert-time-label" for="planConvertTime">Time</label>
+                  <input id="planConvertTime" class="plan-convert-time" type="text" autocomplete="off" placeholder="9:00 AM">
+                  <button id="planConvertAppointmentBtn" class="plan-convert-btn" type="button">Convert to Appointment</button>
+                  <span id="planConvertStatus" class="plan-convert-status" aria-live="polite"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="planNextMoveSection" class="plan-section plan-next-move-section" aria-label="Upcoming travel">
+          <h3 class="plan-next-move-title">Upcoming Travel</h3>
+          <div id="planNextMoveCard" class="plan-next-move-card" hidden>
+            <div class="plan-next-move-top">
+              <div class="plan-next-move-route" aria-label="Next travel route">
+                <span id="planNextMoveOrigin">—</span>
+                <span class="plan-next-move-arrow" aria-hidden="true">→</span>
+                <span id="planNextMoveDestination">—</span>
+              </div>
+              <div id="planNextMoveDate" class="plan-next-move-date"></div>
+            </div>
+            <div class="plan-next-move-details">
+              <div class="plan-next-move-row">
+                <span class="plan-next-move-label">Flight</span>
+                <span id="planNextMoveFlight" class="plan-next-move-value">—</span>
+              </div>
+              <div class="plan-next-move-row">
+                <span class="plan-next-move-label">Stay</span>
+                <span id="planNextMoveStay" class="plan-next-move-value">—</span>
+              </div>
+            </div>
+          </div>
+          <div id="planNextMoveEmpty" class="plan-next-move-empty">Loading…</div>
+        </section>
+
+        <section class="plan-section plan-country-section" aria-label="Country days">
+          <h3 class="plan-country-title">Country Days</h3>
+          <div id="countryStatus" class="status-card">Enter your API key in Settings to load country rules.</div>
+          <div id="countryList" class="country-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="Primary">
+      <button class="tab active" data-view="calendarView" type="button">Calendar</button>
+      <button class="tab" data-view="countryView" type="button">Plan</button>
+      <button class="tab" data-view="notesView" type="button">Notes</button>
+      <button class="tab" data-view="shoppingView" type="button">Shopping</button>
+    </nav>
+  </div>
+
+  <dialog id="dayDialog" class="day-dialog">
+    <div class="day-sheet">
+      <div class="dialog-head day-dialog-head">
+        <div>
+          <div id="dayLocation" class="day-location"></div>
+          <h2 id="dayTitle">Date</h2>
+        </div>
+        <button id="closeDayBtn" class="close-btn" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="dayDetails" class="day-details"></div>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings-card">
+      <div class="dialog-head">
+        <h2>Settings</h2>
+        <button class="close-btn" value="cancel" aria-label="Close">×</button>
+      </div>
+
+      <section class="settings-section" aria-label="Appearance">
+        <div class="settings-section-title">Appearance</div>
+        <div class="theme-toggle" role="group" aria-label="Theme">
+          <button class="theme-option" type="button" data-theme-option="light" aria-pressed="true">Light</button>
+          <button class="theme-option" type="button" data-theme-option="dark" aria-pressed="false">Dark</button>
+        </div>
+      </section>
+
+      <div class="settings-divider" aria-hidden="true"></div>
+
+      <section class="settings-section" aria-label="Connection">
+        <div class="settings-section-title">Connection</div>
+        <label for="apiKey">LEXI API key</label>
+        <input id="apiKey" name="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your saved key">
+        <p class="help">The key is stored only in this browser on this device.</p>
+        <button id="saveKeyBtn" class="primary-btn" type="button">Save & test</button>
+        <div id="connectionResult" class="connection-result" aria-live="polite"></div>
+      </section>
+    </form>
+  </dialog>
+
+  <script src="tab-gesture-guard.js?v=3"></script>
+  <script src="travel-api-transport.js?v=1"></script>
+  <script src="app.js?v=5"></script>
+  <script src="today-button.js?v=1"></script>
+  <script src="country-fast.js?v=2"></script>
+  <script src="calendar-fixes.js?v=19"></script>
+  <script src="calendar-special-events.js?v=5"></script>
+  <script src="split-view.js?v=9"></script>
+  <script src="calendar-sync.js?v=3"></script>
+  <script src="calendar-flight-authority.js?v=2"></script>
+  <script src="calendar-ui-tweaks.js?v=7"></script>
+  <script src="calendar-resume-refresh.js?v=3"></script>
+  <script src="notes-ui.js?v=8"></script>
+  <script src="notes-reorder.js?v=6"></script>
+  <script src="notes-readonly.js?v=2"></script>
+  <script src="notes-enhancements.js?v=2"></script>
+  <script src="notes-icon-choice.js?v=2"></script>
+  <script src="notes-pane-fixes.js?v=4"></script>
+  <script src="notes-rich.js?v=5"></script>
+  <script src="notes-plain-tools.js?v=3"></script>
+  <script src="notes-sync.js?v=5"></script>
+  <script src="shopping-list.js?v=12"></script>
+  <script src="plan-ui.js?v=7"></script>
+  <script src="plan-next-move.js?v=8"></script>
+  <script src="plan-calendar-editor-bridge.js?v=4"></script>
+  <script src="plan-calendar.js?v=6"></script>
+  <script src="travel-ui-polish.js?v=1"></script>
+</body>
+</html>

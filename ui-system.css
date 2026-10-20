@@ -1,0 +1,1153 @@
+/* Lexi Travel unified visual system — 2026-10-15
+   Quiet, dense, iPhone-first. Calendar keeps its compact information sizing. */
+
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafc;
+  --text: #151922;
+  --muted: #727985;
+  --line: #e5e8ed;
+  --blue: #2f6bff;
+  --blue-soft: #edf3ff;
+  --danger: #a94747;
+  --ui-radius-row: 8px;
+  --ui-radius-card: 12px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-text-micro: 10px;
+  --ui-text-secondary: 11.5px;
+  --ui-text-body: 13px;
+  --ui-text-title: 15px;
+  --ui-text-major: 17px;
+}
+
+html,
+body {
+  background: var(--bg);
+}
+
+.app-shell,
+.content {
+  background: var(--bg);
+}
+
+.topbar {
+  min-height: 0;
+  padding: calc(3px + env(safe-area-inset-top)) 9px 3px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.topbar .app-title {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.1;
+  font-weight: 760;
+  letter-spacing: 0.005em;
+}
+
+.topbar .icon-btn {
+  min-width: 32px;
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.content {
+  padding: 4px 4px calc(56px + max(2px, calc(env(safe-area-inset-bottom) - 8px)));
+}
+
+/* Bottom navigation: compact, consistent and visually quiet. */
+.tabbar {
+  gap: 4px;
+  padding: 3px 8px max(2px, calc(env(safe-area-inset-bottom) - 8px));
+  border-top: 1px solid var(--line);
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.055);
+  backdrop-filter: blur(16px);
+}
+
+.tab {
+  min-height: 48px;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 4px 2px 3px;
+  color: var(--muted);
+  font-size: var(--ui-text-micro);
+  font-weight: 720;
+}
+
+.tab::before {
+  width: 19px;
+  height: 19px;
+  flex-basis: 19px;
+}
+
+.tab.active {
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+/* Shared outline action language. */
+.calendar-top-action-btn,
+#countryView .plan-add-btn,
+#countryView .plan-edit-btn,
+#countryView .plan-remove-btn,
+#noteProtectBtn,
+#noteEditBtn,
+#noteDeleteBtn,
+#noteNewBtn,
+#noteReorderBtn {
+  border-radius: var(--ui-radius-row);
+}
+
+/* =========================================================
+   CALENDAR — compact exception to the global type scale.
+   ========================================================= */
+
+.calendar-head {
+  min-height: 27px;
+  height: 27px;
+  margin: 0 0 3px;
+  align-items: center;
+}
+
+.calendar-head #monthTitle {
+  font-size: var(--ui-text-major);
+  line-height: 1;
+  font-weight: 760;
+}
+
+.calendar-head .month-btn {
+  width: 32px;
+  height: 27px;
+  min-height: 27px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 27px;
+  line-height: 1;
+  align-self: center;
+  transform: translateY(-1px);
+}
+
+.weekday-row {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px 10px 0 0;
+  background: var(--surface-subtle);
+}
+
+.weekday-row span {
+  border-right-color: var(--line);
+  border-bottom: 0;
+  background: transparent;
+}
+
+.weekday-row span:last-child {
+  border-right: 0;
+}
+
+.calendar-grid {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-top: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0 0 10px 10px;
+  background: var(--surface);
+}
+
+.day-cell {
+  background: var(--surface);
+  border-right-color: var(--line);
+  border-bottom-color: var(--line);
+}
+
+.day-cell.selected-day {
+  background: var(--blue-soft);
+  box-shadow: inset 0 -2px 0 var(--blue);
+}
+
+.day-pane {
+  margin: 7px 0 0;
+  padding: 6px 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15,23,42,.025);
+}
+
+.day-pane-head {
+  padding: 0 1px 4px;
+}
+
+.day-pane-summary {
+  width: 100%;
+  align-items: center;
+  gap: 3px 6px;
+}
+
+#paneDayTitle {
+  margin: 0;
+  color: var(--blue);
+  font-size: 12px;
+  line-height: 1.15;
+  font-weight: 760;
+}
+
+.day-pane-location {
+  font-size: 11.5px;
+  line-height: 1.15;
+  font-weight: 650;
+}
+
+.day-pane-details {
+  border-top-color: var(--line);
+}
+
+.pane-event,
+.pane-location-note,
+.pane-empty {
+  border-bottom-color: var(--line);
+}
+
+.pane-event-summary {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+.pane-event-details,
+.pane-location-note,
+.pane-empty {
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.calendar-top-actions {
+  gap: 1px;
+}
+
+.calendar-top-action-btn,
+.day-pane-summary .calendar-add-btn.calendar-top-action-btn {
+  width: 27px;
+  height: 27px;
+  min-width: 27px;
+  min-height: 27px;
+  padding: 5px;
+}
+
+.calendar-top-action-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.pane-event-edit {
+  display: none !important;
+}
+
+.pane-event.calendar-edit-choice {
+  border-radius: var(--ui-radius-row);
+  background: var(--blue-soft);
+  box-shadow: inset 0 0 0 1px #cbd7e6;
+}
+
+/* =========================================================
+   PLAN — small labels, content carries the visual hierarchy.
+   ========================================================= */
+
+#countryView.plan-view {
+  padding: 1px 0 16px;
+}
+
+#countryView .plan-section {
+  margin: 0 0 12px;
+}
+
+#countryView .plan-section + .plan-section {
+  padding-top: 0;
+  border-top: 0;
+}
+
+#countryView .plan-section-head,
+#countryView .plan-next-move-title,
+#countryView .plan-country-title {
+  border: 0;
+}
+
+#countryView .plan-section-head {
+  min-height: 28px;
+  margin: 0 2px 5px;
+  padding: 0 31px 0 1px;
+  border-bottom: 0;
+}
+
+#countryView .plan-section-head h3,
+#countryView .plan-next-move-title,
+#countryView .plan-country-title,
+.shopping-section-title {
+  margin: 0;
+  padding: 0;
+  border-left: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.1;
+  font-weight: 820;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+
+#countryView .plan-next-move-title,
+#countryView .plan-country-title {
+  margin: 0 3px 5px;
+}
+
+#countryView .plan-month-nav {
+  grid-template-columns: 27px minmax(0, auto) 27px;
+  gap: 2px;
+}
+
+#countryView #planMonthLabel {
+  min-width: 112px;
+  color: var(--text);
+  font-size: var(--ui-text-body);
+  line-height: 1;
+  font-weight: 760;
+}
+
+#countryView .plan-month-nav button {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--blue);
+  font-size: 23px;
+  line-height: 1;
+}
+
+#countryView .plan-card,
+#countryView .plan-next-move-card,
+#countryView .plan-next-move-empty {
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15,23,42,.025);
+}
+
+#countryView .plan-section:first-of-type {
+  position: relative;
+}
+
+#countryView .plan-section:first-of-type .plan-card {
+  overflow: visible;
+}
+
+#countryView .plan-section:first-of-type .plan-add-wrap {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  z-index: 2;
+  padding: 0;
+  border-top: 0;
+}
+
+#countryView .plan-section:first-of-type .plan-add-wrap:has(.plan-add-row:not([hidden])) {
+  position: static;
+  padding: 6px 7px;
+  border-top: 1px solid var(--line);
+}
+
+#countryView .plan-check-row {
+  grid-template-columns: 22px minmax(0, 1fr) 29px 29px;
+  gap: 2px;
+  min-height: 31px;
+  padding: 3px 4px 3px 7px;
+  border-bottom-color: var(--line);
+}
+
+#countryView .plan-check {
+  width: 15px;
+  height: 15px;
+}
+
+#countryView .plan-check-main {
+  gap: 5px;
+}
+
+#countryView .plan-check-text {
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.15;
+  font-weight: 560;
+}
+
+#countryView .plan-check-date {
+  color: var(--blue);
+  font-size: 9.5px;
+  line-height: 1;
+  font-weight: 750;
+}
+
+#countryView .plan-empty {
+  padding: 8px 9px;
+  font-size: var(--ui-text-secondary);
+}
+
+#countryView .plan-add-btn,
+#countryView .plan-edit-btn,
+#countryView .plan-remove-btn {
+  position: relative;
+  width: 27px;
+  height: 27px;
+  min-width: 27px;
+  min-height: 27px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  padding: 5px;
+  font-size: 0;
+  line-height: 1;
+}
+
+#countryView .plan-add-btn,
+#countryView .plan-edit-btn {
+  color: var(--blue);
+}
+
+#countryView .plan-remove-btn {
+  color: var(--danger);
+}
+
+#countryView .plan-add-btn::before,
+#countryView .plan-edit-btn::before,
+#countryView .plan-remove-btn::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+#countryView .plan-add-btn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5v14M5 12h14' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5v14M5 12h14' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+#countryView .plan-edit-btn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#countryView .plan-remove-btn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#countryView .plan-add-row {
+  gap: 4px;
+}
+
+#countryView .plan-add-input {
+  padding: 5px 6px;
+}
+
+#countryView .plan-next-move-item {
+  padding: 7px 8px;
+  border-bottom-color: var(--line);
+}
+
+/* Keep date, route and time/duration the same size. */
+#countryView .plan-next-move-route,
+#countryView .plan-next-move-date,
+#countryView .plan-next-move-trip {
+  font-size: 12.5px;
+  line-height: 1.15;
+}
+
+#countryView .plan-next-move-route,
+#countryView .plan-next-move-date {
+  font-weight: 760;
+}
+
+#countryView .plan-next-move-trip {
+  font-weight: 650;
+}
+
+#countryView .plan-next-move-details {
+  gap: 3px;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top-color: var(--line);
+}
+
+#countryView .plan-next-move-label {
+  color: var(--muted);
+  font-size: var(--ui-text-micro);
+}
+
+#countryView .plan-next-move-value {
+  color: var(--text);
+  font-size: var(--ui-text-secondary);
+  line-height: 1.25;
+}
+
+#countryView #countryStatus.country-year-status {
+  display: none;
+}
+
+/* Country Days reads as one compact grouped list, not three separate cards. */
+#countryView .country-list {
+  display: grid;
+  gap: 0;
+  margin-top: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15,23,42,.025);
+}
+
+#countryView .country-card.country-days-card {
+  min-height: 32px;
+  margin: 0;
+  padding: 7px 9px;
+  gap: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+#countryView .country-card.country-days-card:last-child {
+  border-bottom: 0;
+}
+
+#countryView .country-days-head {
+  align-items: center;
+  gap: 8px;
+}
+
+#countryView .country-days-card .country-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+#countryView .country-days-total {
+  font-size: var(--ui-text-secondary);
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+#countryView .country-stay-list,
+#countryView .country-days-card .country-rule {
+  display: none;
+}
+
+/* =========================================================
+   TRAVEL NOTES — reference library first, editor second.
+   ========================================================= */
+
+#notesView .notes-layout {
+  margin: 0;
+}
+
+#notesView .note-workspace {
+  min-width: 0;
+  padding: 0 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15,23,42,.025);
+}
+
+#notesView .note-toolbar {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 0 2px;
+  border-bottom-color: var(--line);
+}
+
+#notesView .note-title-wrap {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+#notesView .note-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.12;
+  font-weight: 760;
+}
+
+#notesView .note-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-height: 32px;
+}
+
+#notesListBtn {
+  box-sizing: border-box;
+  width: 36px;
+  height: 34px;
+  min-width: 36px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--ui-radius-row);
+  font-size: 22px;
+  line-height: 1;
+  touch-action: manipulation;
+}
+
+#notesView .note-save-status:empty,
+#notesView .note-save-status[hidden],
+#notesView .note-action-btn[hidden] {
+  display: none !important;
+}
+
+#notesView .note-body {
+  padding: 5px 2px 18px;
+}
+
+#notesView .note-paragraph,
+#notesView .lexi-plain-render {
+  font-size: 14px;
+  line-height: 1.48;
+}
+
+#notesView .lexi-note-line,
+#notesView .lexi-note-marker {
+  line-height: 1.48;
+}
+
+#notesView .note-section-title {
+  font-size: var(--ui-text-body);
+  line-height: 1.2;
+}
+
+#notesView .note-table {
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+#notesView .note-table th {
+  font-size: 10.5px;
+}
+
+#notesView .note-table th,
+#notesView .note-table td {
+  padding: 4px;
+}
+
+/* Read-mode note actions match Calendar/Plan outline actions. */
+#noteProtectBtn,
+#noteEditBtn,
+#noteDeleteBtn {
+  position: relative;
+  width: 29px;
+  height: 29px;
+  min-width: 29px;
+  min-height: 29px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  font-size: 0;
+  line-height: 1;
+}
+
+#noteProtectBtn,
+#noteEditBtn {
+  color: var(--blue);
+}
+
+#noteDeleteBtn {
+  color: var(--danger);
+}
+
+#noteProtectBtn::before,
+#noteEditBtn::before,
+#noteDeleteBtn::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+#noteProtectBtn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#noteProtectBtn[aria-label^="Remove"]::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 10V8a5 5 0 0 0-9.5-2M6 10h12v10H6z' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 10V8a5 5 0 0 0-9.5-2M6 10h12v10H6z' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#noteEditBtn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#noteDeleteBtn::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+#noteNewBtn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  font-size: 0;
+}
+
+#noteNewBtn::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5v14M5 12h14' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 5v14M5 12h14' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+#noteReorderBtn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  font-size: 0;
+}
+
+#noteReorderBtn::before {
+  content: "";
+  width: 17px;
+  height: 17px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 7l4-4 4 4M12 3v18M8 17l4 4 4-4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 7l4-4 4 4M12 3v18M8 17l4 4 4-4' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+#noteReorderBtn[aria-pressed="true"] {
+  background: var(--blue-soft);
+}
+
+#notesView .note-list-item {
+  font-size: var(--ui-text-body);
+}
+
+#notesView .note-list-icon {
+  display: inline-block;
+  width: 17px;
+  margin-right: 3px;
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: -1px;
+  text-align: center;
+}
+
+#notesView .note-list-pin {
+  font-size: 0;
+}
+
+#notesView .note-list-pin::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 4h8M9 4l1 6-4 4h12l-4-4 1-6M12 14v7' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 4h8M9 4l1 6-4 4h12l-4-4 1-6M12 14v7' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+#notesView .note-list-protected {
+  position: absolute;
+  top: 50%;
+  right: 29px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 0;
+  opacity: .7;
+  pointer-events: none;
+}
+
+#notesView .note-list-protected::before {
+  content: "";
+  width: 11px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10V8a5 5 0 0 1 10 0v2M6 10h12v10H6z' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
+#notesView .note-list-protected[hidden],
+#notesView .notes-list.reorder-mode .note-list-protected {
+  display: none !important;
+}
+
+/* Preserve the compact Schedule note layout. */
+#notesView.schedule-note #noteBody .note-table {
+  width: 100%;
+  table-layout: fixed !important;
+  font-size: 11.5px;
+  line-height: 1.18;
+}
+
+#notesView.schedule-note #noteBody .note-table th {
+  font-size: 10.5px;
+}
+
+#notesView.schedule-note #noteBody .note-table tr > :first-child:nth-last-child(5) { width: 23% !important; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(2):nth-last-child(4) { width: 17% !important; white-space: nowrap; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(3):nth-last-child(3) { width: 19% !important; white-space: nowrap; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(4):nth-last-child(2) { width: 23% !important; overflow-wrap: anywhere; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(5):last-child { width: 18% !important; }
+
+/* Notes protection dialog remains compact and coherent with the new surfaces. */
+.note-locked-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 2px;
+  padding: 11px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-row);
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.note-locked-panel[hidden] { display: none; }
+.note-locked-panel strong { display: block; margin-bottom: 2px; font-size: 12.5px; }
+.note-locked-icon { flex: 0 0 auto; font-size: 16px; line-height: 1; }
+.note-protect-btn { color: var(--blue); }
+
+.notes-security-dialog {
+  width: min(310px, calc(100vw - 34px));
+  border: 0;
+  border-radius: var(--ui-radius-card);
+  padding: 0;
+  background: transparent;
+}
+
+.notes-security-dialog::backdrop { background: rgba(0,0,0,.34); }
+.notes-security-card { box-sizing: border-box; width: 100%; margin: 0; padding: 13px; border-radius: var(--ui-radius-card); background: var(--surface); color: var(--text); }
+.notes-security-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.notes-security-head h2 { margin: 0; font-size: var(--ui-text-title); line-height: 1.1; }
+.notes-security-close { border: 0; background: transparent; color: var(--muted); padding: 0 2px; font-size: 21px; line-height: 1; }
+.notes-security-message { margin: 0 0 9px; color: var(--muted); font-size: var(--ui-text-secondary); line-height: 1.3; }
+.notes-security-input { box-sizing: border-box; width: 100%; min-height: 36px; margin: 0 0 7px; border: 1px solid #cbd5e1; border-radius: var(--ui-radius-row); background: var(--surface); color: var(--text); padding: 7px 8px; font-size: 16px; }
+.notes-security-input[hidden] { display: none; }
+.notes-security-error { min-height: 15px; color: #b42318; font-size: 10.5px; line-height: 1.2; }
+.notes-security-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+.notes-security-actions button { min-height: 30px; border: 0; border-radius: var(--ui-radius-row); padding: 5px 10px; font-size: var(--ui-text-secondary); font-weight: 750; }
+.notes-security-cancel { background: #eef1f5; color: #4b5563; }
+.notes-security-submit { background: var(--blue); color: #fff; }
+
+/* iPhone note index behaves as a full-width reference drawer. */
+@media (max-width: 599px) {
+  #notesView .notes-sidebar {
+    right: 0;
+    width: 100%;
+    max-width: none;
+    padding: 6px 6px 12px;
+    border-right: 0;
+    background: var(--bg);
+    box-shadow: none;
+    transform: translateX(-102%);
+  }
+
+  #notesView .notes-layout.list-open .notes-sidebar {
+    transform: translateX(0);
+  }
+
+  #notesView .notes-sidebar-head {
+    min-height: 38px;
+    padding: 0 4px 5px;
+    border-bottom-color: var(--line);
+  }
+
+  #notesView .notes-sidebar-head strong {
+    color: var(--text);
+    font-size: var(--ui-text-title);
+    line-height: 1.1;
+  }
+
+  #notesView .notes-list {
+    gap: 0;
+    padding-top: 4px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--ui-radius-card);
+    background: var(--surface);
+  }
+
+  #notesView .note-list-item {
+    min-height: 43px;
+    border-radius: 0;
+    padding: 9px 48px 9px 32px;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+    font-size: var(--ui-text-body);
+    line-height: 1.2;
+    touch-action: manipulation;
+  }
+
+  #notesView .note-list-item:last-child {
+    border-bottom: 0;
+  }
+
+  #notesView .note-list-item.active {
+    background: var(--blue-soft);
+    color: var(--text);
+  }
+
+  #notesView .note-list-icon {
+    position: absolute;
+    top: 50%;
+    left: 8px;
+    width: 18px;
+    margin: 0;
+    transform: translateY(-50%);
+    font-size: 13px;
+  }
+
+  #notesView .note-list-pin {
+    right: 7px;
+    width: 22px;
+    height: 22px;
+  }
+
+  #notesView .note-workspace {
+    width: 100%;
+  }
+
+  #notesListBtn {
+    position: relative;
+    z-index: 5;
+  }
+}
+
+/* =========================================================
+   SHOPPING — no page title; grouped reference list.
+   ========================================================= */
+
+.shopping-view {
+  padding: 1px 0 20px;
+}
+
+.shopping-head {
+  min-height: 0;
+  padding: 0 2px 2px;
+}
+
+.shopping-status {
+  min-height: 0;
+  color: var(--muted);
+  font-size: var(--ui-text-micro);
+}
+
+.shopping-status:empty,
+#shoppingStatus:empty {
+  display: none;
+}
+
+.shopping-section {
+  margin: 0 0 12px;
+}
+
+.shopping-section-title {
+  padding: 0 3px 5px;
+}
+
+.shopping-items {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(15,23,42,.025);
+}
+
+.shopping-item {
+  grid-template-columns: 25px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 9px;
+  border-bottom-color: var(--line);
+}
+
+.shopping-buy-check {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+}
+
+.shopping-item-content {
+  gap: 2px;
+}
+
+.shopping-item-name {
+  font-size: var(--ui-text-body);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.shopping-item-meta {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.shopping-item-detail {
+  color: var(--text);
+  font-size: var(--ui-text-secondary);
+  line-height: 1.3;
+}
+
+.shopping-message {
+  border-color: var(--line);
+  border-radius: var(--ui-radius-card);
+  background: var(--surface);
+  font-size: var(--ui-text-body);
+}
+
+/* Settings uses the same surface/radius language. */
+#settingsDialog,
+.day-dialog {
+  border-radius: 14px;
+}
+
+.settings-card {
+  background: var(--surface);
+}
+
+.theme-toggle {
+  border-color: var(--line);
+  background: var(--surface-subtle);
+}
+
+/* =========================================================
+   DARK THEME
+   ========================================================= */
+
+html[data-theme="dark"] {
+  --bg: #0d1015;
+  --surface: #151a22;
+  --surface-subtle: #11161d;
+  --text: #f2f4f7;
+  --muted: #98a2b0;
+  --line: #2a303b;
+  --blue: #79a8ff;
+  --blue-soft: #1b2a44;
+  --danger: #ff9696;
+}
+
+html[data-theme="dark"] .app-shell,
+html[data-theme="dark"] .content {
+  background: var(--bg);
+}
+
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .tabbar,
+html[data-theme="dark"] .day-pane,
+html[data-theme="dark"] #countryView .plan-card,
+html[data-theme="dark"] #countryView .plan-next-move-card,
+html[data-theme="dark"] #countryView .plan-next-move-empty,
+html[data-theme="dark"] #countryView .country-list,
+html[data-theme="dark"] #notesView .note-workspace,
+html[data-theme="dark"] #notesView .notes-list,
+html[data-theme="dark"] .shopping-items,
+html[data-theme="dark"] .shopping-message,
+html[data-theme="dark"] .notes-security-card {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .weekday-row {
+  background: var(--surface-subtle);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .calendar-grid,
+html[data-theme="dark"] .day-cell {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .day-cell {
+  background: var(--surface);
+}
+
+html[data-theme="dark"] .day-cell.selected-day {
+  background: var(--blue-soft);
+}
+
+html[data-theme="dark"] #countryView .country-card.country-days-card,
+html[data-theme="dark"] #countryView .plan-check-row,
+html[data-theme="dark"] #countryView .plan-next-move-item,
+html[data-theme="dark"] #countryView .plan-next-move-details,
+html[data-theme="dark"] .shopping-item,
+html[data-theme="dark"] #notesView .note-list-item {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] #notesView .notes-sidebar {
+  background: var(--bg);
+}
+
+html[data-theme="dark"] .note-locked-panel {
+  border-color: var(--line);
+  background: var(--surface-subtle);
+}
+
+html[data-theme="dark"] .notes-security-cancel {
+  background: #252b34;
+  color: #c4cad3;
+}
+
+@media (min-width: 700px) {
+  .content {
+    padding-inline: 8px;
+  }
+}

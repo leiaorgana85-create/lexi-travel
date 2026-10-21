@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="2026-10-15.1526">
+<html lang="en" data-build="2026-10-21.1738">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="notes-plain-tools.css?v=3">
   <link rel="stylesheet" href="notes-table-layout.css?v=1">
   <link rel="stylesheet" href="shopping-list.css?v=10">
+  <link rel="stylesheet" href="visit-list.css?v=1">
   <link rel="stylesheet" href="plan-ui.css?v=8">
   <link rel="stylesheet" href="plan-next-move.css?v=5">
   <link rel="stylesheet" href="plan-calendar.css?v=1">
@@ -108,6 +109,15 @@
         </div>
       </section>
 
+      <section id="visitView" class="view visit-view" aria-label="Visit">
+        <div class="visit-head">
+          <div id="visitStatus" class="visit-status" aria-live="polite"></div>
+        </div>
+        <div id="visitListBody">
+          <div class="shopping-message">Open Visit to load your list.</div>
+        </div>
+      </section>
+
       <section id="countryView" class="view plan-view" aria-label="Plan">
         <section class="plan-section" aria-label="Monthly plan">
           <div class="plan-section-head">
@@ -180,6 +190,7 @@
       <button class="tab" data-view="countryView" type="button">Plan</button>
       <button class="tab" data-view="notesView" type="button">Notes</button>
       <button class="tab" data-view="shoppingView" type="button">Shopping</button>
+      <button class="tab" data-view="visitView" type="button">Visit</button>
     </nav>
   </div>
 
@@ -246,6 +257,7 @@
   <script src="notes-plain-tools.js?v=3"></script>
   <script src="notes-sync.js?v=5"></script>
   <script src="shopping-list.js?v=12"></script>
+  <script src="visit-list.js?v=1"></script>
   <script src="plan-ui.js?v=7"></script>
   <script src="plan-next-move.js?v=8"></script>
   <script src="plan-calendar-editor-bridge.js?v=4"></script>

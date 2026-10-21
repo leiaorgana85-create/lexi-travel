@@ -1,4 +1,41 @@
 (() => {
+  function eventStartMinutes(event) {
+    const raw = String(event?.Time || '').trim();
+    if (!raw) return Number.POSITIVE_INFINITY;
+
+    const twelveHour = raw.match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i);
+    if (twelveHour) {
+      let hour = Number(twelveHour[1]);
+      const minute = Number(twelveHour[2] || 0);
+      if (hour < 1 || hour > 12 || minute < 0 || minute > 59) {
+        return Number.POSITIVE_INFINITY;
+      }
+      if (hour === 12) hour = 0;
+      if (twelveHour[3].toUpperCase() === 'PM') hour += 12;
+      return hour * 60 + minute;
+    }
+
+    const twentyFourHour = raw.match(/^(\d{1,2}):(\d{2})\b/);
+    if (twentyFourHour) {
+      const hour = Number(twentyFourHour[1]);
+      const minute = Number(twentyFourHour[2]);
+      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        return hour * 60 + minute;
+      }
+    }
+
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (typeof eventsForDate === 'function') {
+    const baseEventsForDate = eventsForDate;
+    eventsForDate = function sortedEventsForDate(dateKey) {
+      return baseEventsForDate(dateKey).slice().sort((a, b) => {
+        return eventStartMinutes(a) - eventStartMinutes(b);
+      });
+    };
+  }
+
   function compactClock(value) {
     return String(value || '')
       .trim()

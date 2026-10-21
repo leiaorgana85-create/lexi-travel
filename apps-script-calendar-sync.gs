@@ -40,7 +40,10 @@ function sortEventsByDate_() {
 
   sheet
     .getRange(2, 1, lastRow - 1, lastColumn)
-    .sort({ column: 2, ascending: true });
+    .sort([
+      { column: 2, ascending: true },
+      { column: 4, ascending: true }
+    ]);
 
   return lastRow - 1;
 }
@@ -174,8 +177,8 @@ function eventDelete_(p) {
 // Helper for normal events entered directly in the EVENTS sheet.
 // A brand-new manual row stays in place while it is being typed. Once Date,
 // Title, and Category are all present, it receives a stable ID and the table
-// is sorted once. Existing rows re-sort when one of those required fields is
-// edited, including Date changes.
+// is sorted once. Existing complete rows re-sort when Date, Title, Time, or
+// Category changes.
 function eventSheetOnEdit_(e) {
   if (!e || !e.range) return;
 
@@ -186,9 +189,10 @@ function eventSheetOnEdit_(e) {
   const lastRow = e.range.getRow() + e.range.getNumRows() - 1;
   const firstColumn = e.range.getColumn();
   const lastColumn = firstColumn + e.range.getNumColumns() - 1;
-  const touchesRequiredField =
+  const touchesOrderingField =
     (firstColumn <= 2 && lastColumn >= 2) ||
     (firstColumn <= 3 && lastColumn >= 3) ||
+    (firstColumn <= 4 && lastColumn >= 4) ||
     (firstColumn <= 5 && lastColumn >= 5);
 
   let shouldSort = false;
@@ -210,7 +214,7 @@ function eventSheetOnEdit_(e) {
       continue;
     }
 
-    if (touchesRequiredField && isCompleteManualEvent) {
+    if (touchesOrderingField && isCompleteManualEvent) {
       shouldSort = true;
     }
   }

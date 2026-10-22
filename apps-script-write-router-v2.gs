@@ -88,6 +88,18 @@ function doPost(e) {
       return json_(shoppingDelete_(e.parameter || {}));
     }
 
+    if (action === 'visitcapabilities') {
+      return json_({ ok: true, visitWrite: true, version: 1 });
+    }
+
+    if (action === 'visitlist') {
+      return json_(visitList_());
+    }
+
+    if (action === 'visitsetvisited') {
+      return json_(visitSetVisited_(e.parameter || {}));
+    }
+
     return json_({ ok: false, error: 'Unknown write action' });
   } catch (error) {
     return json_({

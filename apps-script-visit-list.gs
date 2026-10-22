@@ -41,11 +41,14 @@ function visitFindRowByPlace_(sheet, columns, place) {
     .getRange(2, columns.place, lastRow - 1, 1)
     .getDisplayValues();
 
+  let foundRow = 0;
   for (let i = 0; i < places.length; i += 1) {
-    if (String(places[i][0] || '').trim() === wanted) return i + 2;
+    if (String(places[i][0] || '').trim() !== wanted) continue;
+    if (foundRow) throw new Error('Duplicate VISIT_LIST Place: ' + wanted);
+    foundRow = i + 2;
   }
 
-  return 0;
+  return foundRow;
 }
 
 function visitList_() {

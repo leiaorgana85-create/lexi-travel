@@ -465,6 +465,7 @@
     const draft = readDrafts()[id];
     const event = eventById(id);
     const value = draft ? { ...event, ...draft } : event;
+    const writeVersion = Number(draft?.savedAt || 0);
     if (!value) return;
 
     try {
@@ -481,7 +482,11 @@
 
       const drafts = readDrafts();
       if (drafts[id]) {
-        drafts[id] = { ...drafts[id], _localNew: false, _syncedAt: Date.now() };
+        drafts[id] = {
+          ...drafts[id],
+          _localNew: false,
+          _syncedAt: Math.max(Number(drafts[id]._syncedAt || 0), writeVersion)
+        };
         writeDrafts(drafts);
       }
       writeCache();
@@ -499,11 +504,16 @@
       return;
     }
 
+    const deleteVersion = Number(readDrafts()[id]?.savedAt || 0);
+
     try {
       await postWrite('eventDelete', { id });
       const drafts = readDrafts();
-      delete drafts[id];
-      writeDrafts(drafts);
+      const current = drafts[id];
+      if (current?._localDeleted && Number(current.savedAt || 0) <= deleteVersion) {
+        delete drafts[id];
+        writeDrafts(drafts);
+      }
       writeCache();
       syncStatus.textContent = 'Synced';
     } catch (error) {
@@ -525,46 +535,54 @@
       try {
         if (!await ensureWriteCapability(forceCapability)) return false;
 
-        const drafts = readDrafts();
+        const snapshots = Object.entries(readDrafts());
         let changed = false;
 
-        for (const [id, draft] of Object.entries(drafts)) {
-          if (!draftNeedsRetry(draft)) continue;
+        for (const [id, snapshot] of snapshots) {
+          if (!draftNeedsRetry(snapshot)) continue;
+          const version = Number(snapshot.savedAt || 0);
 
           try {
-            if (draft._localDeleted) {
+            if (snapshot._localDeleted) {
               await postWrite('eventDelete', { id });
-              delete drafts[id];
-              changed = true;
+              const latest = readDrafts();
+              const current = latest[id];
+              if (current?._localDeleted && Number(current.savedAt || 0) <= version) {
+                delete latest[id];
+                writeDrafts(latest);
+                changed = true;
+              }
               continue;
             }
 
             await postWrite('eventUpsert', {
               id,
-              date: draft.Date || '',
-              title: draft.Title || '',
-              time: draft.Time || '',
-              category: draft.Category || '',
-              details: draft.Details || '',
-              link: draft.Link || '',
-              status: draft.Status || ''
+              date: snapshot.Date || '',
+              title: snapshot.Title || '',
+              time: snapshot.Time || '',
+              category: snapshot.Category || '',
+              details: snapshot.Details || '',
+              link: snapshot.Link || '',
+              status: snapshot.Status || ''
             });
 
-            drafts[id] = {
-              ...draft,
-              _localNew: false,
-              _syncedAt: Date.now()
-            };
-            changed = true;
+            const latest = readDrafts();
+            const current = latest[id];
+            if (current && !current._localDeleted) {
+              latest[id] = {
+                ...current,
+                _localNew: false,
+                _syncedAt: Math.max(Number(current._syncedAt || 0), version)
+              };
+              writeDrafts(latest);
+              changed = true;
+            }
           } catch (error) {
             writeCapability = null;
           }
         }
 
-        if (changed) {
-          writeDrafts(drafts);
-          writeCache();
-        }
+        if (changed) writeCache();
         return changed;
       } finally {
         retryPromise = null;

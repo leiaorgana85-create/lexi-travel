@@ -35,7 +35,11 @@
   function readNotesCache() {
     try {
       const cached = JSON.parse(localStorage.getItem(NOTES_CACHE_STORAGE) || '[]');
-      return Array.isArray(cached) ? cached : [];
+      const safe = Array.isArray(cached) ? cached.filter(note => !isReadOnlyNote(note)) : [];
+      if (Array.isArray(cached) && safe.length !== cached.length) {
+        localStorage.setItem(NOTES_CACHE_STORAGE, JSON.stringify(safe));
+      }
+      return safe;
     } catch (error) {
       return [];
     }
@@ -43,7 +47,8 @@
 
   function writeNotesCache(notes) {
     try {
-      localStorage.setItem(NOTES_CACHE_STORAGE, JSON.stringify(Array.isArray(notes) ? notes : []));
+      const safe = (Array.isArray(notes) ? notes : []).filter(note => !isReadOnlyNote(note));
+      localStorage.setItem(NOTES_CACHE_STORAGE, JSON.stringify(safe));
     } catch (error) {
       // Cache failure should never block Notes.
     }
@@ -53,13 +58,25 @@
     return value === true || String(value || '').toUpperCase() === 'TRUE';
   }
 
+  function isReadOnlyNote(note) {
+    return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
+  }
+
   function mergeLocalState() {
     const drafts = readDrafts();
     const seen = new Set();
+    let draftsChanged = false;
 
     appData.notes = (appData.notes || []).map(note => {
       const id = String(note.ID || '');
       seen.add(id);
+      if (isReadOnlyNote(note)) {
+        if (Object.prototype.hasOwnProperty.call(drafts, id)) {
+          delete drafts[id];
+          draftsChanged = true;
+        }
+        return note;
+      }
       const draft = drafts[id];
       return draft ? { ...note, ...draft } : note;
     });
@@ -76,6 +93,8 @@
         ...draft
       });
     }
+
+    if (draftsChanged) writeDrafts(drafts);
   }
 
   if (!(appData.notes || []).length) {
@@ -190,7 +209,7 @@
 
   function togglePin(id) {
     const note = noteById(id);
-    if (!note) return;
+    if (!note || isReadOnlyNote(note)) return;
 
     const nextPinned = !isTrue(note.Pinned);
     note.Pinned = nextPinned;
@@ -224,6 +243,11 @@
       button.classList.toggle('pinned-note', isTrue(note.Pinned));
 
       let pin = button.querySelector('.note-list-pin');
+      if (isReadOnlyNote(note)) {
+        if (pin) pin.remove();
+        return;
+      }
+
       if (!pin) {
         pin = document.createElement('span');
         pin.className = 'note-list-pin';

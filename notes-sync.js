@@ -28,10 +28,42 @@
     return notesList.querySelector('.note-list-item.active')?.dataset.noteId || '';
   }
 
+  function baseNote(id) {
+    return (appData.notes || []).find(note => String(note.ID || '') === String(id)) || null;
+  }
+
   function effectiveNote(id) {
-    const base = (appData.notes || []).find(note => String(note.ID || '') === String(id)) || {};
+    const base = baseNote(id) || {};
     const draft = readDrafts()[id] || {};
     return { ...base, ...draft };
+  }
+
+  function isReadOnlyId(id) {
+    const note = baseNote(id);
+    return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
+  }
+
+  function discardReadOnlyDraft(id) {
+    if (!isReadOnlyId(id)) return false;
+    const drafts = readDrafts();
+    if (Object.prototype.hasOwnProperty.call(drafts, id)) {
+      delete drafts[id];
+      writeDrafts(drafts);
+    }
+    return true;
+  }
+
+  function scrubReadOnlyDrafts() {
+    const drafts = readDrafts();
+    let changed = false;
+    for (const note of appData.notes || []) {
+      const id = String(note?.ID || '');
+      if (!id || !isReadOnlyId(id) || !Object.prototype.hasOwnProperty.call(drafts, id)) continue;
+      delete drafts[id];
+      changed = true;
+    }
+    if (changed) writeDrafts(drafts);
+    return changed;
   }
 
   function enqueueWrite(id, task) {
@@ -96,8 +128,9 @@
   }
 
   function syncUpsert(id) {
-    if (!id) return Promise.resolve();
+    if (!id || discardReadOnlyDraft(id)) return Promise.resolve();
     const snapshot = effectiveNote(id);
+    if (!baseNote(id) && !snapshot._localNew) return Promise.resolve();
     const version = syncedVersion(snapshot);
 
     if (snapshot._localDeleted || deletedIds.has(id)) return Promise.resolve();
@@ -148,8 +181,9 @@
   }
 
   function syncPin(id) {
-    if (!id) return Promise.resolve();
+    if (!id || discardReadOnlyDraft(id)) return Promise.resolve();
     const snapshot = effectiveNote(id);
+    if (!baseNote(id) && !snapshot._localNew) return Promise.resolve();
     const version = syncedVersion(snapshot);
 
     if (snapshot._localDeleted || deletedIds.has(id)) return Promise.resolve();
@@ -179,7 +213,9 @@
   }
 
   function syncDelete(id) {
-    if (!id) return Promise.resolve();
+    if (!id || discardReadOnlyDraft(id)) return Promise.resolve();
+    const draft = readDrafts()[id] || {};
+    if (!baseNote(id) && !draft._localNew) return Promise.resolve();
     deletedIds.add(id);
 
     return enqueueWrite(id, async () => {
@@ -215,6 +251,7 @@
 
     retryPromise = (async () => {
       try {
+        scrubReadOnlyDrafts();
         if (!await ensureWriteCapability(forceCapability)) return false;
         const drafts = readDrafts();
         const pending = Object.entries(drafts).filter(([, draft]) => draftNeedsRetry(draft));
@@ -244,7 +281,7 @@
     const pin = target.closest('.note-list-pin');
     if (pin) {
       const id = pin.closest('.note-list-item')?.dataset.noteId || '';
-      setTimeout(() => syncPin(id), 0);
+      if (!isReadOnlyId(id)) setTimeout(() => syncPin(id), 0);
     }
   }, true);
 

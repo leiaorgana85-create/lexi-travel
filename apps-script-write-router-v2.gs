@@ -174,6 +174,9 @@ function noteUpsert_(p) {
       values[6] = now;
       sheet.getRange(row, 1, 1, 8).setValues([values]);
     } else {
+      if (!/^local-note-/.test(id)) {
+        return { ok: false, error: 'Unknown note ID' };
+      }
       sheet.appendRow([
         id,
         title,
@@ -347,11 +350,14 @@ function shoppingFindRowByProduct_(sheet, columns, product) {
     .getRange(2, columns.product, lastRow - 1, 1)
     .getDisplayValues();
 
+  let foundRow = 0;
   for (let i = 0; i < products.length; i += 1) {
-    if (String(products[i][0] || '').trim() === wanted) return i + 2;
+    if (String(products[i][0] || '').trim() !== wanted) continue;
+    if (foundRow) throw new Error('Duplicate SHOPPING_LIST Product: ' + wanted);
+    foundRow = i + 2;
   }
 
-  return 0;
+  return foundRow;
 }
 
 function shoppingFirstBlankProductRow_(sheet, columns) {

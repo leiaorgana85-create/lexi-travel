@@ -20,8 +20,7 @@
 
   function isReadOnlyNote(id) {
     const note = noteById(id);
-    const marker = `${note?.Title || ''} ${note?.Category || ''}`;
-    return /\blabs?\b|\bread[- ]?only\b/i.test(marker);
+    return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
   }
 
   function selectedNoteId() {
@@ -56,8 +55,13 @@
 
   document.addEventListener('click', event => {
     const target = event.target instanceof Element ? event.target : null;
-    if (!target || !isReadOnlySelected()) return;
-    if (!target.closest('#noteEditBtn, #noteDeleteBtn')) return;
+    if (!target) return;
+
+    const row = target.closest('.note-list-item[data-note-id]');
+    const pinOnReadOnly = Boolean(target.closest('.note-list-pin') && row && isReadOnlyNote(row.dataset.noteId || ''));
+    const protectedAction = Boolean(isReadOnlySelected() && target.closest('#noteEditBtn, #noteDeleteBtn'));
+    if (!pinOnReadOnly && !protectedAction) return;
+
     event.preventDefault();
     event.stopImmediatePropagation();
     applyReadOnlyState();

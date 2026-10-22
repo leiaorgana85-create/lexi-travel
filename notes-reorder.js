@@ -35,8 +35,7 @@
 
   function isReadOnlyId(id) {
     const note = noteById(id);
-    const marker = `${note?.Title || ''} ${note?.Category || ''}`;
-    return /\blabs?\b|\bread[- ]?only\b/i.test(marker);
+    return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
   }
 
   function isReadOnlyButton(button) {

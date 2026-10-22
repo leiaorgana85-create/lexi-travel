@@ -7,10 +7,29 @@
     eventupsert: 'eventdelete',
     planupsert: 'plandelete'
   };
+  const ORDERED_MUTATIONS = new Set(['eventupsert', 'eventdelete', 'planupsert', 'plandelete']);
   const nativeFetch = window.fetch.bind(window);
   let retryTimer = 0;
   let retryPromise = null;
   let notesRequested = false;
+  const mutationChains = new Map();
+
+  function mutationKey(action, id) {
+    const normalized = String(action || '').toLowerCase();
+    const family = normalized.startsWith('event') ? 'event' : normalized.startsWith('plan') ? 'plan' : normalized;
+    return `${family}:${String(id || '')}`;
+  }
+
+  function enqueueMutation(action, id, task) {
+    const key = mutationKey(action, id);
+    const previous = mutationChains.get(key) || Promise.resolve();
+    const next = previous.catch(() => {}).then(task);
+    mutationChains.set(key, next);
+    next.finally(() => {
+      if (mutationChains.get(key) === next) mutationChains.delete(key);
+    });
+    return next;
+  }
 
   function requestUrl(input) {
     if (typeof input === 'string') return input;
@@ -245,11 +264,18 @@
     const id = String(params.get('id') || '').trim();
     const wantsNotes = notesRequested && method === 'GET' && action.toLowerCase() === 'data';
 
-    try {
+    const run = async () => {
       if (method === 'POST' && DELETE_ACTIONS.has(action.toLowerCase()) && id) {
-        return await guardedDeleteFetch(input, init, action, id);
+        return guardedDeleteFetch(input, init, action, id);
       }
-      return await regularTravelFetch(input, init, action, id, wantsNotes);
+      return regularTravelFetch(input, init, action, id, wantsNotes);
+    };
+
+    try {
+      if (method === 'POST' && ORDERED_MUTATIONS.has(action.toLowerCase()) && id) {
+        return await enqueueMutation(action, id, run);
+      }
+      return await run();
     } finally {
       if (wantsNotes) notesRequested = false;
     }
@@ -275,15 +301,17 @@
         }
 
         try {
-          const body = new URLSearchParams({ key, action, id });
-          const response = await nativeFetch(API_URL, {
-            method: 'POST',
-            body,
-            cache: 'no-store',
-            redirect: 'follow'
+          const data = await enqueueMutation(action, id, async () => {
+            const body = new URLSearchParams({ key, action, id });
+            const response = await nativeFetch(API_URL, {
+              method: 'POST',
+              body,
+              cache: 'no-store',
+              redirect: 'follow'
+            });
+            if (!response.ok) return null;
+            return response.json();
           });
-          if (!response.ok) continue;
-          const data = await response.json();
           if (data?.ok === true || deterministicDeleteFailure(data)) {
             delete queue[entryKey];
             changed = true;

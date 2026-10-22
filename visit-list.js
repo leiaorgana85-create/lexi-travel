@@ -9,6 +9,10 @@
 
   let loading = false;
   let cachedItems = readCache();
+  const writeChains = new Map();
+  const stateVersions = new Map();
+  const pendingStates = new Map();
+  const confirmedStates = new Map();
 
   function readCache() {
     try {
@@ -32,6 +36,20 @@
 
   function boolValue(value) {
     return value === true || String(value || '').trim().toLowerCase() === 'true';
+  }
+
+  function itemKey(item) {
+    return String(item?.place || '').trim();
+  }
+
+  function enqueueWrite(key, task) {
+    const previous = writeChains.get(key) || Promise.resolve();
+    const next = previous.catch(() => {}).then(task);
+    writeChains.set(key, next);
+    next.finally(() => {
+      if (writeChains.get(key) === next) writeChains.delete(key);
+    });
+    return next;
   }
 
   async function postVisit(action, fields = {}) {
@@ -79,6 +97,14 @@
     visitBody.append(empty);
   }
 
+  function applyPendingState(item) {
+    const key = itemKey(item);
+    if (!key) return item;
+    if (pendingStates.has(key)) item.visited = pendingStates.get(key);
+    else confirmedStates.set(key, boolValue(item.visited));
+    return item;
+  }
+
   function render(items) {
     visitBody.innerHTML = '';
 
@@ -90,6 +116,7 @@
 
     const groups = new Map();
     items.forEach(item => {
+      applyPendingState(item);
       const area = String(item.area || '').trim() || 'Other';
       if (!groups.has(area)) groups.set(area, []);
       groups.get(area).push(item);
@@ -143,28 +170,44 @@
           content.append(detail);
         }
 
-        checkbox.addEventListener('change', async () => {
-          const previous = !checkbox.checked;
+        checkbox.addEventListener('change', () => {
+          const key = itemKey(item);
           const visitedNow = checkbox.checked;
-          checkbox.disabled = true;
+          const version = (stateVersions.get(key) || 0) + 1;
+          stateVersions.set(key, version);
+          pendingStates.set(key, visitedNow);
+
+          item.visited = visitedNow;
           row.classList.toggle('shopping-bought', visitedNow);
+          if (cachedItems) writeCache(cachedItems);
           visitStatus.textContent = 'Saving…';
 
-          try {
-            await postVisit('visitSetVisited', {
-              place: item.place,
-              visited: String(visitedNow).toLowerCase()
-            });
-            item.visited = visitedNow;
-            if (cachedItems) writeCache(cachedItems);
-            visitStatus.textContent = 'Saved';
-          } catch (error) {
-            checkbox.checked = previous;
-            row.classList.toggle('shopping-bought', previous);
-            visitStatus.textContent = `Could not save: ${error.message}`;
-          } finally {
-            checkbox.disabled = false;
-          }
+          enqueueWrite(key, async () => {
+            try {
+              await postVisit('visitSetVisited', {
+                place: item.place,
+                visited: String(visitedNow).toLowerCase()
+              });
+
+              confirmedStates.set(key, visitedNow);
+              if (stateVersions.get(key) === version) {
+                pendingStates.delete(key);
+                visitStatus.textContent = 'Saved';
+              }
+            } catch (error) {
+              if (stateVersions.get(key) !== version) return;
+
+              pendingStates.delete(key);
+              const confirmed = confirmedStates.has(key)
+                ? confirmedStates.get(key)
+                : !visitedNow;
+              item.visited = confirmed;
+              checkbox.checked = confirmed;
+              row.classList.toggle('shopping-bought', confirmed);
+              if (cachedItems) writeCache(cachedItems);
+              visitStatus.textContent = `Could not save: ${error.message}`;
+            }
+          });
         });
 
         row.append(checkbox, content);
@@ -175,7 +218,7 @@
       visitBody.append(section);
     });
 
-    visitStatus.textContent = 'Tap a box after visiting';
+    visitStatus.textContent = 'Tap again to undo';
   }
 
   async function loadVisit({ showCached = true, allowInactive = false } = {}) {
@@ -203,7 +246,7 @@
     loading = true;
     try {
       const data = await postVisit('visitList');
-      cachedItems = Array.isArray(data.items) ? data.items : [];
+      cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
       writeCache(cachedItems);
       if (visitView.classList.contains('active')) render(cachedItems);
     } catch (error) {

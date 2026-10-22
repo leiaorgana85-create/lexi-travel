@@ -1,6 +1,8 @@
 (() => {
   const DRAFT_STORAGE = 'lexiTravelNoteDraftsV1';
   const NOTES_CACHE_STORAGE = 'lexiTravelNotesCacheV1';
+  const PROJECTED_CACHE_STORAGE = 'lexiTravelProjectedNotesCacheV1';
+  const PROJECTED_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const notesTab = document.querySelector('.tab[data-view="notesView"]');
   const notesView = document.getElementById('notesView');
   const notesLayout = document.getElementById('notesLayout');
@@ -32,6 +34,14 @@
     localStorage.setItem(DRAFT_STORAGE, JSON.stringify(drafts));
   }
 
+  function isTrue(value) {
+    return value === true || String(value || '').toUpperCase() === 'TRUE';
+  }
+
+  function isReadOnlyNote(note) {
+    return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
+  }
+
   function readNotesCache() {
     try {
       const cached = JSON.parse(localStorage.getItem(NOTES_CACHE_STORAGE) || '[]');
@@ -45,21 +55,49 @@
     }
   }
 
+  function readProjectedCache() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(PROJECTED_CACHE_STORAGE) || 'null');
+      if (!cached || !Array.isArray(cached.notes)) return [];
+      const savedAt = Number(cached.savedAt || 0);
+      if (!savedAt || Date.now() - savedAt > PROJECTED_CACHE_MAX_AGE_MS) {
+        localStorage.removeItem(PROJECTED_CACHE_STORAGE);
+        return [];
+      }
+      return cached.notes.filter(isReadOnlyNote);
+    } catch (error) {
+      return [];
+    }
+  }
+
   function writeNotesCache(notes) {
     try {
-      const safe = (Array.isArray(notes) ? notes : []).filter(note => !isReadOnlyNote(note));
-      localStorage.setItem(NOTES_CACHE_STORAGE, JSON.stringify(safe));
+      const all = Array.isArray(notes) ? notes : [];
+      const writable = all.filter(note => !isReadOnlyNote(note));
+      const projected = all.filter(isReadOnlyNote);
+      localStorage.setItem(NOTES_CACHE_STORAGE, JSON.stringify(writable));
+      if (projected.length) {
+        localStorage.setItem(PROJECTED_CACHE_STORAGE, JSON.stringify({
+          savedAt: Date.now(),
+          notes: projected
+        }));
+      }
     } catch (error) {
       // Cache failure should never block Notes.
     }
   }
 
-  function isTrue(value) {
-    return value === true || String(value || '').toUpperCase() === 'TRUE';
-  }
-
-  function isReadOnlyNote(note) {
-    return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
+  function mergeCachedNotesIntoAppData() {
+    const merged = new Map();
+    (appData.notes || []).forEach(note => {
+      const id = String(note?.ID || '');
+      if (id) merged.set(id, note);
+    });
+    [...readNotesCache(), ...readProjectedCache()].forEach(note => {
+      const id = String(note?.ID || '');
+      if (id && !merged.has(id)) merged.set(id, note);
+    });
+    appData.notes = [...merged.values()];
   }
 
   function mergeLocalState() {
@@ -97,16 +135,14 @@
     if (draftsChanged) writeDrafts(drafts);
   }
 
-  if (!(appData.notes || []).length) {
-    const cached = readNotesCache();
-    if (cached.length) appData.notes = cached;
-  }
+  mergeCachedNotesIntoAppData();
   mergeLocalState();
 
   const actualLoadAllData = loadAllData;
   const wrappedLoadAllData = async function (...args) {
     const result = await actualLoadAllData(...args);
     writeNotesCache(appData.notes || []);
+    mergeCachedNotesIntoAppData();
     mergeLocalState();
     return result;
   };
@@ -136,6 +172,7 @@
   function localRefresh() {
     if (!notesView.classList.contains('active')) return;
 
+    mergeCachedNotesIntoAppData();
     mergeLocalState();
     const currentLoader = loadAllData;
     const previousSuppressFastClick = suppressFastClick;
@@ -149,15 +186,17 @@
     }
   }
 
-  function refreshInBackground(loader) {
-    if (backgroundRefreshPromise) return;
-    if (Date.now() - lastBackgroundRefreshAt < 10000) return;
+  function refreshInBackground(loader, force = false) {
+    if (backgroundRefreshPromise) return backgroundRefreshPromise;
+    if (!force && Date.now() - lastBackgroundRefreshAt < 10000) return null;
 
     lastBackgroundRefreshAt = Date.now();
     backgroundRefreshPromise = (async () => {
       try {
         await loader();
         writeNotesCache(appData.notes || []);
+        mergeCachedNotesIntoAppData();
+        mergeLocalState();
         suppressFastClick = true;
         localRefresh();
       } catch (error) {
@@ -166,15 +205,21 @@
         backgroundRefreshPromise = null;
       }
     })();
+    return backgroundRefreshPromise;
+  }
+
+  function requestFreshProjectedNotes(loader, force = false) {
+    if (!localStorage.getItem(KEY_STORAGE)) return null;
+    if (typeof window.lexiTravelRequestNotesNextLoad === 'function') {
+      window.lexiTravelRequestNotesNextLoad();
+    }
+    return refreshInBackground(loader, force);
   }
 
   notesTab.addEventListener('click', () => {
     if (suppressFastClick) return;
 
-    if (!(appData.notes || []).length) {
-      const cached = readNotesCache();
-      if (cached.length) appData.notes = cached;
-    }
+    mergeCachedNotesIntoAppData();
     mergeLocalState();
 
     const loader = loadAllData;
@@ -182,7 +227,7 @@
 
     setTimeout(() => {
       loadAllData = loader;
-      if (localStorage.getItem(KEY_STORAGE)) refreshInBackground(loader);
+      requestFreshProjectedNotes(loader, false);
     }, 0);
   }, true);
 
@@ -324,7 +369,7 @@
   deleteBtn.addEventListener('click', () => {
     const id = currentSelectedId();
     const note = noteById(id);
-    if (!id || !note) return;
+    if (!id || !note || isReadOnlyNote(note)) return;
     if (!window.confirm(`Delete “${note.Title || 'Untitled Note'}”?`)) return;
 
     const drafts = readDrafts();
@@ -368,8 +413,13 @@
 
   notesTab.addEventListener('click', () => {
     setTimeout(() => {
+      mergeCachedNotesIntoAppData();
       mergeLocalState();
       decorateList();
     }, 0);
   });
+
+  if (localStorage.getItem(KEY_STORAGE)) {
+    setTimeout(() => requestFreshProjectedNotes(actualLoadAllData, true), 250);
+  }
 })();

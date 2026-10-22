@@ -25,12 +25,38 @@
     return [...notesList.querySelectorAll('.note-list-item[data-note-id]')];
   }
 
+  function noteById(id) {
+    try {
+      return (appData.notes || []).find(note => String(note.ID || '') === String(id)) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function isReadOnlyId(id) {
+    const note = noteById(id);
+    const marker = `${note?.Title || ''} ${note?.Category || ''}`;
+    return /\blabs?\b|\bread[- ]?only\b/i.test(marker);
+  }
+
+  function isReadOnlyButton(button) {
+    const id = String(button?.dataset?.noteId || '');
+    return Boolean(button?.dataset?.readOnly === 'true' || button?.classList?.contains('read-only-note') || isReadOnlyId(id));
+  }
+
   function isPinnedButton(button) {
     return Boolean(button?.classList.contains('pinned-note'));
   }
 
+  function writableIds(ids) {
+    return (ids || [])
+      .map(String)
+      .filter(id => id && !isReadOnlyId(id));
+  }
+
   function saveCurrentOrder() {
     const ids = currentButtons()
+      .filter(button => !isReadOnlyButton(button))
       .map(button => String(button.dataset.noteId || ''))
       .filter(Boolean);
     localStorage.setItem(ORDER_STORAGE, JSON.stringify(ids));
@@ -80,7 +106,7 @@
   }
 
   async function persistOrder(ids) {
-    const orderedIds = (ids || []).map(String).filter(Boolean);
+    const orderedIds = writableIds(ids);
     if (orderedIds.length < 2 || persistPromise) return persistPromise;
 
     persistPromise = (async () => {
@@ -113,6 +139,15 @@
       const pinDiff = Number(isPinnedButton(b)) - Number(isPinnedButton(a));
       if (pinDiff) return pinDiff;
 
+      /* Read-only projected notes keep their source-defined position and are
+         never persisted back into the Travel NOTES sheet. */
+      const aReadOnly = isReadOnlyButton(a);
+      const bReadOnly = isReadOnlyButton(b);
+      if (aReadOnly || bReadOnly) {
+        if (aReadOnly && bReadOnly) return originalIndex.get(a) - originalIndex.get(b);
+        return originalIndex.get(a) - originalIndex.get(b);
+      }
+
       const aId = String(a.dataset.noteId || '');
       const bId = String(b.dataset.noteId || '');
       const aRank = rank.has(aId) ? rank.get(aId) : Number.MAX_SAFE_INTEGER;
@@ -132,12 +167,16 @@
   }
 
   function moveNote(id, direction) {
+    if (isReadOnlyId(id)) return;
+
     const buttons = currentButtons();
     const index = buttons.findIndex(button => String(button.dataset.noteId || '') === String(id));
-    if (index < 0) return;
+    if (index < 0 || isReadOnlyButton(buttons[index])) return;
 
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= buttons.length) return;
+
+    if (isReadOnlyButton(buttons[targetIndex])) return;
 
     /* Never let manual reordering move a pinned note into the unpinned
        section or an unpinned note above the pinned section. */
@@ -184,7 +223,7 @@
     const buttons = currentButtons();
     buttons.forEach(button => {
       const id = String(button.dataset.noteId || '');
-      if (!id || button.querySelector('.note-reorder-controls')) return;
+      if (!id || isReadOnlyButton(button) || button.querySelector('.note-reorder-controls')) return;
 
       const controls = document.createElement('span');
       controls.className = 'note-reorder-controls';
@@ -216,7 +255,7 @@
   });
 
   notesTab?.addEventListener('click', () => {
-    const saved = readOrder();
+    const saved = writableIds(readOrder());
     if (saved.length > 1) {
       supportsDurableOrder(true).then(supported => {
         if (supported) persistOrder(saved);
@@ -231,7 +270,7 @@
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['class']
+    attributeFilter: ['class', 'data-read-only']
   });
 
   queueMicrotask(decorate);

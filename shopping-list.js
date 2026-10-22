@@ -9,6 +9,10 @@
 
   let loading = false;
   let cachedItems = readCache();
+  const writeChains = new Map();
+  const stateVersions = new Map();
+  const pendingStates = new Map();
+  const confirmedStates = new Map();
 
   function readCache() {
     try {
@@ -32,6 +36,20 @@
 
   function boolValue(value) {
     return value === true || String(value || '').trim().toLowerCase() === 'true';
+  }
+
+  function itemKey(item) {
+    return String(item?.product || '').trim();
+  }
+
+  function enqueueWrite(key, task) {
+    const previous = writeChains.get(key) || Promise.resolve();
+    const next = previous.catch(() => {}).then(task);
+    writeChains.set(key, next);
+    next.finally(() => {
+      if (writeChains.get(key) === next) writeChains.delete(key);
+    });
+    return next;
   }
 
   async function postShopping(action, fields = {}) {
@@ -109,6 +127,14 @@
     shoppingBody.append(empty);
   }
 
+  function applyPendingState(item) {
+    const key = itemKey(item);
+    if (!key) return item;
+    if (pendingStates.has(key)) item.bought = pendingStates.get(key);
+    else confirmedStates.set(key, boolValue(item.bought));
+    return item;
+  }
+
   function render(items) {
     shoppingBody.innerHTML = '';
 
@@ -120,6 +146,7 @@
 
     const groups = new Map();
     items.forEach(item => {
+      applyPendingState(item);
       const section = sectionFor(item);
       if (!groups.has(section)) groups.set(section, []);
       groups.get(section).push(item);
@@ -177,28 +204,44 @@
           content.append(detail);
         }
 
-        checkbox.addEventListener('change', async () => {
-          const previous = !checkbox.checked;
+        checkbox.addEventListener('change', () => {
+          const key = itemKey(item);
           const boughtNow = checkbox.checked;
-          checkbox.disabled = true;
+          const version = (stateVersions.get(key) || 0) + 1;
+          stateVersions.set(key, version);
+          pendingStates.set(key, boughtNow);
+
+          item.bought = boughtNow;
           row.classList.toggle('shopping-bought', boughtNow);
+          if (cachedItems) writeCache(cachedItems);
           shoppingStatus.textContent = 'Saving…';
 
-          try {
-            await postShopping('shoppingSetBought', {
-              product: item.product,
-              bought: String(boughtNow).toLowerCase()
-            });
-            item.bought = boughtNow;
-            if (cachedItems) writeCache(cachedItems);
-            shoppingStatus.textContent = 'Saved';
-          } catch (error) {
-            checkbox.checked = previous;
-            row.classList.toggle('shopping-bought', previous);
-            shoppingStatus.textContent = `Could not save: ${error.message}`;
-          } finally {
-            checkbox.disabled = false;
-          }
+          enqueueWrite(key, async () => {
+            try {
+              await postShopping('shoppingSetBought', {
+                product: item.product,
+                bought: String(boughtNow).toLowerCase()
+              });
+
+              confirmedStates.set(key, boughtNow);
+              if (stateVersions.get(key) === version) {
+                pendingStates.delete(key);
+                shoppingStatus.textContent = 'Saved';
+              }
+            } catch (error) {
+              if (stateVersions.get(key) !== version) return;
+
+              pendingStates.delete(key);
+              const confirmed = confirmedStates.has(key)
+                ? confirmedStates.get(key)
+                : !boughtNow;
+              item.bought = confirmed;
+              checkbox.checked = confirmed;
+              row.classList.toggle('shopping-bought', confirmed);
+              if (cachedItems) writeCache(cachedItems);
+              shoppingStatus.textContent = `Could not save: ${error.message}`;
+            }
+          });
         });
 
         row.append(checkbox, content);
@@ -209,7 +252,7 @@
       shoppingBody.append(section);
     });
 
-    shoppingStatus.textContent = 'Tap a box when purchased';
+    shoppingStatus.textContent = 'Tap again to undo';
   }
 
   async function loadShopping({ showCached = true, allowInactive = false } = {}) {
@@ -237,7 +280,7 @@
     loading = true;
     try {
       const data = await postShopping('shoppingList');
-      cachedItems = Array.isArray(data.items) ? data.items : [];
+      cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
       writeCache(cachedItems);
       if (shoppingView.classList.contains('active')) render(cachedItems);
     } catch (error) {

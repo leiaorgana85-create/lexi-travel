@@ -255,6 +255,10 @@
     if (target?.closest('.tab[data-view="notesView"]')) notesRequested = true;
   }, true);
 
+  window.lexiTravelRequestNotesNextLoad = () => {
+    notesRequested = true;
+  };
+
   window.fetch = async function lexiTravelApiFetch(input, init = {}) {
     if (!isTravelApiRequest(input)) return nativeFetch(input, init);
 

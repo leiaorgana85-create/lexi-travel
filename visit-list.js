@@ -42,6 +42,29 @@
     return String(item?.place || '').trim();
   }
 
+  function displayArea(item) {
+    const area = String(item?.area || '').trim();
+    const place = String(item?.place || '').trim();
+    if (/^Terminal 21(?:\s|—|-|$)/i.test(area) || /\(Terminal 21\)/i.test(place)) {
+      return 'Terminal 21';
+    }
+    if (/Exchange Tower/i.test(area) || /Exchange Tower/i.test(place)) {
+      return 'Exchange Tower';
+    }
+    return area || 'Other';
+  }
+
+  function mapsUrl(item) {
+    const place = String(item?.place || '')
+      .replace(/^LINE:\s*/i, '')
+      .replace(/\s+—.*$/, '')
+      .trim();
+    const area = String(item?.area || '').trim();
+    if (!place || /^LINE:/i.test(String(item?.place || ''))) return '';
+    const query = [place, area, 'Bangkok'].filter(Boolean).join(' ');
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }
+
   function enqueueWrite(key, task) {
     const previous = writeChains.get(key) || Promise.resolve();
     const next = previous.catch(() => {}).then(task);
@@ -78,7 +101,7 @@
   }
 
   function preferredSections(groups) {
-    const preferred = ['Terminal 21', 'Nearby Ashton / Asoke', 'Separate trip'];
+    const preferred = ['Terminal 21', 'Exchange Tower', 'Nearby Ashton / Asoke', 'Separate trip'];
     return [...groups.keys()].sort((a, b) => {
       const ai = preferred.indexOf(a);
       const bi = preferred.indexOf(b);
@@ -117,7 +140,7 @@
     const groups = new Map();
     items.forEach(item => {
       applyPendingState(item);
-      const area = String(item.area || '').trim() || 'Other';
+      const area = displayArea(item);
       if (!groups.has(area)) groups.set(area, []);
       groups.get(area).push(item);
     });
@@ -149,9 +172,19 @@
         const content = document.createElement('span');
         content.className = 'shopping-item-content';
 
-        const name = document.createElement('span');
+        const mapHref = mapsUrl(item);
+        const name = document.createElement(mapHref ? 'a' : 'span');
         name.className = 'shopping-item-name';
         name.textContent = String(item.place || '');
+        if (mapHref) {
+          name.href = mapHref;
+          name.target = '_blank';
+          name.rel = 'noopener noreferrer';
+          name.style.color = 'inherit';
+          name.style.textDecoration = 'underline';
+          name.style.textUnderlineOffset = '2px';
+          name.addEventListener('click', event => event.stopPropagation());
+        }
         content.append(name);
 
         const purpose = String(item.purpose || '').trim();

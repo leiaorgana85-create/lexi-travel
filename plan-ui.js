@@ -320,7 +320,7 @@
         for (const local of localItems) {
           const id = String(local.id || '');
           if (!id || deleted[id]) continue;
-          if (!remoteIds.has(id)) {
+          if (!remoteIds.has(id) && local._dirty) {
             merged.push(local);
             pendingUpserts.push(id);
           } else if (local._dirty) {

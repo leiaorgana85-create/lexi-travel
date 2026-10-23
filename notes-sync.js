@@ -158,7 +158,8 @@
           drafts[id] = {
             ...drafts[id],
             _localNew: false,
-            _syncedAt: Math.max(Number(drafts[id]._syncedAt || 0), version)
+            _syncedAt: Math.max(Number(drafts[id]._syncedAt || 0), version),
+            _confirmedAt: Date.now()
           };
           writeDrafts(drafts);
         }
@@ -187,7 +188,10 @@
     const version = syncedVersion(snapshot);
 
     if (snapshot._localDeleted || deletedIds.has(id)) return Promise.resolve();
-    if (snapshot._localNew) return syncUpsert(id);
+    const pendingDraft = readDrafts()[id];
+    if (snapshot._localNew || (pendingDraft && draftNeedsRetry(pendingDraft) &&
+        (Object.prototype.hasOwnProperty.call(pendingDraft, 'Title') ||
+         Object.prototype.hasOwnProperty.call(pendingDraft, 'Body')))) return syncUpsert(id);
 
     return enqueueWrite(id, async () => {
       if (isLocallyDeleted(id) || !await ensureWriteCapability()) return;
@@ -201,7 +205,8 @@
         if (drafts[id] && !drafts[id]._localDeleted) {
           drafts[id] = {
             ...drafts[id],
-            _syncedAt: Math.max(Number(drafts[id]._syncedAt || 0), version)
+            _syncedAt: Math.max(Number(drafts[id]._syncedAt || 0), version),
+            _confirmedAt: Date.now()
           };
           writeDrafts(drafts);
         }

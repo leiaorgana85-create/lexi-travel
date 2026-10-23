@@ -11,6 +11,7 @@
 
   if (!calendarTab || !calendarGrid || !dayPane || !paneHead || !paneDetails) return;
 
+  const deletedIds = new Set();
   let writeCapability = null;
   let capabilityPromise = null;
   let retryPromise = null;
@@ -387,12 +388,11 @@
     if (!window.confirm(`Delete “${event.Title || 'this event'}”?`)) return;
 
     const drafts = readDrafts();
-    const wasLocalNew = Boolean(drafts[id]?._localNew || event._localNew);
+    deletedIds.add(id);
 
     appData.events = (appData.events || []).filter(item => String(item.ID || '') !== id);
 
-    if (wasLocalNew) delete drafts[id];
-    else drafts[id] = { ...(drafts[id] || {}), ID: id, _localDeleted: true, savedAt: Date.now() };
+    drafts[id] = { ...(drafts[id] || {}), ID: id, _localDeleted: true, savedAt: Date.now() };
     writeDrafts(drafts);
 
     editorOpen = false;
@@ -400,7 +400,7 @@
     const dateKey = event.Date || selectedDateKey();
     localRefresh(dateKey);
 
-    if (!wasLocalNew) syncEventDelete(id);
+    syncEventDelete(id);
   }
 
   addBtn.addEventListener('click', () => openEditor(null, selectedDateKey()));
@@ -455,6 +455,7 @@
   }
 
   async function syncEventUpsert(id) {
+    if (deletedIds.has(id) || readDrafts()[id]?._localDeleted) return;
     syncStatus.textContent = 'Saving…';
 
     if (!await ensureWriteCapability()) {
@@ -466,7 +467,7 @@
     const event = eventById(id);
     const value = draft ? { ...event, ...draft } : event;
     const writeVersion = Number(draft?.savedAt || 0);
-    if (!value) return;
+    if (!value || deletedIds.has(id) || draft?._localDeleted) return;
 
     try {
       await postWrite('eventUpsert', {
@@ -539,7 +540,7 @@
         let changed = false;
 
         for (const [id, snapshot] of snapshots) {
-          if (!draftNeedsRetry(snapshot)) continue;
+          if (!draftNeedsRetry(snapshot) || (deletedIds.has(id) && !snapshot._localDeleted)) continue;
           const version = Number(snapshot.savedAt || 0);
 
           try {

@@ -34,6 +34,7 @@
     const planned = readPlans()[key];
     const choice = planned === dateKey() ? 'today' : planned === dateKey(1) ? 'tomorrow' : '';
     select.value = choice;
+    window.lexiRefreshCompactSelect?.(select);
     row.classList.toggle('visit-planned-today', choice === 'today');
     row.classList.toggle('visit-planned-tomorrow', choice === 'tomorrow');
   }

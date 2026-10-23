@@ -11,23 +11,23 @@
 
 /* Five-column tables: fit the full table inside the Notes pane. */
 .note-table tr > :first-child:nth-last-child(5) {
-  width: 23%;
+  width: 24%;
 }
 
 .note-table tr > :nth-child(2):nth-last-child(4) {
-  width: 13%;
+  width: 16%;
 }
 
 .note-table tr > :nth-child(3):nth-last-child(3) {
-  width: 15%;
+  width: 18%;
 }
 
 .note-table tr > :nth-child(4):nth-last-child(2) {
-  width: 31%;
+  width: 26%;
 }
 
 .note-table tr > :nth-child(5):last-child {
-  width: 18%;
+  width: 16%;
 }
 
 .note-table tr > :first-child:nth-last-child(5),

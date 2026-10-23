@@ -838,11 +838,11 @@ body {
   font-size: 10.5px;
 }
 
-#notesView.schedule-note #noteBody .note-table tr > :first-child:nth-last-child(5) { width: 23% !important; }
-#notesView.schedule-note #noteBody .note-table tr > :nth-child(2):nth-last-child(4) { width: 17% !important; white-space: nowrap; }
-#notesView.schedule-note #noteBody .note-table tr > :nth-child(3):nth-last-child(3) { width: 19% !important; white-space: nowrap; }
-#notesView.schedule-note #noteBody .note-table tr > :nth-child(4):nth-last-child(2) { width: 23% !important; overflow-wrap: anywhere; }
-#notesView.schedule-note #noteBody .note-table tr > :nth-child(5):last-child { width: 18% !important; }
+#notesView.schedule-note #noteBody .note-table tr > :first-child:nth-last-child(5) { width: 24% !important; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(2):nth-last-child(4) { width: 16% !important; white-space: nowrap; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(3):nth-last-child(3) { width: 18% !important; white-space: nowrap; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(4):nth-last-child(2) { width: 26% !important; overflow-wrap: anywhere; }
+#notesView.schedule-note #noteBody .note-table tr > :nth-child(5):last-child { width: 16% !important; }
 
 /* Notes protection dialog remains compact and coherent with the new surfaces. */
 .note-locked-panel {

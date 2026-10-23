@@ -81,6 +81,8 @@
           savedAt: Date.now(),
           notes: projected
         }));
+      } else {
+        localStorage.removeItem(PROJECTED_CACHE_STORAGE);
       }
     } catch (error) {
       // Cache failure should never block Notes.
@@ -100,10 +102,17 @@
     appData.notes = [...merged.values()];
   }
 
-  function mergeLocalState() {
+  function mergeLocalState(readStartedAt = 0) {
     const drafts = readDrafts();
+    for (const [id, draft] of Object.entries(drafts)) {
+      if (readStartedAt && !draft?._localNew && !draft?._localDeleted && draft?._syncedAt &&
+          Number(draft._syncedAt) >= Number(draft.savedAt || 0) &&
+          readStartedAt > Number(draft._confirmedAt || 0)) {
+        delete drafts[id];
+      }
+    }
     const seen = new Set();
-    let draftsChanged = false;
+    let draftsChanged = JSON.stringify(drafts) !== JSON.stringify(readDrafts());
 
     appData.notes = (appData.notes || []).map(note => {
       const id = String(note.ID || '');
@@ -141,9 +150,9 @@
   const actualLoadAllData = loadAllData;
   const wrappedLoadAllData = async function (...args) {
     const result = await actualLoadAllData(...args);
-    writeNotesCache(appData.notes || []);
+    if (result?.__lexiNotesIncluded === true) writeNotesCache(appData.notes || []);
     mergeCachedNotesIntoAppData();
-    mergeLocalState();
+    mergeLocalState(result?.__lexiNotesIncluded === true ? result.__lexiReadStartedAt : 0);
     return result;
   };
   loadAllData = wrappedLoadAllData;
@@ -193,10 +202,10 @@
     lastBackgroundRefreshAt = Date.now();
     backgroundRefreshPromise = (async () => {
       try {
-        await loader();
-        writeNotesCache(appData.notes || []);
+        const result = await loader();
+        if (result?.__lexiNotesIncluded === true) writeNotesCache(appData.notes || []);
         mergeCachedNotesIntoAppData();
-        mergeLocalState();
+        mergeLocalState(result?.__lexiNotesIncluded === true ? result.__lexiReadStartedAt : 0);
         suppressFastClick = true;
         localRefresh();
       } catch (error) {
@@ -373,20 +382,14 @@
     if (!window.confirm(`Delete “${note.Title || 'Untitled Note'}”?`)) return;
 
     const drafts = readDrafts();
-    let needsRemoteDelete = false;
-    if (drafts[id]?._localNew || note._localNew) {
-      delete drafts[id];
-      appData.notes = (appData.notes || []).filter(item => String(item.ID || '') !== id);
-    } else {
-      needsRemoteDelete = true;
-      note.Archived = true;
-      drafts[id] = {
-        ...(drafts[id] || {}),
-        Archived: true,
-        _localDeleted: true,
-        savedAt: Date.now()
-      };
-    }
+    const needsRemoteDelete = true;
+    note.Archived = true;
+    drafts[id] = {
+      ...(drafts[id] || {}),
+      Archived: true,
+      _localDeleted: true,
+      savedAt: Date.now()
+    };
     writeDrafts(drafts);
     pendingSelectId = '';
     localRefresh();

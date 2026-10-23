@@ -4,8 +4,6 @@
   const LIGHT_THEME_COLOR = '#ffffff';
   const SHOPPING_CACHE_KEY = 'lexiTravelShoppingCacheV1';
   const VISIT_CACHE_KEY = 'lexiTravelVisitCacheV1';
-  const NOTES_CACHE_KEY = 'lexiTravelNotesCacheV1';
-  const PROJECTED_NOTES_CACHE_KEY = 'lexiTravelProjectedNotesCacheV1';
   const READ_CACHE_TTL_MS = 60 * 1000;
 
   function readTheme() {
@@ -46,18 +44,6 @@
     if (persist) writeTheme(nextTheme);
   }
 
-  function preserveProjectedNotesForImmediateDisplay() {
-    try {
-      const cached = JSON.parse(localStorage.getItem(PROJECTED_NOTES_CACHE_KEY) || 'null');
-      if (!cached || !Array.isArray(cached.notes) || !cached.notes.length) return;
-      if (!cached.sourceSavedAt) cached.sourceSavedAt = Number(cached.savedAt || 0) || Date.now();
-      cached.savedAt = Date.now();
-      localStorage.setItem(PROJECTED_NOTES_CACHE_KEY, JSON.stringify(cached));
-    } catch (error) {
-      // A broken display cache must never block app startup.
-    }
-  }
-
   function installLowLatencyReads() {
     if (window.lexiTravelLowLatencyInstalled) return;
     if (typeof API_URL === 'undefined' || typeof KEY_STORAGE === 'undefined') return;
@@ -67,14 +53,8 @@
     const baseFetch = window.fetch.bind(window);
     const memoryCache = new Map();
     const inflight = new Map();
-    let notesRequested = false;
-
-    const originalRequestNotes = window.lexiTravelRequestNotesNextLoad;
-    if (typeof originalRequestNotes === 'function') {
-      window.lexiTravelRequestNotesNextLoad = () => {
-        notesRequested = true;
-      };
-    }
+    const generations = new Map();
+    const pendingWrites = new Map();
 
     function apiRequest(input) {
       const raw = typeof input === 'string' ? input : input?.url;
@@ -130,34 +110,11 @@
       }
     }
 
-    function isReadOnlyNote(note) {
-      return /\bread[- ]?only\b/i.test(String(note?.Category || ''));
-    }
-
-    function writeNoteCaches(notes) {
-      try {
-        const all = Array.isArray(notes) ? notes : [];
-        const writable = all.filter(note => !isReadOnlyNote(note));
-        const projected = all.filter(isReadOnlyNote);
-        localStorage.setItem(NOTES_CACHE_KEY, JSON.stringify(writable));
-        if (projected.length) {
-          localStorage.setItem(PROJECTED_NOTES_CACHE_KEY, JSON.stringify({
-            savedAt: Date.now(),
-            sourceSavedAt: Date.now(),
-            notes: projected
-          }));
-        }
-      } catch (error) {
-        // Notes remain available from the live request if cache storage fails.
-      }
-    }
-
     function storeRead(key, data) {
       const entry = { savedAt: Date.now(), data };
       memoryCache.set(key, entry);
       if (key === 'shoppinglist') writeListCache(SHOPPING_CACHE_KEY, data?.items);
       if (key === 'visitlist') writeListCache(VISIT_CACHE_KEY, data?.items);
-      if (key === 'notes-data') writeNoteCaches(data?.notes);
       return entry;
     }
 
@@ -176,56 +133,63 @@
       };
     }
 
-    async function readThrough(cacheKey, input, init, beforeNetwork) {
+    async function readThrough(cacheKey, input, init) {
+      const writes = pendingWrites.get(cacheKey);
+      if (writes?.size) await Promise.allSettled([...writes]);
+      const generation = generations.get(cacheKey) || 0;
       const cached = memoryCache.get(cacheKey);
       if (cacheFresh(cached)) {
         return jsonResponse({ data: cached.data, status: 200, statusText: 'OK' });
       }
-
-      if (inflight.has(cacheKey)) {
-        return jsonResponse(await inflight.get(cacheKey));
-      }
-
-      if (typeof beforeNetwork === 'function') beforeNetwork();
-
-      const request = networkJson(input, init)
-        .then(result => {
-          if (result.status >= 200 && result.status < 300 && result.data?.ok === true) {
-            storeRead(cacheKey, result.data);
-          }
-          return result;
-        })
-        .finally(() => inflight.delete(cacheKey));
-
-      inflight.set(cacheKey, request);
+      const existing = inflight.get(cacheKey);
+      if (existing?.generation === generation) return jsonResponse(await existing.promise);
+      const entry = { generation, promise: null };
+      const request = networkJson(input, init).then(async result => {
+        if ((generations.get(cacheKey) || 0) !== generation) {
+          const fresh = await readThrough(cacheKey, input, init);
+          return { data: await fresh.json(), status: fresh.status, statusText: fresh.statusText };
+        }
+        if (result.status >= 200 && result.status < 300 && result.data?.ok === true) {
+          storeRead(cacheKey, result.data);
+        }
+        return result;
+      }).finally(() => {
+        if (inflight.get(cacheKey) === entry) inflight.delete(cacheKey);
+      });
+      entry.promise = request;
+      inflight.set(cacheKey, entry);
       return jsonResponse(await request);
     }
 
-    function invalidateForAction(action) {
-      if (action.startsWith('shopping') && action !== 'shoppinglist') memoryCache.delete('shoppinglist');
-      if (action.startsWith('visit') && action !== 'visitlist') memoryCache.delete('visitlist');
-      if (action.startsWith('note') && action !== 'notecapabilities') memoryCache.delete('notes-data');
+    function invalidate(cacheKey) {
+      generations.set(cacheKey, (generations.get(cacheKey) || 0) + 1);
+      memoryCache.delete(cacheKey);
     }
 
     window.fetch = async function lexiTravelLowLatencyFetch(input, init = {}) {
       if (!apiRequest(input)) return baseFetch(input, init);
-
       const method = requestMethod(input, init);
       const params = requestParams(input, init);
       const action = String(params.get('action') || (method === 'GET' ? 'data' : '')).trim().toLowerCase();
-
-      invalidateForAction(action);
-
+      // Core data/Notes are never replayed from this display-list cache.
       if (method === 'POST' && (action === 'shoppinglist' || action === 'visitlist')) {
         return readThrough(action, input, init);
       }
-
-      if (method === 'GET' && action === 'data' && notesRequested) {
-        notesRequested = false;
-        return readThrough('notes-data', input, init, originalRequestNotes);
+      const cacheKey = action.startsWith('shopping') && action !== 'shoppingcapabilities'
+        ? 'shoppinglist' : action.startsWith('visit') && action !== 'visitcapabilities'
+          ? 'visitlist' : '';
+      if (method !== 'POST' || !cacheKey) return baseFetch(input, init);
+      invalidate(cacheKey);
+      const writes = pendingWrites.get(cacheKey) || new Set();
+      pendingWrites.set(cacheKey, writes);
+      const pending = baseFetch(input, init);
+      writes.add(pending);
+      try {
+        return await pending;
+      } finally {
+        writes.delete(pending);
+        invalidate(cacheKey);
       }
-
-      return baseFetch(input, init);
     };
 
     function key() {
@@ -248,27 +212,11 @@
       }).then(response => response.ok).catch(() => false);
     }
 
-    function notesRead() {
-      const apiKey = key();
-      if (!apiKey || typeof window.lexiTravelRequestNotesNextLoad !== 'function') return Promise.resolve(false);
-      window.lexiTravelRequestNotesNextLoad();
-      const url = new URL(API_URL);
-      url.searchParams.set('key', apiKey);
-      url.searchParams.set('action', 'data');
-      url.searchParams.set('_', Date.now().toString());
-      return window.fetch(url.toString(), {
-        method: 'GET',
-        cache: 'no-store',
-        redirect: 'follow'
-      }).then(response => response.ok).catch(() => false);
-    }
-
     function warmAll() {
       if (!key()) return;
       Promise.allSettled([
         postRead('shoppingList'),
-        postRead('visitList'),
-        notesRead()
+        postRead('visitList')
       ]);
     }
 
@@ -288,7 +236,6 @@
     });
   }
 
-  preserveProjectedNotesForImmediateDisplay();
   applyTheme(readTheme());
 
   document.addEventListener('DOMContentLoaded', () => {

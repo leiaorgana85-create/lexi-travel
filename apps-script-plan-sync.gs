@@ -43,7 +43,12 @@ function planNormalizeMonth_(value) {
 function planNormalizeDueDate_(value) {
   const text = String(value || '').trim();
   if (!text) return '';
-  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day ? text : '';
 }
 
 function planList_(p) {

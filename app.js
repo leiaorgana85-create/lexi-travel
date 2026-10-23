@@ -119,7 +119,9 @@ async function loadAllData() {
   const key = localStorage.getItem(KEY_STORAGE);
   if (!key) return false;
 
+  const readStartedAt = Date.now();
   const data = await fetchApi(key, 'data');
+  data.__lexiReadStartedAt = readStartedAt;
   if (!data.ok) throw new Error(data.error || 'Could not load data');
 
   appData = {
@@ -132,7 +134,7 @@ async function loadAllData() {
 
   renderCalendar();
   renderCountries(appData.countries);
-  return true;
+  return data;
 }
 
 async function loadCalendarData() {

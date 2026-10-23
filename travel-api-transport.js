@@ -156,11 +156,12 @@
   }
 
   async function applyNotesSplit(response, action, wantsNotes) {
-    if (String(action || 'data').toLowerCase() !== 'data' || wantsNotes || !response.ok) return response;
+    if (String(action || 'data').toLowerCase() !== 'data' || !response.ok) return response;
     try {
       const data = await response.clone().json();
       if (!data || typeof data !== 'object' || !data.ok) return response;
-      data.notes = currentNotes();
+      if (!wantsNotes) data.notes = currentNotes();
+      data.__lexiNotesIncluded = Boolean(wantsNotes);
       return responseFromJson(response, data);
     } catch (_) {
       return response;
@@ -292,38 +293,40 @@
     if (!key) return false;
 
     retryPromise = (async () => {
-      const queue = readQueue();
       let changed = false;
-
-      for (const [entryKey, entry] of Object.entries(queue)) {
+      for (const [entryKey, entry] of Object.entries(readQueue())) {
         const action = String(entry?.action || '').trim();
         const id = String(entry?.id || '').trim();
+        const stillCurrent = current => current && current.action === entry?.action &&
+          current.id === entry?.id && current.queuedAt === entry?.queuedAt;
         if (!DELETE_ACTIONS.has(action.toLowerCase()) || !id) {
-          delete queue[entryKey];
-          changed = true;
-          continue;
-        }
-
-        try {
-          const data = await enqueueMutation(action, id, async () => {
-            const body = new URLSearchParams({ key, action, id });
-            const response = await nativeFetch(API_URL, {
-              method: 'POST',
-              body,
-              cache: 'no-store',
-              redirect: 'follow'
-            });
-            if (!response.ok) return null;
-            return response.json();
-          });
-          if (data?.ok === true || deterministicDeleteFailure(data)) {
-            delete queue[entryKey];
+          const latest = readQueue();
+          if (stillCurrent(latest[entryKey])) {
+            delete latest[entryKey];
+            writeQueue(latest);
             changed = true;
           }
+          continue;
+        }
+        try {
+          await enqueueMutation(action, id, async () => {
+            if (!stillCurrent(readQueue()[entryKey])) return;
+            const body = new URLSearchParams({ key, action, id });
+            const response = await nativeFetch(API_URL, {
+              method: 'POST', body, cache: 'no-store', redirect: 'follow'
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data?.ok !== true && !deterministicDeleteFailure(data)) return;
+            const latest = readQueue();
+            if (stillCurrent(latest[entryKey])) {
+              delete latest[entryKey];
+              writeQueue(latest);
+              changed = true;
+            }
+          });
         } catch (_) {}
       }
-
-      if (changed) writeQueue(queue);
       return changed;
     })().finally(() => { retryPromise = null; });
 

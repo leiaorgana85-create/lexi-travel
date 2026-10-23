@@ -6,6 +6,17 @@
   if (!grid) return;
 
   let refreshFrame = 0;
+  let requestedMonth = '';
+
+  function loadDisplayedMonth(force = false) {
+    const key = String(grid.querySelector('.day-cell:not(.other-month)')?.getAttribute('aria-label') || '').slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(key) || (!force && key === requestedMonth) ||
+        typeof window.lexiPlanRefreshMonth !== 'function') return;
+    requestedMonth = key;
+    window.lexiPlanRefreshMonth(key).then(ok => {
+      if (!ok && requestedMonth === key) requestedMonth = '';
+    }).catch(() => { if (requestedMonth === key) requestedMonth = ''; });
+  }
 
   function readObject(key) {
     try {
@@ -365,6 +376,7 @@
   }
 
   function refreshAll() {
+    loadDisplayedMonth();
     refreshCells();
     renderPane();
   }
@@ -387,7 +399,10 @@
   });
 
   document.addEventListener('lexi-plan-change', scheduleRefresh);
-  window.addEventListener('focus', scheduleRefresh);
+  window.addEventListener('focus', () => { loadDisplayedMonth(true); scheduleRefresh(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { loadDisplayedMonth(true); scheduleRefresh(); }
+  });
 
   scheduleRefresh();
 })();

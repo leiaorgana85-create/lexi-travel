@@ -38,5 +38,16 @@ click('.tab[data-view="notesView"]');await wait(200);assert(win.document.querySe
 click('.note-list-item[data-note-id="fixture-note"]');await wait(40);assert.equal(win.document.querySelector('.lexi-note-heading')?.textContent,'Fixture heading');assert.equal(win.document.querySelectorAll('.lexi-note-marker').length,1);click('#noteEditBtn');await wait(40);const editor=win.document.querySelector('.lexi-plain-editor');assert(editor);editor.value='Updated fixture body';click('#noteSaveBtn');await wait(100);assert.equal(notes.find(n=>n.ID==='fixture-note').Body,'Updated fixture body');
 click('.tab[data-view="calendarView"]');await wait(100);click('#nextMonthBtn');await wait(150);assert(calls.some(c=>c.action==='planlist'&&c.month===nm));assert(win.document.querySelector('.day-cell[aria-label="'+nm+'-10"]').textContent.includes('Next month task'));
 click('.tab[data-view="shoppingView"]');await wait(100);assert(win.document.querySelector('#shoppingListBody').textContent.includes('Item'));click('.tab[data-view="visitView"]');await wait(100);assert(win.document.querySelector('#visitListBody').textContent.includes('Place'));
+if (win.lexiRefreshCompactSelect && htmlRoot === root) {
+ const visitButton=win.document.querySelector('#visitListBody .lexi-select-button');assert(visitButton);visitButton.click();
+ [...win.document.querySelectorAll('.lexi-select-option')].find(e=>e.textContent==='Tomorrow').click();
+ assert.equal(win.document.querySelector('#visitListBody select').value,'tomorrow');assert.equal(win.document.querySelector('#visitListBody input[type="checkbox"]').checked,false);
+ assert(win.document.querySelector('#visitListBody .shopping-item').classList.contains('visit-planned-tomorrow'));
+ click('.tab[data-view="calendarView"]');click('.day-cell[aria-label="'+nm+'-10"]');await wait(50);click('#calendarAddEventBtn');await wait(100);
+ const form=win.document.querySelector('.calendar-event-editor');assert(form);const category=form.querySelector('.lexi-select-button');assert(category);category.click();
+ [...win.document.querySelectorAll('.lexi-select-option')].find(e=>e.textContent==='Event').click();assert.equal(new win.FormData(form).get('category'),'Event');
+ form.querySelector('[name="title"]').value='Dropdown save fixture';form.dispatchEvent(new win.Event('submit',{bubbles:true,cancelable:true}));await wait(100);
+ assert(events.some(e=>e.Title==='Dropdown save fixture'&&e.Category==='Event'));assert(calls.some(c=>c.action==='eventupsert'));
+}
 click('.tab[data-view="countryView"]');await wait(100);assert(win.document.querySelector('#countryList').textContent.includes('Example'));assert.equal(errors.length,0,errors.join('\n'));
 console.log(JSON.stringify({fullDomSmoke:'passed',tabs:5,projectionTables:2,calendarMonthFetch:'passed',scriptCount:scripts.length,errors,calls:calls.length}));await win.happyDOM.close();

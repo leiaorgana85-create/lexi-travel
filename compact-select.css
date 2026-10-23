@@ -1,0 +1,68 @@
+.lexi-select-native[hidden] { display: none !important; }
+.lexi-select-button {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 4px 23px 4px 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.lexi-select-button::after {
+  content: '';
+  position: absolute;
+  right: 9px;
+  top: calc(50% - 4px);
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+}
+.lexi-select-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.lexi-select-button:disabled { opacity: .5; cursor: default; }
+.lexi-select-visit { width: 88px; height: 36px; font-size: 11px; padding-left: 6px; }
+.lexi-select-menu {
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 5px 20px #0003;
+  font-size: 13px;
+  line-height: 1.25;
+}
+.lexi-select-option {
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 10px 24px 9px 8px;
+  border-radius: 5px;
+  position: relative;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  touch-action: manipulation;
+}
+.lexi-select-option[aria-selected="true"]::after { content: '✓'; position: absolute; right: 8px; }
+.lexi-select-current { background: var(--blue-soft); }
+.lexi-select-option[aria-disabled="true"] { opacity: .45; cursor: default; }
+@media (hover: hover) { .lexi-select-option:not([aria-disabled="true"]):hover { background: var(--blue-soft); } }

@@ -348,3 +348,14 @@
   position: relative;
   z-index: 1;
 }
+
+.lexi-plain-render .lexi-note-heading {
+  margin: 12px 0 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+.lexi-plain-render > :first-child .lexi-note-heading { margin-top: 0; }

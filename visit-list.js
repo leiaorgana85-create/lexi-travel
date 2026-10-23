@@ -55,12 +55,17 @@
   }
 
   function mapsUrl(item) {
-    const place = String(item?.place || '')
-      .replace(/^LINE:\s*/i, '')
+    const rawPlace = String(item?.place || '').trim();
+    const source = String(item?.source || '').trim();
+    if (/^LINE:/i.test(rawPlace)) {
+      const firstUrl = source.match(/https?:\/\/[^\s|]+/i)?.[0] || '';
+      return firstUrl;
+    }
+    const place = rawPlace
       .replace(/\s+—.*$/, '')
       .trim();
     const area = String(item?.area || '').trim();
-    if (!place || /^LINE:/i.test(String(item?.place || ''))) return '';
+    if (!place) return '';
     const query = [place, area, 'Bangkok'].filter(Boolean).join(' ');
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }

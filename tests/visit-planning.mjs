@@ -1,0 +1,37 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const {Window} = await import(process.env.HAPPY_DOM_MODULE || 'happy-dom');
+const source = fs.readFileSync(new URL('../visit-list.js', import.meta.url), 'utf8');
+const key = 'lexiTravelVisitDatesV1';
+const day = (offset = 0) => {const d=new Date();d.setDate(d.getDate()+offset);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+async function open(saved) {
+  const w = new Window({url:'https://fixture.test/'});
+  const tokenList=Object.getPrototypeOf(w.document.createElement('div').classList);
+  const toggle=tokenList.toggle;
+  tokenList.toggle=function(token,force){if(arguments.length>1&&this.contains(token)===Boolean(force))return Boolean(force);return toggle.call(this,token,force)};
+  w.document.write('<button class="tab" data-view="visitView"></button><div id="visitView" class="active"></div><div id="visitListBody"></div><div id="visitStatus"></div>');
+  w.localStorage.setItem('api','fixture');
+  if(saved) w.localStorage.setItem(key,saved);
+  let writes=0;
+  w.fetch=async(_,init)=>{const p=new URLSearchParams(init.body);if(p.get('action')==='visitSetVisited') writes++;return {ok:true,json:async()=>({ok:true,items:[{place:'Fixture',area:'Terminal 21',visited:false},{place:'Other fixture',area:'Exchange Tower',visited:false}]})};};
+  w.eval("const KEY_STORAGE='api',API_URL='https://fixture.test/api';\n"+source);
+  await new Promise(r=>setTimeout(r,10));
+  return {w,writes:()=>writes};
+}
+let {w,writes}=await open();
+const row=w.document.querySelector('.shopping-item'), select=row.querySelector('select'), check=row.querySelector('input');
+assert.equal(select.value,'');
+select.value='tomorrow';select.dispatchEvent(new w.Event('change'));
+assert(row.classList.contains('visit-planned-tomorrow'));assert.equal(check.checked,false);assert.equal(writes(),0);
+assert.equal(JSON.parse(w.localStorage.getItem(key)).Fixture,day(1));
+const saved=w.localStorage.getItem(key);
+check.checked=true;check.dispatchEvent(new w.Event('change'));await new Promise(r=>setTimeout(r,10));assert.equal(writes(),1);assert(row.classList.contains('shopping-bought'));assert(row.classList.contains('visit-planned-tomorrow'));
+await w.happyDOM.close();
+({w}=await open(saved));assert.equal(w.document.querySelector('select').value,'tomorrow');
+w.localStorage.setItem(key,JSON.stringify({Fixture:day()}));w.dispatchEvent(new w.Event('pageshow'));assert.equal(w.document.querySelector('select').value,'today');assert(w.document.querySelector('.visit-planned-today'));
+w.localStorage.setItem(key,JSON.stringify({Fixture:day(-1)}));w.dispatchEvent(new w.Event('focus'));assert.equal(w.document.querySelector('select').value,'');assert.equal(w.document.querySelector('.visit-planned-today'),null);
+const none=w.document.querySelector('select');none.value='today';none.dispatchEvent(new w.Event('change'));none.value='';none.dispatchEvent(new w.Event('change'));assert.equal(JSON.parse(w.localStorage.getItem(key)).Fixture,undefined);
+assert.deepEqual([...w.document.querySelectorAll('h3')].map(e=>e.textContent),['Terminal 21','Exchange Tower']);assert(w.document.querySelector('a').href.includes('google.com/maps'));
+await w.happyDOM.close();
+({w}=await open('{bad json'));assert.equal(w.document.querySelector('select').value,'');await w.happyDOM.close();
+console.log('PASS Visit planning: selection, no API writes, independent Visited, persistence, day rollover/expiry, None, grouping, links, malformed storage');

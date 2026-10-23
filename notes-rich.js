@@ -207,8 +207,14 @@
         const check = line.match(/^(\s*)\[( |x|X)\]\s*(.*)$/);
         const bullet = line.match(/^(\s*)[-*]\s+(.*)$/);
         const numbered = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+        const heading = line.match(/^##\s+(.+)$/);
 
-        if (check) {
+        if (heading) {
+          const title = document.createElement('h3');
+          title.className = 'lexi-note-heading';
+          title.textContent = heading[1];
+          row.append(title);
+        } else if (check) {
           row.classList.add('lexi-check-line');
           const input = document.createElement('input');
           input.type = 'checkbox';

@@ -54,8 +54,8 @@
 }
 
 #visitListBody .visit-planned-tomorrow {
-  background: color-mix(in srgb, var(--blue) 6%, var(--surface));
-  box-shadow: inset 3px 0 color-mix(in srgb, var(--blue) 50%, var(--surface));
+  background: color-mix(in srgb, #7ca883 16%, var(--surface));
+  box-shadow: inset 3px 0 #7ca883;
 }
 
 .visit-plan-select:focus-visible {

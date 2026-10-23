@@ -30,3 +30,35 @@
 .visit-status:empty {
   display: none;
 }
+
+/* Keep planning controls beside the existing checkbox and details. */
+#visitListBody .shopping-item {
+  grid-template-columns: 24px minmax(0, 1fr) 88px;
+}
+
+.visit-plan-select {
+  width: 88px;
+  min-height: 36px;
+  padding: 4px 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+#visitListBody .visit-planned-today {
+  background: color-mix(in srgb, var(--blue) 12%, var(--surface));
+  box-shadow: inset 3px 0 var(--blue);
+}
+
+#visitListBody .visit-planned-tomorrow {
+  background: color-mix(in srgb, var(--blue) 6%, var(--surface));
+  box-shadow: inset 3px 0 color-mix(in srgb, var(--blue) 50%, var(--surface));
+}
+
+.visit-plan-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

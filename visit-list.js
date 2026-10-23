@@ -4,6 +4,8 @@
   const visitBody = document.getElementById('visitListBody');
   const visitStatus = document.getElementById('visitStatus');
   const CACHE_KEY = 'lexiTravelVisitCacheV1';
+  const PLAN_KEY = 'lexiTravelVisitDatesV1';
+  const planControls = new Map();
 
   if (!visitTab || !visitView || !visitBody || !visitStatus) return;
 
@@ -13,6 +15,32 @@
   const stateVersions = new Map();
   const pendingStates = new Map();
   const confirmedStates = new Map();
+
+  // Device-local planning dates; canonical Visit details and Visited stay in Sheets.
+  function dateKey(offset = 0) {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function readPlans() {
+    try {
+      const value = JSON.parse(localStorage.getItem(PLAN_KEY) || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (_) { return {}; }
+  }
+
+  function updatePlanControl(key, row, select) {
+    const planned = readPlans()[key];
+    const choice = planned === dateKey() ? 'today' : planned === dateKey(1) ? 'tomorrow' : '';
+    select.value = choice;
+    row.classList.toggle('visit-planned-today', choice === 'today');
+    row.classList.toggle('visit-planned-tomorrow', choice === 'tomorrow');
+  }
+
+  function refreshPlanControls() {
+    planControls.forEach(({row, select}, key) => updatePlanControl(key, row, select));
+  }
 
   function readCache() {
     try {
@@ -135,6 +163,7 @@
 
   function render(items) {
     visitBody.innerHTML = '';
+    planControls.clear();
 
     if (!items.length) {
       setMessage('No visit items found.');
@@ -248,7 +277,33 @@
           });
         });
 
-        row.append(checkbox, content);
+        const planner = document.createElement('select');
+        planner.className = 'visit-plan-select';
+        planner.setAttribute('aria-label', `Plan visit to ${item.place}`);
+        [['', 'None'], ['today', 'Today'], ['tomorrow', 'Tomorrow']].forEach(([value, text]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = text;
+          planner.append(option);
+        });
+        const planKey = itemKey(item);
+        planControls.set(planKey, {row, select: planner});
+        updatePlanControl(planKey, row, planner);
+        planner.addEventListener('click', event => event.stopPropagation());
+        planner.addEventListener('change', () => {
+          const plans = readPlans();
+          if (planner.value) plans[planKey] = dateKey(planner.value === 'tomorrow' ? 1 : 0);
+          else delete plans[planKey];
+          try {
+            localStorage.setItem(PLAN_KEY, JSON.stringify(plans));
+            visitStatus.textContent = 'Visit plan saved on this device';
+          } catch (_) {
+            visitStatus.textContent = 'Could not save visit plan on this device';
+          }
+          updatePlanControl(planKey, row, planner);
+        });
+
+        row.append(checkbox, content, planner);
         list.append(row);
       });
 
@@ -301,6 +356,16 @@
       loading = false;
     }
   }
+
+  window.addEventListener('pageshow', refreshPlanControls);
+  window.addEventListener('focus', refreshPlanControls);
+  window.addEventListener('storage', event => {
+    if (event.key === PLAN_KEY) refreshPlanControls();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshPlanControls();
+  });
+  setInterval(refreshPlanControls, 60000);
 
   visitTab.addEventListener('click', () => {
     setTimeout(() => loadVisit({ showCached: true }), 0);

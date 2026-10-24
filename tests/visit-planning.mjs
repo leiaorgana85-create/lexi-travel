@@ -13,7 +13,7 @@ async function open(saved) {
   w.localStorage.setItem('api','fixture');
   if(saved) w.localStorage.setItem(key,saved);
   let writes=0;
-  w.fetch=async(_,init)=>{const p=new URLSearchParams(init.body);if(p.get('action')==='visitSetVisited') writes++;return {ok:true,json:async()=>({ok:true,items:[{place:'Fixture',area:'Terminal 21',visited:false},{place:'Other fixture',area:'Exchange Tower',visited:false}]})};};
+  w.fetch=async(_,init)=>{const p=new URLSearchParams(init.body);if(p.get('action')==='visitSetVisited') writes++;return {ok:true,json:async()=>({ok:true,items:[{place:'Fixture',area:'Terminal 21',purpose:'Hours: Daily 10:00–22:00\n\nFixture purpose',visited:false},{place:'Other fixture',area:'Exchange Tower',visited:false}]})};};
   w.eval("const KEY_STORAGE='api',API_URL='https://fixture.test/api';\n"+source);
   await new Promise(r=>setTimeout(r,10));
   return {w,writes:()=>writes};
@@ -21,6 +21,9 @@ async function open(saved) {
 let {w,writes}=await open();
 const row=w.document.querySelector('.shopping-item'), select=row.querySelector('select'), check=row.querySelector('input');
 assert.equal(select.value,'');
+assert.equal(row.querySelector('.visit-hours').textContent,'Hours: Daily 10:00–22:00');
+assert.equal(row.querySelectorAll('.shopping-item-meta')[1].textContent,'Fixture purpose');
+assert(w.document.querySelectorAll('.visit-hours')[1].textContent.includes('Not confirmed'));
 select.value='tomorrow';select.dispatchEvent(new w.Event('change'));
 assert(row.classList.contains('visit-planned-tomorrow'));assert.equal(check.checked,false);assert.equal(writes(),0);
 assert.equal(JSON.parse(w.localStorage.getItem(key)).Fixture,day(1));

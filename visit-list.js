@@ -222,7 +222,16 @@
         }
         content.append(name);
 
-        const purpose = String(item.purpose || '').trim();
+        // Keep hours in the existing canonical Purpose field; older rows still work.
+        const rawPurpose = String(item.purpose || '').trim();
+        const hoursMatch = rawPurpose.match(/^Hours:\s*([^\n]+)(?:\n+|$)/i);
+        const hours = document.createElement('span');
+        hours.className = 'shopping-item-meta visit-hours';
+        hours.textContent = `Hours: ${hoursMatch ? hoursMatch[1].trim() : 'Not confirmed — check before visiting'}`;
+        hours.style.fontWeight = '600';
+        content.append(hours);
+
+        const purpose = hoursMatch ? rawPurpose.slice(hoursMatch[0].length) : rawPurpose;
         if (purpose) {
           const meta = document.createElement('span');
           meta.className = 'shopping-item-meta';

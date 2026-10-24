@@ -83,7 +83,7 @@
     const lower = store.toLowerCase();
 
     if (category === 'phone / sim') return 'Phone / eSIM';
-    if (store === 'Big C') return 'Big C';
+    if (store === 'Big C' || lower.startsWith('big c /')) return 'Big C';
     if (store === 'Watsons Terminal 21') return 'Watsons Terminal 21';
     if (lower.includes('bts asok')) return 'BTS Asok Station ticket office';
     if (lower.includes('enso')) return 'ENSO official LINE shop';
@@ -92,8 +92,7 @@
       lower.includes('pharmanet') ||
       lower.includes('fascino') ||
       lower.includes('blez') ||
-      lower.includes('pure pharmacy') ||
-      lower.startsWith('big c /')
+      lower.includes('pure pharmacy')
     ) return 'Pharmacy';
 
     return store || 'Other';

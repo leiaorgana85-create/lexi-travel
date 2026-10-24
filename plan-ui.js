@@ -360,6 +360,20 @@
     return promise;
   }
 
+  let offlineRetryFlight = null;
+  window.lexiPlanRetryPendingWrites = () => {
+    if (offlineRetryFlight || navigator.onLine === false) return offlineRetryFlight || Promise.resolve();
+    const months = new Set(Object.entries(readAll()).filter(([, items]) =>
+      Array.isArray(items) && items.some(item => item._dirty)).map(([month]) => month));
+    Object.values(readDeleted()).forEach(month => months.add(String(month)));
+    offlineRetryFlight = (async () => {
+      for (const month of months) {
+        if (/^\d{4}-\d{2}$/.test(month)) await refreshMonthFromSheets(month, true);
+      }
+    })().finally(() => { offlineRetryFlight = null; });
+    return offlineRetryFlight;
+  };
+
   window.lexiPlanRefreshMonth = month => {
     const key = String(month || '').trim();
     if (!/^\d{4}-\d{2}$/.test(key)) return Promise.resolve(false);

@@ -5,7 +5,7 @@
   const nativeFetch=window.fetch.bind(window);
   const readActions=new Set(['data','shoppinglist','visitlist','planlist','notecapabilities','eventcapabilities','plancapabilities','shoppingcapabilities','visitcapabilities']);
   const checkActions=new Set(['shoppingsetbought','visitsetvisited']);
-  let flight=null, badge=null;
+  let flight=null, badge=null, revision=0;
   function read(key){try{return JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(_){return {}}}
   function write(key,value){localStorage.setItem(key,JSON.stringify(value))}
   function updateStatus(){if(!badge)return;const n=Object.keys(read(QUEUE)).length;badge.textContent=navigator.onLine===false?'Offline · saved data':n?`${n} waiting to sync`:'';badge.hidden=!badge.textContent}
@@ -34,17 +34,18 @@
   function queueCheck(p){
     const fields=Object.fromEntries([...p].filter(([k])=>k!=='key'));
     const record={action:String(p.get('action')).toLowerCase(),fields,account:fingerprint(p.get('key')||''),token:Date.now()+':'+Math.random()};
-    const queue=read(QUEUE);queue[queuedId(p)]=record;write(QUEUE,queue);updateStatus();return record;
+    revision++;const queue=read(QUEUE);queue[queuedId(p)]=record;write(QUEUE,queue);updateStatus();return record;
   }
   function acknowledge(p,record){
     const queue=read(QUEUE);if(queue[queuedId(p)]?.token!==record.token)return;
+    revision++;
     // Patch saved read snapshots before removing the pending overlay.
     const all=read(READS),shopping=record.action==='shoppingsetbought',name=shopping?'product':'place',field=shopping?'bought':'visited';
     for(const [id,entry] of Object.entries(all))if(id.startsWith(record.account+':')&&id.endsWith(':'+(shopping?'shoppinglist':'visitlist'))){for(const item of entry.data.items||[])if(String(item[name])===record.fields[name])item[field]=record.fields[field]==='true'}
     write(READS,all);delete queue[queuedId(p)];write(QUEUE,queue);updateStatus();
   }
   window.fetch=async function travelOfflineFetch(input,init={}){
-    const raw=typeof input==='string'?input:input?.url;let url;
+    const raw=typeof input==='string'?input:input instanceof URL?input.href:input?.url;let url;
     try{url=new URL(raw,location.href)}catch(_){return nativeFetch(input,init)}
     if(url.href.split('?')[0]!==API)return nativeFetch(input,init);
     const method=String(init.method||input?.method||'GET').toUpperCase();
@@ -52,9 +53,9 @@
     const action=String(p.get('action')||(method==='GET'?'data':'')).toLowerCase();
     if(readActions.has(action)){
       if(navigator.onLine===false)return cached(p);
-      let response;
+      let response;const started=revision;
       try{response=await nativeFetch(input,init)}catch(error){try{return cached(p)}catch(_){throw error}}
-      if(response.ok){try{const data=await response.clone().json();if(data.ok){storeResult(p,data);return json(overlay(data,p))}}catch(_){}}
+      if(response.ok){try{const data=await response.clone().json();if(data.ok){if(started===revision)storeResult(p,data);return json(overlay(data,p))}}catch(_){}}
       if(response.status>=500){try{return cached(p)}catch(_){}}
       return response;
     }
@@ -88,13 +89,22 @@
     if(navigator.onLine===false)return;const key=localStorage.getItem('lexiTravelApiKey');if(!key)return;
     // Full calendar + Notes snapshot, including tabs not yet opened on this device.
     const url=new URL(API);url.search=new URLSearchParams({key,action:'data',includeNotes:'1',_:String(Date.now())});
-    try{const r=await nativeFetch(url.toString(),{cache:'no-store',redirect:'follow'});const data=await r.json();if(r.ok&&data.ok)storeResult(url.searchParams,data)}catch(_){}
+    const started=revision;
+    try{const r=await nativeFetch(url.toString(),{cache:'no-store',redirect:'follow'});const data=await r.json();if(r.ok&&data.ok&&started===revision)storeResult(url.searchParams,data)}catch(_){}
   }
   window.lexiTravelRetryOfflineChecks=retry;
-  window.addEventListener('online',()=>{updateStatus();retry()});window.addEventListener('offline',updateStatus);
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)retry()});
-  window.addEventListener('pageshow',retry);
-  setInterval(()=>{if(!document.hidden)retry()},30000);
+  function retryAll(){
+    if(navigator.onLine===false)return;
+    retry();
+    window.lexiTravelRetryPendingDeletes?.();
+    window.lexiCalendarRetryPendingWrites?.(true);
+    window.lexiNotesRetryPendingWrites?.(true);
+    window.lexiPlanRetryPendingWrites?.();
+  }
+  window.addEventListener('online',()=>{updateStatus();retryAll()});window.addEventListener('offline',updateStatus);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)retryAll()});
+  window.addEventListener('pageshow',retryAll);
+  setInterval(()=>{if(!document.hidden)retryAll()},30000);
   document.addEventListener('DOMContentLoaded',()=>{
     badge=document.createElement('div');badge.id='offlineStatus';badge.setAttribute('role','status');badge.style.cssText='font-size:11px;color:var(--muted,#8992a3);padding:0 16px 4px;text-align:right';
     document.querySelector('.topbar')?.after(badge);updateStatus();retry();warm();

@@ -2,8 +2,8 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const root=require('path').resolve(__dirname,'..');
 const API='https://script.google.com/macros/s/AKfycbxeJRgEegJlc7kmtstRJtF0X-b4-0QBk-9dqBpCooDOs4NfPomi4_Kptb0CDSIAqqDw/exec';
 const source=fs.readFileSync(root+'/offline.js','utf8');
-const memory=new Map([['lexiTravelApiKey','synthetic']]);let requests=[],failure=false,resolveWrite=null,holdWrite=null;
-function env(){const listeners={};const c={URL,URLSearchParams,Response,Math,JSON,Date,Promise,Set,Map,location:{href:'https://example.test/lexi-travel/'},navigator:{onLine:true},localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)},document:{hidden:false,addEventListener(){},querySelector(){return null}},setInterval(){},addEventListener(k,f){listeners[k]=f},fetch:async(input,init={})=>{requests.push({input,init});if(failure)throw Error('Synthetic offline');const p=init.method==='POST'?new URLSearchParams(init.body):new URL(input).searchParams;const action=(p.get('action')||'data').toLowerCase();if(action.endsWith('setbought')||action.endsWith('setvisited')){if(holdWrite)await holdWrite;return Response.json({ok:true})}if(action==='data')return Response.json({ok:true,locations:[{ID:'location'}],events:[],notes:p.get('includeNotes')==='0'?[]:[{ID:'note',Body:'Offline reference'}]});return Response.json({ok:true,items:action==='shoppinglist'?[{product:'Synthetic product',bought:false}]:[{place:'Synthetic place',visited:false}]})}};c.window=c;vm.createContext(c);vm.runInContext(source,c);return {c,listeners}}
+const memory=new Map([['lexiTravelApiKey','synthetic']]);let requests=[],failure=false,resolveWrite=null,holdWrite=null,holdRead=null,releaseRead=null;
+function env(){const listeners={};const c={URL,URLSearchParams,Response,Math,JSON,Date,Promise,Set,Map,location:{href:'https://example.test/lexi-travel/'},navigator:{onLine:true},localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)},document:{hidden:false,addEventListener(){},querySelector(){return null}},setInterval(){},addEventListener(k,f){listeners[k]=f},fetch:async(input,init={})=>{requests.push({input,init});if(failure)throw Error('Synthetic offline');const p=init.method==='POST'?new URLSearchParams(init.body):new URL(input).searchParams;const action=(p.get('action')||'data').toLowerCase();if(action.endsWith('setbought')||action.endsWith('setvisited')){if(holdWrite)await holdWrite;return Response.json({ok:true})}if(action==='data')return Response.json({ok:true,locations:[{ID:'location'}],events:[],notes:p.get('includeNotes')==='0'?[]:[{ID:'note',Body:'Offline reference'}]});if(action==='shoppinglist'&&holdRead)await holdRead;return Response.json({ok:true,items:action==='shoppinglist'?[{product:'Synthetic product',bought:false}]:[{place:'Synthetic place',visited:false}]})}};c.window=c;vm.createContext(c);vm.runInContext(source,c);return {c,listeners}}
 function post(c,action,fields={}){return c.fetch(API,{method:'POST',body:new URLSearchParams({key:'synthetic',action,...fields})}).then(r=>r.json())}
 (async()=>{
  let {c}=env();
@@ -21,6 +21,15 @@ function post(c,action,fields={}){return c.fetch(API,{method:'POST',body:new URL
  c.navigator.onLine=false;assert.equal((await post(c,'shoppingList')).items[0].bought,true);
  // Newer same-row edits survive an in-flight acknowledgement.
  await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'false'});c.navigator.onLine=true;holdWrite=new Promise(r=>resolveWrite=r);const retry=c.lexiTravelRetryOfflineChecks();await Promise.resolve();c.navigator.onLine=false;await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'true'});holdWrite=null;resolveWrite();await retry;assert.equal(Object.values(JSON.parse(memory.get('lexiTravelOfflineChecksV1')))[0].fields.bought,'true');
+ // A read started before a confirmed toggle cannot overwrite the durable snapshot.
+ await c.lexiTravelRetryOfflineChecks();
+ holdRead=new Promise(r=>releaseRead=r);const stale=c.fetch(API+'?key=synthetic&action=shoppingList');await Promise.resolve();
+ await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'true'});holdRead=null;releaseRead();await stale;
+ c.navigator.onLine=false;assert.equal((await post(c,'shoppingList')).items[0].bought,true);
+ // Reconnect fans out to every owning queue without another tap or tab visit.
+ const retried=[];for(const name of ['lexiTravelRetryPendingDeletes','lexiCalendarRetryPendingWrites','lexiNotesRetryPendingWrites','lexiPlanRetryPendingWrites'])c[name]=()=>retried.push(name);
+ const online=env();online.c.navigator.onLine=true;for(const name of ['lexiTravelRetryPendingDeletes','lexiCalendarRetryPendingWrites','lexiNotesRetryPendingWrites','lexiPlanRetryPendingWrites'])online.c[name]=()=>retried.push(name);
+ online.listeners.online();assert.equal(new Set(retried).size,4);
  // Other apps and third-party links do not receive API snapshots.
  c.navigator.onLine=true;const count=requests.length;await c.fetch('https://example.test/lexi-notes/');assert.equal(requests.length,count+1);
  console.log('PASS: offline data/notes, Shopping + Visit durable edits, restart recovery, failed retry retention, reconnect sync, newer-edit race, app isolation');

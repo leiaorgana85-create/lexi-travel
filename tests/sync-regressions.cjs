@@ -5,6 +5,10 @@ const out=[];
 function func(file,name,indent=2){const s=src(file),start=s.indexOf(' '.repeat(indent)+(s.includes(' '.repeat(indent)+'async function '+name+'(')?'async ':'')+'function '+name+'(');assert(start>=0,name);const end=s.indexOf('\n'+' '.repeat(indent)+'}',start);assert(end>=0,name);return s.slice(start,end+indent+2).trim();}
 function storage(seed={}){let m=new Map(Object.entries(seed));return {getItem:k=>m.get(k)||null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k),all:()=>Object.fromEntries(m)}}
 (async()=>{
+ // Reconnect drains pending tasks across every month, not only the visible month.
+ const allMonthCalls=[];const allMonth={window:{},navigator:{onLine:true},readAll:()=>({'2030-01':[{_dirty:true}],'2030-02':[{_dirty:true}],'2030-03':[{_dirty:false}]}),readDeleted:()=>({deleted:'2030-04'}),refreshMonthFromSheets:async month=>allMonthCalls.push(month)};
+ vm.createContext(allMonth);const planSource=src('plan-ui.js');vm.runInContext(planSource.slice(planSource.indexOf('  let offlineRetryFlight'),planSource.indexOf('  window.lexiPlanRefreshMonth')),allMonth);
+ await Promise.all([allMonth.window.lexiPlanRetryPendingWrites(),allMonth.window.lexiPlanRetryPendingWrites()]);assert.deepEqual(allMonthCalls,['2030-01','2030-02','2030-04']);out.push({test:'reconnect-all-dirty-months-and-deletes-single-flight',passed:true});
  // An authoritative empty response removes clean cached records.
  let saved=[{id:'previously-synced',text:'Removed in Sheet',_dirty:false}],uploads=[];
  const planCtx={refreshPromises:new Map(),localStorage:storage({key:'fixture'}),KEY_STORAGE:'key',setSyncState:()=>{},ensureSyncCapability:async()=>true,postAction:async()=>({ok:true,items:[]}),itemsForMonth:()=>saved,remoteItemToLocal:x=>x,readDeleted:()=>({}),writeMonth:(m,x)=>saved=x,syncUpsert:async(m,id)=>{uploads.push(id);return true},syncDelete:async()=>true};

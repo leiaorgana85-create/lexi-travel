@@ -32,11 +32,13 @@
 
     lastRefreshAt = Date.now();
     refreshPromise = (async () => {
+      window.LexiLifecycle?.mark('data-refresh-start');
       try {
         await loadAllData();
       } catch (error) {
         // Keep the cached/local calendar usable if Google is temporarily unavailable.
       } finally {
+        window.LexiLifecycle?.mark('data-refresh-end');
         refreshPromise = null;
       }
     })();
@@ -72,6 +74,7 @@
         const nextUrl = new URL(window.location.href);
         nextUrl.searchParams.delete('lexi_build_probe');
         nextUrl.searchParams.set('build', latestBuild);
+        window.LexiLifecycle?.mark('update-reload', { from:runningBuild, to:latestBuild });
         window.location.replace(nextUrl.toString());
       } catch (error) {
         // A failed version probe should never block the app.

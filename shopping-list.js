@@ -218,7 +218,7 @@
 
           enqueueWrite(key, async () => {
             try {
-              await postShopping('shoppingSetBought', {
+              const result = await postShopping('shoppingSetBought', {
                 product: item.product,
                 bought: String(boughtNow).toLowerCase()
               });
@@ -226,7 +226,7 @@
               confirmedStates.set(key, boughtNow);
               if (stateVersions.get(key) === version) {
                 pendingStates.delete(key);
-                shoppingStatus.textContent = 'Saved';
+                shoppingStatus.textContent = result.queued ? 'Saved on device · sync pending' : 'Saved';
               }
             } catch (error) {
               if (stateVersions.get(key) !== version) return;

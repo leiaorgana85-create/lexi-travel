@@ -261,7 +261,7 @@
 
           enqueueWrite(key, async () => {
             try {
-              await postVisit('visitSetVisited', {
+              const result = await postVisit('visitSetVisited', {
                 place: item.place,
                 visited: String(visitedNow).toLowerCase()
               });
@@ -269,7 +269,7 @@
               confirmedStates.set(key, visitedNow);
               if (stateVersions.get(key) === version) {
                 pendingStates.delete(key);
-                visitStatus.textContent = 'Saved';
+                visitStatus.textContent = result.queued ? 'Saved on device · sync pending' : 'Saved';
               }
             } catch (error) {
               if (stateVersions.get(key) !== version) return;

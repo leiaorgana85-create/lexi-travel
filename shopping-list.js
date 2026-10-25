@@ -9,6 +9,7 @@
 
   let loading = false;
   let cachedItems = readCache();
+  let renderedSignature = '';
   const writeChains = new Map();
   const stateVersions = new Map();
   const pendingStates = new Map();
@@ -135,6 +136,10 @@
   }
 
   function render(items) {
+    items.forEach(applyPendingState);
+    const signature = JSON.stringify(items);
+    if (signature === renderedSignature && shoppingBody.childElementCount) return;
+    renderedSignature = signature;
     shoppingBody.innerHTML = '';
 
     if (!items.length) {
@@ -256,7 +261,7 @@
 
   async function loadShopping({ showCached = true, allowInactive = false } = {}) {
     const active = shoppingView.classList.contains('active');
-    if ((!active && !allowInactive) || loading) return;
+    if (!active && !allowInactive) return;
 
     const key = localStorage.getItem(KEY_STORAGE);
     if (!key) {
@@ -276,6 +281,9 @@
       }
     }
 
+    // A warm-up may still be in flight when the tab opens. Cached rows above
+    // must remain visible and interactive while the same request completes.
+    if (loading) return;
     loading = true;
     try {
       const data = await postShopping('shoppingList');
@@ -298,7 +306,7 @@
   }
 
   shoppingTab.addEventListener('click', () => {
-    setTimeout(() => loadShopping({ showCached: true }), 0);
+    void loadShopping({ showCached: true });
   });
 
   if (cachedItems && shoppingView.classList.contains('active')) render(cachedItems);

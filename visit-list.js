@@ -11,6 +11,7 @@
 
   let loading = false;
   let cachedItems = readCache();
+  let renderedSignature = '';
   const writeChains = new Map();
   const stateVersions = new Map();
   const pendingStates = new Map();
@@ -163,6 +164,10 @@
   }
 
   function render(items) {
+    items.forEach(applyPendingState);
+    const signature = JSON.stringify(items);
+    if (signature === renderedSignature && visitBody.childElementCount) { refreshPlanControls(); return; }
+    renderedSignature = signature;
     visitBody.innerHTML = '';
     planControls.clear();
 
@@ -326,7 +331,7 @@
 
   async function loadVisit({ showCached = true, allowInactive = false } = {}) {
     const active = visitView.classList.contains('active');
-    if ((!active && !allowInactive) || loading) return;
+    if (!active && !allowInactive) return;
 
     const key = localStorage.getItem(KEY_STORAGE);
     if (!key) {
@@ -346,6 +351,7 @@
       }
     }
 
+    if (loading) return;
     loading = true;
     try {
       const data = await postVisit('visitList');
@@ -378,7 +384,7 @@
   setInterval(refreshPlanControls, 60000);
 
   visitTab.addEventListener('click', () => {
-    setTimeout(() => loadVisit({ showCached: true }), 0);
+    void loadVisit({ showCached: true });
   });
 
   if (cachedItems && visitView.classList.contains('active')) render(cachedItems);

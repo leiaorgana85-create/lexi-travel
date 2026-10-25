@@ -6,6 +6,19 @@
   const readActions=new Set(['data','shoppinglist','visitlist','planlist','notecapabilities','eventcapabilities','plancapabilities','shoppingcapabilities','visitcapabilities']);
   const checkActions=new Set(['shoppingsetbought','visitsetvisited']);
   let flight=null, badge=null, revision=0;
+  const readFlights=new Map();
+  async function boundedFetch(input,init={}){
+    const controller=typeof AbortController==='function'?new AbortController():null;
+    const timeout=init.method==='POST'?25000:15000;
+    let timer;
+    const abort=()=>controller?.abort();
+    if(init.signal?.aborted)abort();
+    init.signal?.addEventListener?.('abort',abort,{once:true});
+    try{return await Promise.race([
+      nativeFetch(input,controller?{...init,signal:controller.signal}:init),
+      new Promise((_,reject)=>{timer=setTimeout(()=>{abort();reject(new Error('Connection timed out; saved changes will retry'))},timeout)})
+    ])}finally{clearTimeout(timer);init.signal?.removeEventListener?.('abort',abort)}
+  }
   function read(key){try{return JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(_){return {}}}
   function write(key,value){localStorage.setItem(key,JSON.stringify(value))}
   function updateStatus(){if(!badge)return;const n=Object.keys(read(QUEUE)).length;badge.textContent=navigator.onLine===false?'Offline · saved data':n?`${n} waiting to sync`:'';badge.hidden=!badge.textContent}
@@ -54,7 +67,12 @@
     if(readActions.has(action)){
       if(navigator.onLine===false)return cached(p);
       let response;const started=revision;
-      try{response=await nativeFetch(input,init)}catch(error){try{return cached(p)}catch(_){throw error}}
+      const requestKey=cacheKey(p)+':'+p.get('includeNotes')+':'+started;
+      try{
+        let request=readFlights.get(requestKey);
+        if(!request){request=boundedFetch(input,init).finally(()=>{if(readFlights.get(requestKey)===request)readFlights.delete(requestKey)});readFlights.set(requestKey,request)}
+        response=(await request).clone();
+      }catch(error){try{return cached(p)}catch(_){throw error}}
       if(response.ok){try{const data=await response.clone().json();if(data.ok){if(started===revision)storeResult(p,data);return json(overlay(data,p))}}catch(_){}}
       if(response.status>=500){try{return cached(p)}catch(_){}}
       return response;
@@ -64,14 +82,14 @@
       const record=queueCheck(p);
       if(navigator.onLine===false)return json({ok:true,queued:true});
       try{
-        const response=await nativeFetch(input,init);
+        const response=await boundedFetch(input,init);
         if(response.ok){const data=await response.clone().json();if(data.ok){acknowledge(p,record);return response}if(data.error){const queue=read(QUEUE);if(queue[queuedId(p)]?.token===record.token){delete queue[queuedId(p)];write(QUEUE,queue)}updateStatus();return response}}
         if(response.status>=400&&response.status<500)return response;
       }catch(_){/* Saved queue retries on reconnect. */}
       updateStatus();return json({ok:true,queued:true});
     }
     if(navigator.onLine===false)throw new Error('Offline · changes saved on this device will retry online');
-    return nativeFetch(input,init);
+    return boundedFetch(input,init);
   };
   function retry(){
     if(flight||navigator.onLine===false)return flight||Promise.resolve();
@@ -81,16 +99,9 @@
         if(entry.account!==fingerprint(key))continue;
         if(read(QUEUE)[id]?.token!==entry.token)continue;
         const p=new URLSearchParams({key,...entry.fields});
-        try{const response=await nativeFetch(API,{method:'POST',body:p,cache:'no-store',redirect:'follow'});const data=await response.json();if(response.ok&&data.ok)acknowledge(p,entry);else break}catch(_){break}
+        try{const response=await boundedFetch(API,{method:'POST',body:p,cache:'no-store',redirect:'follow'});const data=await response.json();if(response.ok&&data.ok)acknowledge(p,entry);else break}catch(_){break}
       }
     })().finally(()=>{flight=null;updateStatus()});return flight;
-  }
-  async function warm(){
-    if(navigator.onLine===false)return;const key=localStorage.getItem('lexiTravelApiKey');if(!key)return;
-    // Full calendar + Notes snapshot, including tabs not yet opened on this device.
-    const url=new URL(API);url.search=new URLSearchParams({key,action:'data',includeNotes:'1',_:String(Date.now())});
-    const started=revision;
-    try{const r=await nativeFetch(url.toString(),{cache:'no-store',redirect:'follow'});const data=await r.json();if(r.ok&&data.ok&&started===revision)storeResult(url.searchParams,data)}catch(_){}
   }
   window.lexiTravelRetryOfflineChecks=retry;
   function retryAll(){
@@ -107,7 +118,9 @@
   setInterval(()=>{if(!document.hidden)retryAll()},30000);
   document.addEventListener('DOMContentLoaded',()=>{
     badge=document.createElement('div');badge.id='offlineStatus';badge.setAttribute('role','status');badge.style.cssText='font-size:11px;color:var(--muted,#8992a3);padding:0 16px 4px;text-align:right';
-    document.querySelector('.topbar')?.after(badge);updateStatus();retry();warm();
-    if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{badge.textContent='Offline setup needs another online visit';badge.hidden=false});
+    // notes-ui already warms the complete Notes snapshot. A second full data
+    // request here competes with first-screen reads without adding coverage.
+    document.querySelector('.topbar')?.after(badge);updateStatus();retry();
+    if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'}).catch(()=>{badge.textContent='Offline setup needs another online visit';badge.hidden=false});
   });
 })();

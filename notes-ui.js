@@ -180,6 +180,9 @@
 
   function localRefresh() {
     if (!notesView.classList.contains('active')) return;
+    // A background read may finish while the user types. Keep that editor's
+    // DOM, selection and text; the next normal selection renders fresh data.
+    if (notesView.querySelector('.lexi-plain-editor') || (noteSaveBtn && !noteSaveBtn.hidden)) return;
 
     mergeCachedNotesIntoAppData();
     mergeLocalState();

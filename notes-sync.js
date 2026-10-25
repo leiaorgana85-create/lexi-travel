@@ -110,7 +110,7 @@
 
   async function ensureWriteCapability(force = false) {
     if (!force && writeCapability !== null) return writeCapability;
-    if (!force && capabilityPromise) return capabilityPromise;
+    if (capabilityPromise) return capabilityPromise;
 
     capabilityPromise = (async () => {
       try {
@@ -139,6 +139,8 @@
     return enqueueWrite(id, async () => {
       const latestDraft = readDrafts()[id];
       if (deletedIds.has(id) || latestDraft?._localDeleted) return;
+      if (syncedVersion(effectiveNote(id)) > version) return;
+      if (!latestDraft?._localNew && Number(latestDraft?._syncedAt || 0) >= version) return;
 
       if (!await ensureWriteCapability()) {
         if (noteSaveStatus) noteSaveStatus.textContent = 'Saved on this device · Sheets sync unavailable';
@@ -194,6 +196,9 @@
          Object.prototype.hasOwnProperty.call(pendingDraft, 'Body')))) return syncUpsert(id);
 
     return enqueueWrite(id, async () => {
+      if (syncedVersion(effectiveNote(id)) > version) return;
+      const latestDraft = readDrafts()[id];
+      if (!latestDraft?._localNew && Number(latestDraft?._syncedAt || 0) >= version) return;
       if (isLocallyDeleted(id) || !await ensureWriteCapability()) return;
       try {
         await postWrite('notePin', {
@@ -257,9 +262,10 @@
     retryPromise = (async () => {
       try {
         scrubReadOnlyDrafts();
-        if (!await ensureWriteCapability(forceCapability)) return false;
         const drafts = readDrafts();
         const pending = Object.entries(drafts).filter(([, draft]) => draftNeedsRetry(draft));
+        if (!pending.length) return false;
+        if (!await ensureWriteCapability(forceCapability)) return false;
 
         for (const [id, draft] of pending) {
           if (draft._localDeleted) {
@@ -306,8 +312,7 @@
   });
 
   notesTab.addEventListener('click', () => {
-    ensureWriteCapability(true);
-    retryPendingWrites(true);
+    retryPendingWrites(false);
 
     setTimeout(() => {
       if (!noteSaveStatus) return;
@@ -329,7 +334,6 @@
   });
 
   if (localStorage.getItem(KEY_STORAGE)) {
-    ensureWriteCapability(true);
     retryPendingWrites(false);
   }
 })();

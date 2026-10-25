@@ -21,14 +21,26 @@
     try { localStorage.setItem(key, JSON.stringify(entries)); }
     catch (_) { storageAvailable = false; }
   }
-  // Only known event names and build identifiers are accepted. Never collect
+  // Only known events, numeric timings/counts, fixed outcomes and build identifiers are accepted. Never collect
   // DOM text, form values, request URLs, API keys, note contents or error messages.
-  const allowed = new Set(['update-reload', 'data-refresh-start', 'data-refresh-end']);
+  const allowed = new Set(['update-reload', 'data-refresh-start', 'data-refresh-end', 'list-load-start', 'list-load-end', 'list-display', 'list-reuse', 'list-network-start', 'list-network-end']);
   function mark(event, detail = {}) {
     if (!allowed.has(event)) return;
     const safe = {};
     if (event === 'update-reload') {
       for (const name of ['from', 'to']) safe[name] = String(detail[name] || '').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 100);
+    }
+    if (event.startsWith('list-')) {
+      const lists = ['shopping', 'visit'];
+      if (!lists.includes(detail.list)) return;
+      safe.list = detail.list;
+      for (const name of ['durationMs', 'headersMs', 'bodyMs', 'rows', 'status']) {
+        if (Number.isFinite(detail[name])) safe[name] = Math.max(0, Math.round(detail[name]));
+      }
+      const outcomes = ['network', 'saved', 'fresh', 'inflight', 'timeout', 'aborted', 'error', 'http-error', 'success'];
+      if (outcomes.includes(detail.outcome)) safe.outcome = detail.outcome;
+      const triggers = ['launch', 'tap', 'resume', 'warmup'];
+      if (triggers.includes(detail.trigger)) safe.trigger = detail.trigger;
     }
     record(event, safe);
   }
@@ -95,7 +107,7 @@
     const dialog = document.createElement('dialog');
     dialog.id = 'lexiLifecycleDialog';
     dialog.setAttribute('aria-labelledby', 'lexiLifecycleTitle');
-    dialog.innerHTML = '<h2 id="lexiLifecycleTitle">App diagnostics</h2><p class="diag-summary"></p><p>Switch to another app for about a minute, return here, then share the log. It contains technical events, without notes or spending details.</p><button type="button" data-diag="share">Share log</button><button type="button" data-diag="download">Download log</button><button type="button" data-diag="close">Close</button><p class="diag-status" role="status"></p><pre></pre>';
+    dialog.innerHTML = '<h2 id="lexiLifecycleTitle">App diagnostics</h2><p class="diag-summary"></p><p>For slow lists, open Shopping and Visit, switch away for about a minute, return, then share the log. It contains technical events and list load timings, without list contents, API keys, notes or spending details.</p><button type="button" data-diag="share">Share log</button><button type="button" data-diag="download">Download log</button><button type="button" data-diag="close">Close</button><p class="diag-status" role="status"></p><pre></pre>';
     document.body.appendChild(dialog);
     const status = dialog.querySelector('.diag-status');
     function makeFile() {
@@ -126,7 +138,9 @@
     button.addEventListener('click', () => {
       const launches = entries.filter(e => e.event === 'launch').length;
       dialog.querySelector('.diag-summary').textContent = `${app} · page loaded ${new Date(startedAt).toLocaleTimeString()} · ${launches} page load${launches === 1 ? '' : 's'} in retained log.${storageAvailable ? '' : ' Storage unavailable; export before leaving.'}`;
-      dialog.querySelector('pre').textContent = entries.slice(-20).map(e => `${e.at.slice(11, 19)} ${e.event}${e.awayMs != null ? ` (${Math.round(e.awayMs / 1000)}s away)` : ''} · ${e.page === page ? 'current page' : 'earlier page'}`).join('\n');
+      const loads = entries.filter(e => e.event === 'list-load-end').slice(-10);
+      if (loads.length) dialog.querySelector('.diag-summary').textContent += ' Recent list loads: ' + loads.map(e => `${e.list} ${(e.durationMs / 1000).toFixed(1)}s (${e.outcome})`).join('; ') + '.';
+      dialog.querySelector('pre').textContent = entries.slice(-40).map(e => `${e.at.slice(11, 19)} ${e.event}${e.list ? ` ${e.list}` : ''}${e.durationMs != null ? ` ${e.durationMs}ms` : ''}${e.outcome ? ` ${e.outcome}` : ''}${e.awayMs != null ? ` (${Math.round(e.awayMs / 1000)}s away)` : ''} · ${e.page === page ? 'current page' : 'earlier page'}`).join('\n');
       status.textContent = '';
       dialog.showModal();
     });

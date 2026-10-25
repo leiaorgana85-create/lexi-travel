@@ -9,6 +9,7 @@
 
   if (!visitTab || !visitView || !visitBody || !visitStatus) return;
 
+  const mark = (event, detail = {}) => window.LexiLifecycle?.mark(event, { list: 'visit', ...detail });
   let loading = false;
   let lastLoadedAt = 0;
   let cachedItems = readCache();
@@ -346,7 +347,7 @@
     visitStatus.textContent = 'Tap again to undo';
   }
 
-  async function loadVisit({ showCached = true, allowInactive = false } = {}) {
+  async function loadVisit({ showCached = true, allowInactive = false, trigger = 'tap' } = {}) {
     const active = visitView.classList.contains('active');
     if (!active && !allowInactive) return;
 
@@ -361,22 +362,36 @@
 
     if (active) {
       if (showCached && cachedItems) {
+        const shownAt = Date.now();
         render(cachedItems);
+        mark('list-display', { outcome: 'saved', durationMs: Date.now() - shownAt, rows: cachedItems.length, trigger });
       } else {
         visitStatus.textContent = 'Loading…';
         setMessage('Loading visit list…');
       }
     }
 
-    if (loading || (cachedItems && Date.now() - lastLoadedAt < 60000)) return;
+    if (loading || (cachedItems && Date.now() - lastLoadedAt < 60000)) {
+      mark('list-reuse', { outcome: loading ? 'inflight' : 'fresh', trigger });
+      return;
+    }
     loading = true;
+    const startedAt = Date.now();
+    mark('list-load-start', { trigger });
     try {
       const data = await postVisit('visitList');
-      lastLoadedAt = Date.now();
+      lastLoadedAt = data.__lexiOffline ? 0 : Date.now();
       cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
       writeCache(cachedItems);
-      if (visitView.classList.contains('active')) render(cachedItems);
+      if (visitView.classList.contains('active')) {
+        const shownAt = Date.now();
+        render(cachedItems);
+        mark('list-display', { outcome: data.__lexiOffline ? 'saved' : 'network', durationMs: Date.now() - shownAt, rows: cachedItems.length, trigger });
+      }
+      if (data.__lexiOffline && visitView.classList.contains('active')) visitStatus.textContent = 'Showing saved list · refresh pending';
+      mark('list-load-end', { durationMs: Date.now() - startedAt, rows: cachedItems.length, outcome: data.__lexiOffline ? 'saved' : 'network', trigger });
     } catch (error) {
+      mark('list-load-end', { durationMs: Date.now() - startedAt, outcome: error.message?.includes('timed out') ? 'timeout' : 'error', trigger });
       if (visitView.classList.contains('active')) {
         if (cachedItems) {
           render(cachedItems);
@@ -405,10 +420,15 @@
     void loadVisit({ showCached: true });
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void loadVisit({ trigger: 'resume' });
+  });
+  window.addEventListener('pageshow', () => { void loadVisit({ trigger: 'resume' }); });
+
   if (cachedItems && visitView.classList.contains('active')) render(cachedItems);
   if (visitView.classList.contains('active')) {
-    loadVisit({ showCached: true });
+    loadVisit({ showCached: true, trigger: 'launch' });
   } else if (localStorage.getItem(KEY_STORAGE)) {
-    setTimeout(() => loadVisit({ showCached: false, allowInactive: true }), 1800);
+    setTimeout(() => loadVisit({ showCached: false, allowInactive: true, trigger: 'warmup' }), 1800);
   }
 })();

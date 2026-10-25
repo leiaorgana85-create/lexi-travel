@@ -1,0 +1,27 @@
+name: List loading regressions
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  list-loading:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated DOM test dependency
+        run: npm install --prefix "$RUNNER_TEMP/list-test-deps" --no-save --package-lock=false happy-dom@21.0.4
+      - name: Check stalled responses and offline sync
+        run: |
+          node tests/list-timeouts.cjs
+          node tests/offline.cjs
+          node tests/sync-regressions.cjs
+          node tests/calendar-delete-race.cjs
+      - name: Check cold loads, reopen, resume, cache and diagnostics
+        env:
+          HAPPY_DOM_MODULE: ${{ runner.temp }}/list-test-deps/node_modules/happy-dom/lib/index.js
+        run: |
+          node tests/list-latency.mjs
+          node tests/performance.mjs
+          node tests/dom-smoke.mjs

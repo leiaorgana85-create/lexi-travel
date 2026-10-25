@@ -7,17 +7,35 @@
   const checkActions=new Set(['shoppingsetbought','visitsetvisited']);
   let flight=null, badge=null, revision=0;
   const readFlights=new Map();
-  async function boundedFetch(input,init={}){
+  async function boundedFetch(input,init={},action=''){
+    const list=action==='shoppinglist'?'shopping':action==='visitlist'?'visit':null;
+    const startedAt=Date.now();let headersAt=null,finishedAt=null,status=null,timedOut=false;
+    const mark=(event,detail={})=>{if(list)window.LexiLifecycle?.mark(event,{list,...detail})};
     const controller=typeof AbortController==='function'?new AbortController():null;
-    const timeout=init.method==='POST'?25000:15000;
+    const timeout=list?10000:init.method==='POST'?25000:15000;
     let timer;
     const abort=()=>controller?.abort();
     if(init.signal?.aborted)abort();
     init.signal?.addEventListener?.('abort',abort,{once:true});
-    try{return await Promise.race([
-      nativeFetch(input,controller?{...init,signal:controller.signal}:init),
-      new Promise((_,reject)=>{timer=setTimeout(()=>{abort();reject(new Error('Connection timed out; saved changes will retry'))},timeout)})
-    ])}finally{clearTimeout(timer);init.signal?.removeEventListener?.('abort',abort)}
+    mark('list-network-start');
+    try{
+      const response=await Promise.race([
+      (async()=>{
+        const result=await nativeFetch(input,controller?{...init,signal:controller.signal}:init);
+        headersAt=Date.now();status=result.status;
+        if(!list)return result;
+        // Keep deadline and coalescing active through the complete body.
+        const text=await result.text();finishedAt=Date.now();
+        return new Response(text,{status:result.status,statusText:result.statusText,headers:{'Content-Type':'application/json'}});
+      })(),
+      new Promise((_,reject)=>{timer=setTimeout(()=>{timedOut=true;reject(new Error('Connection timed out; saved changes will retry'));abort()},timeout)})
+      ]);
+      mark('list-network-end',{durationMs:Date.now()-startedAt,headersMs:headersAt-startedAt,bodyMs:finishedAt-headersAt,status,outcome:response.ok?'success':'http-error'});
+      return response;
+    }catch(error){
+      mark('list-network-end',{durationMs:Date.now()-startedAt,...(headersAt!==null?{headersMs:headersAt-startedAt}:{}),...(status!==null?{status}:{}),outcome:timedOut?'timeout':init.signal?.aborted?'aborted':'error'});
+      throw error;
+    }finally{clearTimeout(timer);init.signal?.removeEventListener?.('abort',abort)}
   }
   function read(key){try{return JSON.parse(localStorage.getItem(key)||'{}')||{}}catch(_){return {}}}
   function write(key,value){localStorage.setItem(key,JSON.stringify(value))}
@@ -70,7 +88,7 @@
       const requestKey=cacheKey(p)+':'+p.get('includeNotes')+':'+started;
       try{
         let request=readFlights.get(requestKey);
-        if(!request){request=boundedFetch(input,init).finally(()=>{if(readFlights.get(requestKey)===request)readFlights.delete(requestKey)});readFlights.set(requestKey,request)}
+        if(!request){request=boundedFetch(input,init,action).finally(()=>{if(readFlights.get(requestKey)===request)readFlights.delete(requestKey)});readFlights.set(requestKey,request)}
         response=(await request).clone();
       }catch(error){try{return cached(p)}catch(_){throw error}}
       if(response.ok){try{const data=await response.clone().json();if(data.ok){if(started===revision)storeResult(p,data);return json(overlay(data,p))}}catch(_){}}

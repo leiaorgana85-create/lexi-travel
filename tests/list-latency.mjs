@@ -5,6 +5,8 @@ const source=file=>fs.readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
 const API='https://script.google.com/macros/s/AKfycbxeJRgEegJlc7kmtstRJtF0X-b4-0QBk-9dqBpCooDOs4NfPomi4_Kptb0CDSIAqqDw/exec';
 const windows=[];
+assert(!source('index.html').includes('lifecycle-diagnostics.js'));
+assert(!source('sw.js').includes('lifecycle-diagnostics.js'));
 try {
  for(const family of ['shopping','visit']) {
   const w=new Window({url:'https://fixture.test/lexi-travel/'});windows.push(w);
@@ -15,7 +17,6 @@ try {
   w.localStorage.setItem('lexiTravelApiKey','synthetic-secret');
   const items=family==='shopping'?[{product:'PRIVATE_ITEM',store:'Big C',bought:false}]:[{place:'PRIVATE_PLACE',visited:false}];
   w.fetch=async()=>{calls++;if(mode==='headers')return new Promise(()=>{});return {status:200,statusText:'OK',ok:true,text:()=>mode==='body'?new Promise(()=>{}):mode==='hold'?new Promise(resolve=>release=()=>resolve(JSON.stringify({ok:true,items}))):Promise.resolve(JSON.stringify({ok:true,items}))}};
-  w.eval(source('lifecycle-diagnostics.js'));
   w.eval(source('offline.js'));
   w.eval(`const KEY_STORAGE='lexiTravelApiKey',API_URL=${JSON.stringify(API)};`+source(family+'-list.js').replaceAll('Date.now()', 'window.testNow()'));
   // First open while the preload body is incomplete must share the same request.
@@ -34,15 +35,6 @@ try {
   assert.match(w.document.getElementById(family+'Status').textContent,/saved list/i);
   // A fallback is not labelled fresh: the next tap can retry immediately.
   mode='ok';tab.click();await turn();await turn();assert.equal(calls,4);
-  const events=w.LexiLifecycle.snapshot().events;
-  assert(events.some(e=>e.event==='list-network-end'&&e.outcome==='timeout'));
-  assert(events.some(e=>e.event==='list-reuse'&&e.outcome==='inflight'));
-  assert(events.some(e=>e.event==='list-load-end'&&e.outcome==='saved'));
-  assert(events.some(e=>e.event==='list-load-end'&&e.trigger==='resume'));
-  // Unknown fields cannot put secrets/content/URLs into exported diagnostics.
-  w.LexiLifecycle.mark('list-load-end',{list:family,durationMs:3,outcome:'network',key:'LEAK_KEY',url:'LEAK_URL',items:['LEAK_CONTENT']});
-  const log=JSON.stringify(w.LexiLifecycle.snapshot());
-  for(const secret of ['synthetic-secret','PRIVATE_ITEM','PRIVATE_PLACE','LEAK_KEY','LEAK_URL','LEAK_CONTENT'])assert(!log.includes(secret));
   assert(JSON.parse(w.localStorage.getItem(cache)).items.length===1);
   // A new document restores saved rows before any first-launch network response.
   const reopened=new Window({url:'https://fixture.test/lexi-travel/'});windows.push(reopened);
@@ -53,6 +45,6 @@ try {
   reopened.eval(`const KEY_STORAGE='lexiTravelApiKey',API_URL=${JSON.stringify(API)};`+source(family+'-list.js'));
   assert(reopened.document.querySelector('input'),'saved rows must exist synchronously on relaunch');
   await turn();
-  console.log('PASS '+family+': cold open, repeated taps, warm body coalescing, cached display, fresh/stale resume, timeout fallback, immediate retry, private diagnostics');
+  console.log('PASS '+family+': cold open, repeated taps, warm body coalescing, cached display, fresh/stale resume, timeout fallback, immediate retry');
  }
 } finally { for(const w of windows)await w.happyDOM.close() }

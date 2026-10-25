@@ -7,7 +7,6 @@
 
   if (!shoppingTab || !shoppingView || !shoppingBody || !shoppingStatus) return;
 
-  const mark = (event, detail = {}) => window.LexiLifecycle?.mark(event, { list: 'shopping', ...detail });
   let loading = false;
   let lastLoadedAt = 0;
   let cachedItems = readCache();
@@ -277,7 +276,7 @@
     shoppingStatus.textContent = 'Tap again to undo';
   }
 
-  async function loadShopping({ showCached = true, allowInactive = false, trigger = 'tap' } = {}) {
+  async function loadShopping({ showCached = true, allowInactive = false } = {}) {
     const active = shoppingView.classList.contains('active');
     if (!active && !allowInactive) return;
 
@@ -292,9 +291,7 @@
 
     if (active) {
       if (showCached && cachedItems) {
-        const shownAt = Date.now();
         render(cachedItems);
-        mark('list-display', { outcome: 'saved', durationMs: Date.now() - shownAt, rows: cachedItems.length, trigger });
       } else {
         shoppingStatus.textContent = 'Loading…';
         setMessage('Loading shopping list…');
@@ -304,26 +301,19 @@
     // A warm-up may still be in flight when the tab opens. Cached rows above
     // must remain visible and interactive while the same request completes.
     if (loading || (cachedItems && Date.now() - lastLoadedAt < 60000)) {
-      mark('list-reuse', { outcome: loading ? 'inflight' : 'fresh', trigger });
       return;
     }
     loading = true;
-    const startedAt = Date.now();
-    mark('list-load-start', { trigger });
     try {
       const data = await postShopping('shoppingList');
       lastLoadedAt = data.__lexiOffline ? 0 : Date.now();
       cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
       writeCache(cachedItems);
       if (shoppingView.classList.contains('active')) {
-        const shownAt = Date.now();
         render(cachedItems);
-        mark('list-display', { outcome: data.__lexiOffline ? 'saved' : 'network', durationMs: Date.now() - shownAt, rows: cachedItems.length, trigger });
       }
       if (data.__lexiOffline && shoppingView.classList.contains('active')) shoppingStatus.textContent = 'Showing saved list · refresh pending';
-      mark('list-load-end', { durationMs: Date.now() - startedAt, rows: cachedItems.length, outcome: data.__lexiOffline ? 'saved' : 'network', trigger });
     } catch (error) {
-      mark('list-load-end', { durationMs: Date.now() - startedAt, outcome: error.message?.includes('timed out') ? 'timeout' : 'error', trigger });
       if (shoppingView.classList.contains('active')) {
         if (cachedItems) {
           render(cachedItems);
@@ -343,14 +333,14 @@
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) void loadShopping({ trigger: 'resume' });
+    if (!document.hidden) void loadShopping({});
   });
-  window.addEventListener('pageshow', () => { void loadShopping({ trigger: 'resume' }); });
+  window.addEventListener('pageshow', () => { void loadShopping({}); });
 
   if (cachedItems && shoppingView.classList.contains('active')) render(cachedItems);
   if (shoppingView.classList.contains('active')) {
-    loadShopping({ showCached: true, trigger: 'launch' });
+    loadShopping({ showCached: true });
   } else if (localStorage.getItem(KEY_STORAGE)) {
-    setTimeout(() => loadShopping({ showCached: false, allowInactive: true, trigger: 'warmup' }), 1800);
+    setTimeout(() => loadShopping({ showCached: false, allowInactive: true }), 1800);
   }
 })();

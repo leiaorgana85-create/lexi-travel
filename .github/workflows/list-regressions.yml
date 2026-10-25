@@ -18,7 +18,7 @@ jobs:
           node tests/offline.cjs
           node tests/sync-regressions.cjs
           node tests/calendar-delete-race.cjs
-      - name: Check cold loads, reopen, resume, cache and diagnostics
+      - name: Check cold loads, reopen, resume, cache restoration
         env:
           HAPPY_DOM_MODULE: ${{ runner.temp }}/list-test-deps/node_modules/happy-dom/lib/index.js
         run: |

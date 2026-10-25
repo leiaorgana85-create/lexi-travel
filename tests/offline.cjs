@@ -33,5 +33,5 @@ function post(c,action,fields={}){return c.fetch(API,{method:'POST',body:new URL
  // Other apps and third-party links do not receive API snapshots.
  c.navigator.onLine=true;const count=requests.length;await c.fetch('https://example.test/lexi-notes/');assert.equal(requests.length,count+1);
  console.log('PASS: offline data/notes, Shopping + Visit durable edits, restart recovery, failed retry retention, reconnect sync, newer-edit race, app isolation');
- const sw=fs.readFileSync(root+'/sw.js','utf8');const shell=JSON.parse(sw.match(/const SHELL=(.*);/)[1]);for(const asset of shell){if(asset==='./')continue;assert(fs.existsSync(root+'/'+asset.replace(/^\.\//,'').split('?')[0]),asset)}assert(shell.includes('offline.js?v=3'));assert(!shell.some(x=>x.includes('notes-app/')));console.log('PASS: all service-worker shell assets exist; legacy Notes excluded');
+ const sw=fs.readFileSync(root+'/sw.js','utf8');const shell=JSON.parse(sw.match(/const SHELL=(.*);/)[1]);for(const asset of shell){if(asset==='./')continue;assert(fs.existsSync(root+'/'+asset.replace(/^\.\//,'').split('?')[0]),asset)}assert(shell.includes('offline.js?v=4'));assert(!shell.some(x=>x.includes('notes-app/')));console.log('PASS: all service-worker shell assets exist; legacy Notes excluded');
 })().catch(e=>{console.error(e);process.exitCode=1});

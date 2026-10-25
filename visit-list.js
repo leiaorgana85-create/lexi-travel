@@ -10,6 +10,7 @@
   if (!visitTab || !visitView || !visitBody || !visitStatus) return;
 
   let loading = false;
+  let lastLoadedAt = 0;
   let cachedItems = readCache();
   let renderedSignature = '';
   const writeChains = new Map();
@@ -122,17 +123,31 @@
       )
     });
 
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      body,
-      cache: 'no-store',
-      redirect: 'follow'
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || 'Visit list sync failed');
-    return data;
+    // Cover headers AND JSON consumption: fetch alone resolves at headers.
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        (async () => {
+          const response = await fetch(API_URL, {
+            method: 'POST', body, cache: 'no-store', redirect: 'follow',
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (!data.ok) throw new Error(data.error || 'Visit list sync failed');
+          return data;
+        })(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error('Connection timed out. Tap Visit to retry.'));
+            controller.abort();
+          }, action.toLowerCase().endsWith('list') ? 12000 : 30000);
+        })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   function preferredSections(groups) {
@@ -148,6 +163,7 @@
   }
 
   function setMessage(message, isError = false) {
+    renderedSignature = '';
     visitBody.innerHTML = '';
     const empty = document.createElement('div');
     empty.className = `shopping-message${isError ? ' error' : ''}`;
@@ -257,6 +273,7 @@
           const visitedNow = checkbox.checked;
           const version = (stateVersions.get(key) || 0) + 1;
           stateVersions.set(key, version);
+          lastLoadedAt = 0;
           pendingStates.set(key, visitedNow);
 
           item.visited = visitedNow;
@@ -351,10 +368,11 @@
       }
     }
 
-    if (loading) return;
+    if (loading || (cachedItems && Date.now() - lastLoadedAt < 60000)) return;
     loading = true;
     try {
       const data = await postVisit('visitList');
+      lastLoadedAt = Date.now();
       cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
       writeCache(cachedItems);
       if (visitView.classList.contains('active')) render(cachedItems);

@@ -8,6 +8,7 @@
   if (!shoppingTab || !shoppingView || !shoppingBody || !shoppingStatus) return;
 
   let loading = false;
+  let lastLoadedAt = 0;
   let cachedItems = readCache();
   let renderedSignature = '';
   const writeChains = new Map();
@@ -65,17 +66,31 @@
       )
     });
 
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      body,
-      cache: 'no-store',
-      redirect: 'follow'
-    });
-
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    if (!data.ok) throw new Error(data.error || 'Shopping list sync failed');
-    return data;
+    // Cover headers AND JSON consumption: fetch alone resolves at headers.
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        (async () => {
+          const response = await fetch(API_URL, {
+            method: 'POST', body, cache: 'no-store', redirect: 'follow',
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const data = await response.json();
+          if (!data.ok) throw new Error(data.error || 'Shopping list sync failed');
+          return data;
+        })(),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error('Connection timed out. Tap Shopping to retry.'));
+            controller.abort();
+          }, action.toLowerCase().endsWith('list') ? 12000 : 30000);
+        })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   function sectionFor(item) {
@@ -120,6 +135,7 @@
   }
 
   function setMessage(message, isError = false) {
+    renderedSignature = '';
     shoppingBody.innerHTML = '';
     const empty = document.createElement('div');
     empty.className = `shopping-message${isError ? ' error' : ''}`;
@@ -213,6 +229,7 @@
           const boughtNow = checkbox.checked;
           const version = (stateVersions.get(key) || 0) + 1;
           stateVersions.set(key, version);
+          lastLoadedAt = 0;
           pendingStates.set(key, boughtNow);
 
           item.bought = boughtNow;
@@ -283,10 +300,11 @@
 
     // A warm-up may still be in flight when the tab opens. Cached rows above
     // must remain visible and interactive while the same request completes.
-    if (loading) return;
+    if (loading || (cachedItems && Date.now() - lastLoadedAt < 60000)) return;
     loading = true;
     try {
       const data = await postShopping('shoppingList');
+      lastLoadedAt = Date.now();
       cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
       writeCache(cachedItems);
       if (shoppingView.classList.contains('active')) render(cachedItems);

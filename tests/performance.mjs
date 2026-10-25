@@ -27,7 +27,7 @@ for(const family of ['shopping','visit'])await check(`${family}: cached rows ren
  releaseRead();await turn();
  const mounted=w.document.querySelector('input[type="checkbox"]');w.document.querySelector('.tab').click();
  assert.equal(w.document.querySelector('input[type="checkbox"]'),mounted,'unchanged tab revisit must not rebuild the list');
- assert.equal(calls.filter(a=>a.endsWith('List')).length,2);
+ assert.equal(calls.filter(a=>a.endsWith('List')).length,1,'fresh list should not refetch on tab revisit');
  // Complete the final background read so test cleanup never leaves work hanging.
  releaseRead();await turn();
 });

@@ -103,6 +103,7 @@
     if (store === 'Watsons Terminal 21') return 'Watsons Terminal 21';
     if (lower.includes('bts asok')) return 'BTS Asok Station ticket office';
     if (lower.includes('enso')) return 'ENSO official LINE shop';
+    if (store === 'Pharmanet Items') return 'Pharmanet Items';
     if (
       lower.includes('pharmacy') ||
       lower.includes('pharmanet') ||
@@ -125,6 +126,8 @@
     ];
 
     return [...groups.keys()].sort((a, b) => {
+      if (a === 'Pharmanet Items') return 1;
+      if (b === 'Pharmanet Items') return -1;
       const ai = preferred.indexOf(a);
       const bi = preferred.indexOf(b);
       if (ai === -1 && bi === -1) return a.localeCompare(b);

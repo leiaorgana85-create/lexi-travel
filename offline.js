@@ -8,6 +8,7 @@
   const checkActions=new Set(['shoppingsetbought','visitsetvisited']);
   let flight=null, badge=null, revision=0;
   const readFlights=new Map();
+  const checkWrites=new Map();
   async function boundedFetch(input,init={},action=''){
     const list=action==='shoppinglist'||action==='visitlist';
     const controller=typeof AbortController==='function'?new AbortController():null;
@@ -19,10 +20,10 @@
     try{return await Promise.race([
       (async()=>{
         const result=await nativeFetch(input,controller?{...init,signal:controller.signal}:init);
-        if(!list)return result;
-        // Keep deadline and coalescing active through the complete body.
+        // Keep every API deadline active through the complete response body,
+        // including Calendar/Notes reads, capabilities, and writes.
         const text=await result.text();
-        return new Response(text,{status:result.status,statusText:result.statusText,headers:{'Content-Type':'application/json'}});
+        return new Response([204,205,304].includes(result.status)?null:text,{status:result.status,statusText:result.statusText,headers:{'Content-Type':result.headers?.get?.('Content-Type')||'application/json'}});
       })(),
       new Promise((_,reject)=>{timer=setTimeout(()=>{reject(new Error('Connection timed out; saved changes will retry'));abort()},timeout)})
     ])}finally{clearTimeout(timer);init.signal?.removeEventListener?.('abort',abort)}
@@ -65,6 +66,34 @@
     for(const [id,entry] of Object.entries(all))if(id.startsWith(record.account+':')&&id.endsWith(':'+(shopping?'shoppinglist':'visitlist'))){for(const item of entry.data.items||[])if(String(item[name])===record.fields[name])item[field]=record.fields[field]==='true'}
     write(READS,all);delete queue[queuedId(p)];write(QUEUE,queue);updateStatus();
   }
+  function sendCheck(p,record,input,init){
+    // Direct edits and background retries must use the same per-row lane.
+    // Persisting a newer choice does not let its network write overtake an old one.
+    const lane=record.account+':'+queuedId(p);
+    const previous=checkWrites.get(lane)||Promise.resolve();
+    const next=previous.catch(()=>{}).then(async()=>{
+      if(read(QUEUE)[queuedId(p)]?.token!==record.token)return json({ok:true,superseded:true});
+      if(navigator.onLine===false)return json({ok:true,queued:true});
+      try{
+        const response=await boundedFetch(input,init);
+        if(response.ok){
+          const data=await response.clone().json();
+          if(data.ok){acknowledge(p,record);return response}
+          if(data.error){
+            const queue=read(QUEUE);
+            if(queue[queuedId(p)]?.token===record.token){delete queue[queuedId(p)];write(QUEUE,queue)}
+            updateStatus();return response;
+          }
+        }
+        if(response.status>=400&&response.status<500)return response;
+      }catch(_){/* The durable choice remains available for the next retry. */}
+      updateStatus();return json({ok:true,queued:true});
+    });
+    checkWrites.set(lane,next);
+    const cleanup=()=>{if(checkWrites.get(lane)===next)checkWrites.delete(lane)};
+    next.then(cleanup,cleanup);
+    return next;
+  }
   window.fetch=async function travelOfflineFetch(input,init={}){
     const raw=typeof input==='string'?input:input instanceof URL?input.href:input?.url;let url;
     try{url=new URL(raw,location.href)}catch(_){return nativeFetch(input,init)}
@@ -89,12 +118,7 @@
       // Persist before network access; completion only clears its own version.
       const record=queueCheck(p);
       if(navigator.onLine===false)return json({ok:true,queued:true});
-      try{
-        const response=await boundedFetch(input,init);
-        if(response.ok){const data=await response.clone().json();if(data.ok){acknowledge(p,record);return response}if(data.error){const queue=read(QUEUE);if(queue[queuedId(p)]?.token===record.token){delete queue[queuedId(p)];write(QUEUE,queue)}updateStatus();return response}}
-        if(response.status>=400&&response.status<500)return response;
-      }catch(_){/* Saved queue retries on reconnect. */}
-      updateStatus();return json({ok:true,queued:true});
+      return sendCheck(p,record,input,init);
     }
     if(navigator.onLine===false)throw new Error('Offline · changes saved on this device will retry online');
     return boundedFetch(input,init);
@@ -107,7 +131,7 @@
         if(entry.account!==fingerprint(key))continue;
         if(read(QUEUE)[id]?.token!==entry.token)continue;
         const p=new URLSearchParams({key,...entry.fields});
-        try{const response=await boundedFetch(API,{method:'POST',body:p,cache:'no-store',redirect:'follow'});const data=await response.json();if(response.ok&&data.ok)acknowledge(p,entry);else break}catch(_){break}
+        try{const response=await sendCheck(p,entry,API,{method:'POST',body:p,cache:'no-store',redirect:'follow'});const data=await response.json();if(!response.ok||!data.ok||data.queued)break}catch(_){break}
       }
     })().finally(()=>{flight=null;updateStatus()});return flight;
   }

@@ -20,7 +20,7 @@ function post(c,action,fields={}){return c.fetch(API,{method:'POST',body:new URL
  failure=false;await c.lexiTravelRetryOfflineChecks();assert.equal(Object.keys(JSON.parse(memory.get('lexiTravelOfflineChecksV1'))).length,0);
  c.navigator.onLine=false;assert.equal((await post(c,'shoppingList')).items[0].bought,true);
  // Newer same-row edits survive an in-flight acknowledgement.
- await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'false'});c.navigator.onLine=true;holdWrite=new Promise(r=>resolveWrite=r);const retry=c.lexiTravelRetryOfflineChecks();await Promise.resolve();c.navigator.onLine=false;await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'true'});holdWrite=null;resolveWrite();await retry;assert.equal(Object.values(JSON.parse(memory.get('lexiTravelOfflineChecksV1')))[0].fields.bought,'true');
+ await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'false'});c.navigator.onLine=true;holdWrite=new Promise(r=>resolveWrite=r);const retry=c.lexiTravelRetryOfflineChecks();await new Promise(resolve=>setImmediate(resolve));c.navigator.onLine=false;await post(c,'shoppingSetBought',{product:'Synthetic product',bought:'true'});holdWrite=null;resolveWrite();await retry;assert.equal(Object.values(JSON.parse(memory.get('lexiTravelOfflineChecksV1')))[0].fields.bought,'true');
  // A read started before a confirmed toggle cannot overwrite the durable snapshot.
  await c.lexiTravelRetryOfflineChecks();
  holdRead=new Promise(r=>releaseRead=r);const stale=c.fetch(API+'?key=synthetic&action=shoppingList');await Promise.resolve();
@@ -29,9 +29,9 @@ function post(c,action,fields={}){return c.fetch(API,{method:'POST',body:new URL
  // Reconnect fans out to every owning queue without another tap or tab visit.
  const retried=[];for(const name of ['lexiTravelRetryPendingDeletes','lexiCalendarRetryPendingWrites','lexiNotesRetryPendingWrites','lexiPlanRetryPendingWrites'])c[name]=()=>retried.push(name);
  const online=env();online.c.navigator.onLine=true;for(const name of ['lexiTravelRetryPendingDeletes','lexiCalendarRetryPendingWrites','lexiNotesRetryPendingWrites','lexiPlanRetryPendingWrites'])online.c[name]=()=>retried.push(name);
- online.listeners.online();assert.equal(new Set(retried).size,4);
+ online.listeners.online();assert.equal(new Set(retried).size,4);await online.c.lexiTravelRetryOfflineChecks();
  // Other apps and third-party links do not receive API snapshots.
  c.navigator.onLine=true;const count=requests.length;await c.fetch('https://example.test/lexi-notes/');assert.equal(requests.length,count+1);
  console.log('PASS: offline data/notes, Shopping + Visit durable edits, restart recovery, failed retry retention, reconnect sync, newer-edit race, app isolation');
- const sw=fs.readFileSync(root+'/sw.js','utf8');const shell=JSON.parse(sw.match(/const SHELL=(.*);/)[1]);for(const asset of shell){if(asset==='./')continue;assert(fs.existsSync(root+'/'+asset.replace(/^\.\//,'').split('?')[0]),asset)}assert(shell.includes('offline.js?v=4'));assert(!shell.some(x=>x.includes('notes-app/')));console.log('PASS: all service-worker shell assets exist; legacy Notes excluded');
+ const sw=fs.readFileSync(root+'/sw.js','utf8');const shell=JSON.parse(sw.match(/const SHELL=(.*);/)[1]);for(const asset of shell){if(asset==='./')continue;assert(fs.existsSync(root+'/'+asset.replace(/^\.\//,'').split('?')[0]),asset)}assert(shell.includes('offline.js?v=5'));assert(!shell.some(x=>x.includes('notes-app/')));console.log('PASS: all service-worker shell assets exist; legacy Notes excluded');
 })().catch(e=>{console.error(e);process.exitCode=1});

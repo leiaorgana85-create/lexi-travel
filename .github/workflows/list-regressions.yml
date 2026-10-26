@@ -14,6 +14,7 @@ jobs:
         run: npm install --prefix "$RUNNER_TEMP/list-test-deps" --no-save --package-lock=false happy-dom@21.0.4
       - name: Check stalled responses and offline sync
         run: |
+          node tests/recovery-regressions.cjs
           node tests/list-timeouts.cjs
           node tests/offline.cjs
           node tests/sync-regressions.cjs

@@ -25,9 +25,16 @@ for(const family of ['shopping','visit'])await check(`${family}: cached rows ren
  checkbox.checked=true;checkbox.dispatchEvent(new w.Event('change'));assert(w.document.querySelector('.shopping-bought'));
  await turn();assert(releaseWrite);releaseWrite();await turn();
  releaseRead();await turn();
+ assert.equal(w.document.querySelector('input[type="checkbox"]'),checkbox,'a completed edit and older refresh must retain the tapped row');
+ assert.equal(checkbox.checked,true,'older refresh cannot undo a confirmed edit');
+ assert.equal(JSON.parse(w.localStorage.getItem(cache)).items[0][family==='shopping'?'bought':'visited'],true);
  const mounted=w.document.querySelector('input[type="checkbox"]');w.document.querySelector('.tab').click();
  assert.equal(w.document.querySelector('input[type="checkbox"]'),mounted,'unchanged tab revisit must not rebuild the list');
  assert.equal(calls.filter(a=>a.endsWith('List')).length,1,'fresh list should not refetch on tab revisit');
+ // After an unchanged fresh response, mounted handlers must still update the cache.
+ checkbox.checked=false;checkbox.dispatchEvent(new w.Event('change'));await turn();
+ assert.equal(JSON.parse(w.localStorage.getItem(cache)).items[0][family==='shopping'?'bought':'visited'],false);
+ releaseWrite();await turn();
  // Complete the final background read so test cleanup never leaves work hanging.
  releaseRead();await turn();
 });

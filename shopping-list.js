@@ -234,10 +234,10 @@
           const boughtNow = checkbox.checked;
           const version = (stateVersions.get(key) || 0) + 1;
           stateVersions.set(key, version);
-          lastLoadedAt = 0;
           pendingStates.set(key, boughtNow);
 
           item.bought = boughtNow;
+          renderedSignature = JSON.stringify(cachedItems);
           row.classList.toggle('shopping-bought', boughtNow);
           if (cachedItems) writeCache(cachedItems);
           shoppingStatus.textContent = 'Saving…';
@@ -262,6 +262,7 @@
                 ? confirmedStates.get(key)
                 : !boughtNow;
               item.bought = confirmed;
+              renderedSignature = JSON.stringify(cachedItems);
               checkbox.checked = confirmed;
               row.classList.toggle('shopping-bought', confirmed);
               if (cachedItems) writeCache(cachedItems);
@@ -309,10 +310,22 @@
       return;
     }
     loading = true;
+    const readVersions = new Map(stateVersions);
+    const pendingAtStart = new Set(pendingStates.keys());
     try {
       const data = await postShopping('shoppingList');
       lastLoadedAt = data.__lexiOffline ? 0 : Date.now();
-      cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
+      const nextItems = (Array.isArray(data.items) ? data.items : []).map(item => {
+        const key = itemKey(item);
+        // A read started before a local edit may finish after its write.
+        // Keep that choice even if it is no longer in pendingStates.
+        if ((pendingAtStart.has(key) || stateVersions.get(key) !== readVersions.get(key)) && confirmedStates.has(key)) {
+          item.bought = confirmedStates.get(key);
+        }
+        return applyPendingState(item);
+      });
+      // Unchanged rows retain the objects used by their event handlers.
+      if (JSON.stringify(nextItems) !== JSON.stringify(cachedItems)) cachedItems = nextItems;
       writeCache(cachedItems);
       if (shoppingView.classList.contains('active')) {
         render(cachedItems);
@@ -334,7 +347,6 @@
   }
 
   shoppingTab.addEventListener('click', () => {
-    lastLoadedAt = 0;
     void loadShopping({ showCached: true });
   });
 

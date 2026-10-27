@@ -273,10 +273,10 @@
           const visitedNow = checkbox.checked;
           const version = (stateVersions.get(key) || 0) + 1;
           stateVersions.set(key, version);
-          lastLoadedAt = 0;
           pendingStates.set(key, visitedNow);
 
           item.visited = visitedNow;
+          renderedSignature = JSON.stringify(cachedItems);
           row.classList.toggle('shopping-bought', visitedNow);
           if (cachedItems) writeCache(cachedItems);
           visitStatus.textContent = 'Saving…';
@@ -301,6 +301,7 @@
                 ? confirmedStates.get(key)
                 : !visitedNow;
               item.visited = confirmed;
+              renderedSignature = JSON.stringify(cachedItems);
               checkbox.checked = confirmed;
               row.classList.toggle('shopping-bought', confirmed);
               if (cachedItems) writeCache(cachedItems);
@@ -372,10 +373,22 @@
       return;
     }
     loading = true;
+    const readVersions = new Map(stateVersions);
+    const pendingAtStart = new Set(pendingStates.keys());
     try {
       const data = await postVisit('visitList');
       lastLoadedAt = data.__lexiOffline ? 0 : Date.now();
-      cachedItems = (Array.isArray(data.items) ? data.items : []).map(applyPendingState);
+      const nextItems = (Array.isArray(data.items) ? data.items : []).map(item => {
+        const key = itemKey(item);
+        // A read started before a local edit may finish after its write.
+        // Keep that choice even if it is no longer in pendingStates.
+        if ((pendingAtStart.has(key) || stateVersions.get(key) !== readVersions.get(key)) && confirmedStates.has(key)) {
+          item.visited = confirmedStates.get(key);
+        }
+        return applyPendingState(item);
+      });
+      // Unchanged rows retain the objects used by their event handlers.
+      if (JSON.stringify(nextItems) !== JSON.stringify(cachedItems)) cachedItems = nextItems;
       writeCache(cachedItems);
       if (visitView.classList.contains('active')) {
         render(cachedItems);

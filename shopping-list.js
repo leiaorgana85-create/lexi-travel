@@ -99,6 +99,7 @@
     const lower = store.toLowerCase();
 
     if (category === 'phone / sim') return 'Phone / eSIM';
+    if (store === 'Grocery Store') return 'Grocery Store';
     if (store === 'Big C' || lower.startsWith('big c /')) return 'Big C';
     if (store === 'Watsons Terminal 21') return 'Watsons Terminal 21';
     if (lower.includes('bts asok')) return 'BTS Asok Station ticket office';
@@ -117,6 +118,7 @@
 
   function preferredSections(groups) {
     const preferred = [
+      'Grocery Store',
       'Big C',
       'Pharmacy',
       'Watsons Terminal 21',
@@ -332,6 +334,7 @@
   }
 
   shoppingTab.addEventListener('click', () => {
+    lastLoadedAt = 0;
     void loadShopping({ showCached: true });
   });
 

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-build="2026-10-27.list-lag-1" data-app-version="v1.00">
+<html lang="en" data-build="2026-10-28.backend-auth-1" data-app-version="v1.01">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -234,12 +234,13 @@
         <button id="saveKeyBtn" class="primary-btn" type="button">Save & test</button>
         <div id="connectionResult" class="connection-result" aria-live="polite"></div>
       </section>
-      <small id="appVersion" data-version="v1.00" style="display:block;font-size:10px;line-height:1.5;font-weight:400;color:var(--muted,#888);text-align:right;margin:10px 0 0">v1.00</small>
+      <small id="appVersion" data-version="v1.01" style="display:block;font-size:10px;line-height:1.5;font-weight:400;color:var(--muted,#888);text-align:right;margin:10px 0 0">v1.01</small>
     </form>
   </dialog>
 
   <script src="tab-gesture-guard.js?v=3"></script>
   <script src="travel-api-transport.js?v=4"></script>
+  <script src="backend-auth-recovery.js?v=1" data-backend-url="https://script.google.com/macros/s/AKfycbxeJRgEegJlc7kmtstRJtF0X-b4-0QBk-9dqBpCooDOs4NfPomi4_Kptb0CDSIAqqDw/exec" data-insert-after="connectionResult" data-retry-button="saveKeyBtn" data-app-label="Lexi Travel"></script>
   <script src="app.js?v=6"></script>
   <script src="today-button.js?v=1"></script>
   <script src="country-fast.js?v=2"></script>

@@ -12,6 +12,10 @@ jobs:
           node-version: '22'
       - name: Check visible app version
         run: node scripts/check-version.cjs
+      - name: Check backend authorization recovery
+        run: |
+          node --check backend-auth-recovery.js
+          node tests/backend-auth-recovery.cjs
       - name: Install isolated DOM test dependency
         run: npm install --prefix "$RUNNER_TEMP/list-test-deps" --no-save --package-lock=false happy-dom@21.0.4
       - name: Check stalled responses and offline sync

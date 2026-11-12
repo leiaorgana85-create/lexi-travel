@@ -42,5 +42,30 @@ function storage(seed={}){let m=new Map(Object.entries(seed));return {getItem:k=
  }
  // Date validation accepts real leap dates and rejects impossible dates.
  const p={};vm.createContext(p);vm.runInContext(src('apps-script-plan-sync.gs'),p);assert.equal(p.planNormalizeDueDate_('2026-02-31'),'');assert.equal(p.planNormalizeDueDate_('2028-02-29'),'2028-02-29');assert.equal(p.planNormalizeDueDate_('2026-02-29'),'');out.push({test:'backend-rejects-impossible-date-string',passed:true,accepted:p.planNormalizeDueDate_('2026-02-31')});
+ // Calendar event saves must use real Sheets dates, not invisible text dates.
+ const eventCells = { value: null, appended: 0 };
+ const eventSheet = {
+  getLastRow:()=>eventCells.value?2:1,
+  getLastColumn:()=>8,
+  appendRow:value=>{eventCells.value=value;eventCells.appended++;},
+  getRange:()=>({
+   getDisplayValues:()=>[[eventCells.value?.[0]||'']],
+   setValues:rows=>{eventCells.value=rows[0];},
+   setNumberFormat:()=>{},
+   sort:()=>{}
+  })
+ };
+ const eventCtx={SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>eventSheet}),flush:()=>{}}};
+ vm.createContext(eventCtx);
+ vm.runInContext(src('apps-script-calendar-sync.gs'),eventCtx);
+ const fixture={id:'event-date-regression',date:'2026-11-17',title:'Pest control',category:'Appointment'};
+ assert.equal(eventCtx.eventUpsert_(fixture).ok,true);
+ assert.equal(eventCells.value[1].toISOString(),'2026-11-17T00:00:00.000Z');
+ assert.equal(eventCells.appended,1);
+ assert.equal(eventCtx.eventUpsert_({...fixture,title:'Updated'}).ok,true);
+ assert.equal(eventCells.value[1].toISOString(),'2026-11-17T00:00:00.000Z');
+ assert.equal(eventCells.appended,1);
+ assert.equal(eventCtx.eventUpsert_({...fixture,date:'2026-02-30'}).ok,false);
+ out.push({test:'event-upsert-persists-native-date-and-rejects-invalid-date',passed:true});
  console.log(JSON.stringify({passed:out.length,cases:out},null,2));
 })().catch(e=>{console.error(e);process.exit(1)});

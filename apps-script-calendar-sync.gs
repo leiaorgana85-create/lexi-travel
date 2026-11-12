@@ -120,7 +120,7 @@ function eventUpsert_(p) {
   const row = eventFindRow_(sheet, id);
   const values = [
     id,
-    date,
+    parsedDate,
     title,
     time,
     category,
@@ -134,6 +134,7 @@ function eventUpsert_(p) {
   } else {
     sheet.appendRow(values);
   }
+  sheet.getRange(row || sheet.getLastRow(), 2).setNumberFormat('yyyy-mm-dd');
 
   SpreadsheetApp.flush();
   sortEventsByDate_();

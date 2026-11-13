@@ -77,15 +77,15 @@ function doPost(e) {
     }
 
     if (action === 'shoppingsetbought') {
-      return json_(noteWriteLock_(() => shoppingSetBought_(e.parameter || {})));
+      return json_(shoppingSetBought_(e.parameter || {}));
     }
 
     if (action === 'shoppingupsert') {
-      return json_(noteWriteLock_(() => shoppingUpsert_(e.parameter || {})));
+      return json_(shoppingUpsert_(e.parameter || {}));
     }
 
     if (action === 'shoppingdelete') {
-      return json_(noteWriteLock_(() => shoppingDelete_(e.parameter || {})));
+      return json_(shoppingDelete_(e.parameter || {}));
     }
 
     if (action === 'visitcapabilities') {
@@ -408,87 +408,93 @@ function shoppingList_() {
 }
 
 function shoppingSetBought_(p) {
-  const product = String(p.product || '').trim();
-  if (!product) return { ok: false, error: 'Missing product' };
+  return noteWriteLock_(function () {
+    const product = String(p.product || '').trim();
+    if (!product) return { ok: false, error: 'Missing product' };
 
-  const sheet = shoppingSheet_();
-  const columns = shoppingColumns_(sheet);
-  const targetRow = shoppingFindRowByProduct_(sheet, columns, product);
+    const sheet = shoppingSheet_();
+    const columns = shoppingColumns_(sheet);
+    const targetRow = shoppingFindRowByProduct_(sheet, columns, product);
 
-  if (!targetRow) return { ok: false, error: 'Shopping item not found' };
+    if (!targetRow) return { ok: false, error: 'Shopping item not found' };
 
-  const bought = noteBool_(p.bought);
-  sheet.getRange(targetRow, columns.bought).setValue(bought);
-  SpreadsheetApp.flush();
+    const bought = noteBool_(p.bought);
+    sheet.getRange(targetRow, columns.bought).setValue(bought);
+    SpreadsheetApp.flush();
 
-  return { ok: true, product: product, bought: bought };
+    return { ok: true, product: product, bought: bought };
+  });
 }
 
 function shoppingUpsert_(p) {
-  const originalProduct = String(p.originalProduct || '').trim();
-  const product = String(p.product || '').trim();
+  return noteWriteLock_(function () {
+    const originalProduct = String(p.originalProduct || '').trim();
+    const product = String(p.product || '').trim();
 
-  if (!product) return { ok: false, error: 'Product is required' };
+    if (!product) return { ok: false, error: 'Product is required' };
 
-  const sheet = shoppingSheet_();
-  const columns = shoppingColumns_(sheet);
-  const width = sheet.getLastColumn();
+    const sheet = shoppingSheet_();
+    const columns = shoppingColumns_(sheet);
+    const width = sheet.getLastColumn();
 
-  let targetRow = 0;
-  if (originalProduct) {
-    targetRow = shoppingFindRowByProduct_(sheet, columns, originalProduct);
-    if (!targetRow) return { ok: false, error: 'Shopping item no longer exists' };
-  }
+    let targetRow = 0;
+    if (originalProduct) {
+      targetRow = shoppingFindRowByProduct_(sheet, columns, originalProduct);
+      if (!targetRow) return { ok: false, error: 'Shopping item no longer exists' };
+    }
 
-  const duplicateRow = shoppingFindRowByProduct_(sheet, columns, product);
-  if (duplicateRow && duplicateRow !== targetRow) {
-    return { ok: false, error: 'A shopping item with that Product already exists' };
-  }
+    const duplicateRow = shoppingFindRowByProduct_(sheet, columns, product);
+    if (duplicateRow && duplicateRow !== targetRow) {
+      return { ok: false, error: 'A shopping item with that Product already exists' };
+    }
 
-  let values;
-  if (targetRow) {
-    values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
-  } else {
-    targetRow = shoppingFirstBlankProductRow_(sheet, columns);
-    values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
-    values[columns.bought - 1] = false;
-  }
+    let values;
+    if (targetRow) {
+      values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
+    } else {
+      targetRow = shoppingFirstBlankProductRow_(sheet, columns);
+      values = sheet.getRange(targetRow, 1, 1, width).getValues()[0];
+      values[columns.bought - 1] = false;
+    }
 
-  if (columns.store) values[columns.store - 1] = String(p.store || '').trim();
-  if (columns.category) values[columns.category - 1] = String(p.category || '').trim();
-  values[columns.product - 1] = product;
-  if (columns.thaiProductName) values[columns.thaiProductName - 1] = String(p.thaiProductName || '').trim();
-  if (columns.note) values[columns.note - 1] = String(p.note || '').trim();
-  if (columns.price) values[columns.price - 1] = String(p.price || '').trim();
-  if (columns.source) values[columns.source - 1] = String(p.source || '').trim();
-  if (Object.prototype.hasOwnProperty.call(p, 'bought')) {
-    values[columns.bought - 1] = noteBool_(p.bought);
-  }
+    if (columns.store) values[columns.store - 1] = String(p.store || '').trim();
+    if (columns.category) values[columns.category - 1] = String(p.category || '').trim();
+    values[columns.product - 1] = product;
+    if (columns.thaiProductName) values[columns.thaiProductName - 1] = String(p.thaiProductName || '').trim();
+    if (columns.note) values[columns.note - 1] = String(p.note || '').trim();
+    if (columns.price) values[columns.price - 1] = String(p.price || '').trim();
+    if (columns.source) values[columns.source - 1] = String(p.source || '').trim();
+    if (Object.prototype.hasOwnProperty.call(p, 'bought')) {
+      values[columns.bought - 1] = noteBool_(p.bought);
+    }
 
-  sheet.getRange(targetRow, 1, 1, width).setValues([values]);
-  SpreadsheetApp.flush();
+    sheet.getRange(targetRow, 1, 1, width).setValues([values]);
+    SpreadsheetApp.flush();
 
-  return {
-    ok: true,
-    created: !originalProduct,
-    originalProduct: originalProduct,
-    product: product
-  };
+    return {
+      ok: true,
+      created: !originalProduct,
+      originalProduct: originalProduct,
+      product: product
+    };
+  });
 }
 
 function shoppingDelete_(p) {
-  const product = String(p.product || '').trim();
-  if (!product) return { ok: false, error: 'Missing product' };
+  return noteWriteLock_(function () {
+    const product = String(p.product || '').trim();
+    if (!product) return { ok: false, error: 'Missing product' };
 
-  const sheet = shoppingSheet_();
-  const columns = shoppingColumns_(sheet);
-  const targetRow = shoppingFindRowByProduct_(sheet, columns, product);
+    const sheet = shoppingSheet_();
+    const columns = shoppingColumns_(sheet);
+    const targetRow = shoppingFindRowByProduct_(sheet, columns, product);
 
-  if (!targetRow) return { ok: true, product: product, alreadyMissing: true };
+    if (!targetRow) return { ok: true, product: product, alreadyMissing: true };
 
-  sheet.deleteRow(targetRow);
-  SpreadsheetApp.flush();
-  return { ok: true, product: product, deleted: true };
+    sheet.deleteRow(targetRow);
+    SpreadsheetApp.flush();
+    return { ok: true, product: product, deleted: true };
+  });
 }
 
 const CALENDAR_VIEW_APPOINTMENT_FORM_ = {

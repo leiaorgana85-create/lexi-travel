@@ -574,11 +574,23 @@ if (localStorage.getItem(KEY_STORAGE)) {
     noteBody.append(paragraph);
   }
 
+  // The Thyroid Labs read-only note displays lab history only.
+  // Keep the source projection unchanged and omit its medication block in the view.
+  function noteDisplayBlocks(note, blocks) {
+    if (String(note?.ID || '') !== 'thyroid-labs' ||
+        !/\bread[- ]?only\b/i.test(String(note?.Category || ''))) return blocks;
+    return blocks.filter(block => !(
+      block?.type === 'schedule' &&
+      String(block.heading || '').trim().toLowerCase() === 'medication timeline'
+    ));
+  }
+
   function renderBody(note) {
     noteBody.innerHTML = '';
     const model = parseBody(note.Body);
+    const blocks = noteDisplayBlocks(note, model.blocks);
 
-    if (!model.blocks.length) {
+    if (!blocks.length) {
       const empty = document.createElement('div');
       empty.className = 'note-empty';
       empty.textContent = 'This note is empty.';
@@ -586,7 +598,7 @@ if (localStorage.getItem(KEY_STORAGE)) {
       return;
     }
 
-    model.blocks.forEach((block, index) => {
+    blocks.forEach((block, index) => {
       if (block.type === 'schedule') renderScheduleBlock(block, index);
       else renderParagraphBlock(block, index);
     });

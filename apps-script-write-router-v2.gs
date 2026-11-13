@@ -77,15 +77,15 @@ function doPost(e) {
     }
 
     if (action === 'shoppingsetbought') {
-      return json_(shoppingSetBought_(e.parameter || {}));
+      return json_(noteWriteLock_(() => shoppingSetBought_(e.parameter || {})));
     }
 
     if (action === 'shoppingupsert') {
-      return json_(shoppingUpsert_(e.parameter || {}));
+      return json_(noteWriteLock_(() => shoppingUpsert_(e.parameter || {})));
     }
 
     if (action === 'shoppingdelete') {
-      return json_(shoppingDelete_(e.parameter || {}));
+      return json_(noteWriteLock_(() => shoppingDelete_(e.parameter || {})));
     }
 
     if (action === 'visitcapabilities') {

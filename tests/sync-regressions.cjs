@@ -21,6 +21,19 @@ function storage(seed={}){let m=new Map(Object.entries(seed));return {getItem:k=
  vm.createContext(noteCtx);vm.runInContext(func('notes-ui.js','mergeLocalState'),noteCtx);noteCtx.mergeLocalState(3);assert(noteCtx.appData.notes[0].Title==='New from Sheet');out.push({test:'synced-note-draft-yields-to-sheet',passed:true,renderedTitle:noteCtx.appData.notes[0].Title});
  // A read begun before a save acknowledgement cannot erase that saved edit.
  noteCtx.appData.notes=[{ID:'note1',Title:'Stale server snapshot',Body:'Old'}];noteCtx.mergeLocalState(1);assert.equal(noteCtx.appData.notes[0].Title,'Old local title');out.push({test:'pre-acknowledgement-read-keeps-local-edit',passed:true});
+ // Display-only thyroid projection: medication sections omitted only from the read-only Thyroid Labs note.
+ const thyroidCtx={};
+ vm.createContext(thyroidCtx);
+ vm.runInContext(func('app.js','noteDisplayBlocks'),thyroidCtx);
+ const labs={type:'schedule',heading:'Thyroid hormone history',columns:['Date','TSH'],rows:[['sample-date','sample-value']]};
+ const meds={type:'schedule',heading:'Medication Timeline',columns:['Date','Details'],rows:[['sample-date','sample-medication']]};
+ const readOnly={ID:'thyroid-labs',Category:'read-only'};
+ const project=blocks=>JSON.parse(JSON.stringify(blocks));
+ assert.deepEqual(project(thyroidCtx.noteDisplayBlocks(readOnly,[labs,meds])),[labs]);
+ assert.deepEqual(project(thyroidCtx.noteDisplayBlocks({ID:'another-note',Category:'read-only'},[labs,meds])),[labs,meds]);
+ assert.deepEqual(project(thyroidCtx.noteDisplayBlocks({ID:'thyroid-labs',Category:'Regular'},[labs,meds])),[labs,meds]);
+ assert(src('app.js').includes('const blocks = noteDisplayBlocks(note, model.blocks);'));
+ out.push({test:'thyroid-labs-note-excludes-medication-table-only',passed:true});
  // Startup must not renew projected-cache freshness.
  assert(!src('theme.js').includes('preserveProjectedNotesForImmediateDisplay'));
  const expiredStore=storage({projected:JSON.stringify({savedAt:Date.now()-8*86400000,notes:[{Category:'Read-only'}]})});

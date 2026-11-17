@@ -37,6 +37,20 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));const click=s=>{const e=win.docu
 await wait(600);assert.equal(errors.length,0,errors.join('\n'));assert.equal(win.document.querySelectorAll('.day-cell').length>=28,true);
 click('.tab[data-view="notesView"]');await wait(200);assert(win.document.querySelector('#notesList').textContent.includes('Derived reference'));click('.note-list-item[data-note-id="fixture-projection"]');await wait(100);assert.equal(win.document.querySelector('#noteEditBtn').hidden,true);assert.equal(win.document.querySelector('#noteDeleteBtn').hidden,true);assert.equal(win.document.querySelectorAll('#noteBody table').length,2);assert.equal(win.document.querySelector('#noteBody table tr').children.length,5);
 click('.note-list-item[data-note-id="fixture-note"]');await wait(40);assert.equal(win.document.querySelector('.lexi-note-heading')?.textContent,'Fixture heading');assert.equal(win.document.querySelectorAll('.lexi-note-marker').length,1);
+// Pin and unpin from the actual sidebar control; both changes must reach the backing store.
+const pinSelector='.note-list-item[data-note-id="fixture-note"] .note-list-pin';
+assert(win.document.querySelector(pinSelector),'Writable note needs a pin control');
+assert.equal(win.document.querySelector('.note-list-item[data-note-id="fixture-projection"] .note-list-pin'),null,'Read-only projected notes cannot be pinned');
+click(pinSelector);await wait(250);
+assert.equal(notes.find(n=>n.ID==='fixture-note').Pinned,true,'Pin must persist to the backing store');
+assert(win.document.querySelector('.note-list-item[data-note-id="fixture-note"]')?.classList.contains('pinned-note'),'Pinned note must show pin state');
+assert.equal(win.document.querySelector('.lexi-plain-editor'),null,'Pin must not accidentally open edit mode');
+click(pinSelector);await wait(250);
+assert.equal(notes.find(n=>n.ID==='fixture-note').Pinned,false,'Unpin must persist to the backing store');
+assert(!win.document.querySelector('.note-list-item[data-note-id="fixture-note"]')?.classList.contains('pinned-note'),'Unpinned note must clear pin state');
+assert(calls.filter(c=>c.action==='notepin').length>=2,'Pin must use the targeted notePin action');
+click('.tab[data-view="notesView"]');await wait(120);
+assert(!win.document.querySelector('.note-list-item[data-note-id="fixture-note"]')?.classList.contains('pinned-note'),'Unpinned state must survive reload');
 const task=win.document.querySelector('.lexi-check-input');assert(task);task.click();await wait(1800);
 assert(notes.find(n=>n.ID==='fixture-note').Body.includes('[x] Fixture task'));
 click('.note-list-item[data-note-id="fixture-projection"]');await wait(100);click('.note-list-item[data-note-id="fixture-note"]');await wait(100);

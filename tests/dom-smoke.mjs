@@ -9,20 +9,21 @@ const tokens=Object.getPrototypeOf(win.document.documentElement.classList);const
 
 const now=new Date(),m=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 const next=new Date(now.getFullYear(),now.getMonth()+1,1),nm=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
+const previous=new Date(now.getFullYear(),now.getMonth()-1,1),pm=`${previous.getFullYear()}-${String(previous.getMonth()+1).padStart(2,'0')}`;
 let events=[{ID:'event-old',Date:`${m}-24`,Title:'Ordinary fixture',Time:'9:00 AM',Category:'Appointment'},{ID:'evt_flight_fixture',Date:`${m}-24`,Title:'AAA→BBB',Time:'10:00 AM → 12:00 PM',Category:'Flight'}];
-let plan=[{ID:'todo1',Month:nm,Text:'Next month task','Due Date':`${nm}-10`,Completed:false}];
+let plan=[{ID:'todo1',Month:nm,Text:'Next month task','Due Date':`${nm}-10`,Completed:false},{ID:'overdue-dental',Month:pm,Text:'Dental Cleaning','Due Date':'',Completed:false},{ID:'done-last-month',Month:pm,Text:'Completed old task','Due Date':'',Completed:true}];
 let notes=[{ID:'fixture-note',Title:'Reference note',Category:'Checklist',Body:JSON.stringify({version:1,blocks:[{type:'paragraph',text:'## Fixture heading\n- Normal note body\n[ ] Fixture task'}]}),Archived:false},{ID:'fixture-projection',Title:'Derived reference',Category:'read-only',Body:JSON.stringify({version:1,blocks:[{type:'schedule',heading:'Source history',columns:['Date','A','B','C','D'],rows:[['1','2','3','4','5']]},{type:'schedule',heading:'Source timeline',columns:['Date','Detail'],rows:[['1','Example']]}]}),Archived:false}];
 win.localStorage.setItem('lexiTravelApiKey','fixture');
 win.fetch=async(input,init={})=>{const url=new URL(String(input));if(url.origin==='https://fixture.test')return new win.Response(fs.readFileSync(htmlRoot+'index.html','utf8'));
  const p=(init.method||'GET')==='POST'?new URLSearchParams(String(init.body)):url.searchParams;const a=(p.get('action')||'data').toLowerCase();calls.push({action:a,month:p.get('month'),includeNotes:p.get('includeNotes')});let data={ok:true};
  if(a==='data')data={ok:true,events:structuredClone(events),locations:[],countries:[{Country:'Example',Code:'EX','Calendar Year Limit':160,Enabled:true}],dayOverrides:[],notes:p.get('includeNotes')==='0'?[]:structuredClone(notes)};
  else if(a.endsWith('capabilities'))data={ok:true,eventWrite:true,planWrite:true,noteWrite:true,noteOrder:true};
- else if(a==='planlist')data={ok:true,items:plan.filter(x=>x.Month===p.get('month'))};
+ else if(a==='planlist')data={ok:true,items:plan.filter(x=>!p.get('month')||x.Month===p.get('month'))};
  else if(a==='shoppinglist')data={ok:true,items:[{product:'Item',store:'Store',bought:false}]};
  else if(a==='visitlist')data={ok:true,items:[{place:'Place',area:'Area',visited:false}]};
  else if(a==='eventupsert'){events=events.filter(x=>x.ID!==p.get('id'));events.push({ID:p.get('id'),Date:p.get('date'),Title:p.get('title'),Time:p.get('time'),Category:p.get('category')});}
  else if(a==='eventdelete')events=events.filter(x=>x.ID!==p.get('id'));
- else if(a==='planupsert'){plan=plan.filter(x=>x.ID!==p.get('id'));plan.push({ID:p.get('id'),Month:p.get('month'),Text:p.get('text'),'Due Date':p.get('dueDate')});}
+ else if(a==='planupsert'){plan=plan.filter(x=>x.ID!==p.get('id'));plan.push({ID:p.get('id'),Month:p.get('month'),Text:p.get('text'),'Due Date':p.get('dueDate'),Completed:p.get('completed')==='true'});}
  else if(a==='plandelete')plan=plan.filter(x=>x.ID!==p.get('id'));
  else if(a==='noteupsert'){notes=notes.filter(x=>x.ID!==p.get('id'));notes.push({ID:p.get('id'),Title:p.get('title'),Body:p.get('body'),Pinned:p.get('pinned')==='true',Archived:false});}
  else if(a==='notepin'){notes=notes.map(x=>x.ID===p.get('id')?{...x,Pinned:p.get('pinned')==='true'}:x);}
@@ -55,5 +56,18 @@ if (win.lexiRefreshCompactSelect && htmlRoot === root) {
  form.querySelector('[name="title"]').value='Dropdown save fixture';form.dispatchEvent(new win.Event('submit',{bubbles:true,cancelable:true}));await wait(100);
  assert(events.some(e=>e.Title==='Dropdown save fixture'&&e.Category==='Event'));assert(calls.some(c=>c.action==='eventupsert'));
 }
-click('.tab[data-view="countryView"]');await wait(100);assert(win.document.querySelector('#countryList').textContent.includes('Example'));assert.equal(errors.length,0,errors.join('\n'));
+click('.tab[data-view="countryView"]');await wait(150);
+assert(win.document.querySelector('#countryList').textContent.includes('Example'));
+assert(calls.some(c=>c.action==='planlist'&&c.month===null),'Unfiltered Plan request must load prior months');
+const rows=[...win.document.querySelectorAll('#planChecklist .plan-check-row')];
+const dental=rows.find(row=>row.textContent.includes('Dental Cleaning'));
+assert(dental,'Open task from previous month must be shown in current Plan');
+assert(!rows.some(row=>row.textContent.includes('Completed old task')),'Completed previous-month task must stay hidden');
+assert(dental.textContent.includes(previous.toLocaleDateString('en-US',{month:'short',year:'numeric'})),'Undated carried task shows source month');
+dental.querySelector('input.plan-check').click();
+await wait(150);
+assert.equal(plan.find(item=>item.ID==='overdue-dental')?.Completed,true,'Completion saves against original record');
+assert.equal(plan.find(item=>item.ID==='overdue-dental')?.Month,pm,'Completion keeps original month');
+assert(![...win.document.querySelectorAll('#planChecklist .plan-check-row')].some(row=>row.textContent.includes('Dental Cleaning')),'Completed carried task disappears');
+assert.equal(errors.length,0,errors.join('\n'));
 console.log(JSON.stringify({fullDomSmoke:'passed',tabs:5,projectionTables:2,calendarMonthFetch:'passed',scriptCount:scripts.length,errors,calls:calls.length}));await win.happyDOM.close();

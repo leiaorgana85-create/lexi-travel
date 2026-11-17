@@ -30,6 +30,7 @@
   let editingMonth = '';
   const refreshPromises = new Map();
   const syncStateByMonth = new Map();
+  let carryOverPromise = null;
 
   function monthKey(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -360,6 +361,57 @@
     return promise;
   }
 
+
+  // The backend's planList with no month returns every active task. Keep older
+  // months under their original keys so completing or editing a carried task
+  // never creates a new item in the selected month.
+  function refreshCarryOverFromSheets() {
+    if (carryOverPromise) return carryOverPromise;
+    carryOverPromise = (async () => {
+      if (!localStorage.getItem(KEY_STORAGE) || !await ensureSyncCapability()) return false;
+      try {
+        const response = await postAction('planList');
+        const remoteByMonth = new Map();
+        for (const item of Array.isArray(response.items) ? response.items : []) {
+          const month = String(item?.Month || '').trim();
+          if (!/^\d{4}-\d{2}$/.test(month)) continue;
+          if (!remoteByMonth.has(month)) remoteByMonth.set(month, []);
+          remoteByMonth.get(month).push(remoteItemToLocal(item));
+        }
+
+        const stored = readAll();
+        const cutoff = monthKey(cursor);
+        const previousMonths = new Set([...Object.keys(stored), ...remoteByMonth.keys()]
+          .filter(month => /^\d{4}-\d{2}$/.test(month) && month < cutoff));
+        const deleted = readDeleted();
+
+        for (const month of previousMonths) {
+          const remote = remoteByMonth.get(month) || [];
+          const local = Array.isArray(stored[month]) ? stored[month] : [];
+          const byId = new Map(local.map(item => [String(item.id), item]));
+          const remoteIds = new Set(remote.map(item => String(item.id)));
+          const merged = remote
+            .map(item => byId.get(String(item.id))?._dirty ? byId.get(String(item.id)) : item)
+            .filter(item => !deleted[item.id]);
+
+          for (const item of local) {
+            const id = String(item.id || '');
+            if (id && item._dirty && !deleted[id] && !remoteIds.has(id)) merged.push(item);
+          }
+          stored[month] = merged;
+        }
+
+        writeAll(stored);
+        announceChange();
+        render();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    })().finally(() => { carryOverPromise = null; });
+    return carryOverPromise;
+  }
+
   let offlineRetryFlight = null;
   window.lexiPlanRetryPendingWrites = () => {
     if (offlineRetryFlight || navigator.onLine === false) return offlineRetryFlight || Promise.resolve();
@@ -380,20 +432,18 @@
     return refreshMonthFromSheets(key);
   };
 
-  function updateItem(id, patch) {
-    const month = monthKey(cursor);
-    const items = itemsForCurrentMonth().map(item =>
+  function updateItem(id, patch, month = monthKey(cursor)) {
+    const items = itemsForMonth(month).map(item =>
       String(item.id) === String(id) ? { ...item, ...patch, _dirty: true } : item
     );
-    writeCurrentMonth(items);
+    writeMonth(month, items);
     render();
     syncUpsert(month, id);
   }
 
-  function removeItem(id) {
-    const month = monthKey(cursor);
-    const items = itemsForCurrentMonth().filter(item => String(item.id) !== String(id));
-    writeCurrentMonth(items);
+  function removeItem(id, month = monthKey(cursor)) {
+    const items = itemsForMonth(month).filter(item => String(item.id) !== String(id));
+    writeMonth(month, items);
 
     const deleted = readDeleted();
     deleted[id] = month;
@@ -599,7 +649,15 @@
     const connected = Boolean(localStorage.getItem(KEY_STORAGE));
 
     monthLabel.textContent = monthTitle(cursor);
-    const items = sortedItems(itemsForCurrentMonth());
+    const deleted = readDeleted();
+    const carried = Object.entries(readAll())
+      .filter(([month]) => /^\d{4}-\d{2}$/.test(month) && month < currentMonth)
+      .flatMap(([month, monthItems]) => (Array.isArray(monthItems) ? monthItems : [])
+        .filter(item => !item.done && !deleted[item.id])
+        .map(item => ({ ...item, sourceMonth: month, carried: true })));
+    const current = sortedItems(itemsForCurrentMonth())
+      .map(item => ({ ...item, sourceMonth: currentMonth, carried: false }));
+    const items = [...sortedItems(carried), ...current];
     list.innerHTML = '';
 
     if (!items.length) {
@@ -634,16 +692,16 @@
       check.className = 'plan-check';
       check.checked = Boolean(item.done);
       check.setAttribute('aria-label', `Mark ${item.text || 'item'} complete`);
-      check.addEventListener('change', () => updateItem(item.id, { done: check.checked }));
+      check.addEventListener('change', () => updateItem(item.id, { done: check.checked }, item.sourceMonth));
 
       const main = document.createElement('div');
       main.className = 'plan-check-main';
 
       const dueDate = normalizeDueDate(item.dueDate);
-      if (dueDate) {
+      if (dueDate || item.carried) {
         const date = document.createElement('span');
         date.className = 'plan-check-date';
-        date.textContent = formatDueDate(dueDate);
+        date.textContent = dueDate ? formatDueDate(dueDate) : new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(dateFromMonthKey(item.sourceMonth));
         main.append(date);
       }
 
@@ -657,14 +715,14 @@
       edit.className = 'plan-edit-btn';
       edit.textContent = 'Edit';
       edit.setAttribute('aria-label', `Edit ${item.text || 'item'}`);
-      edit.addEventListener('click', () => openEdit(item));
+      edit.addEventListener('click', () => openEdit(item, item.sourceMonth));
 
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'plan-remove-btn';
       remove.textContent = '×';
       remove.setAttribute('aria-label', `Delete ${item.text || 'item'}`);
-      remove.addEventListener('click', () => removeItem(item.id));
+      remove.addEventListener('click', () => removeItem(item.id, item.sourceMonth));
 
       row.append(check, main, edit, remove);
       list.append(row);
@@ -685,9 +743,9 @@
     requestAnimationFrame(() => input.focus());
   }
 
-  function openEdit(item) {
+  function openEdit(item, month = monthKey(cursor)) {
     editingId = String(item?.id || '');
-    editingMonth = monthKey(cursor);
+    editingMonth = month;
     addRow.hidden = false;
     addBtn.hidden = true;
     input.value = String(item?.text || '');
@@ -731,6 +789,7 @@
     closeAdd();
     render();
     refreshMonthFromSheets(monthKey(cursor));
+    refreshCarryOverFromSheets();
   }
 
   prevBtn.addEventListener('click', () => moveMonth(-1));
@@ -752,15 +811,22 @@
   });
 
   planTab?.addEventListener('click', () => {
-    setTimeout(() => refreshMonthFromSheets(monthKey(cursor), true), 0);
+    setTimeout(() => {
+      refreshMonthFromSheets(monthKey(cursor), true);
+      refreshCarryOverFromSheets();
+    }, 0);
   });
 
   window.addEventListener('focus', () => {
     if (planView.classList.contains('active')) {
       refreshMonthFromSheets(monthKey(cursor));
+      refreshCarryOverFromSheets();
     }
   });
 
   render();
-  setTimeout(() => refreshMonthFromSheets(monthKey(cursor)), 0);
+  setTimeout(() => {
+    refreshMonthFromSheets(monthKey(cursor));
+    refreshCarryOverFromSheets();
+  }, 0);
 })();

@@ -272,13 +272,28 @@
     note.Pinned = nextPinned;
 
     const drafts = readDrafts();
+    const existing = drafts[id] || {};
     drafts[id] = {
-      ...(drafts[id] || {}),
+      ...existing,
       Pinned: nextPinned,
-      savedAt: Date.now()
+      savedAt: Math.max(Date.now(), Number(existing.savedAt || 0) + 1)
     };
     writeDrafts(drafts);
-    pendingSelectId = id;
+
+    // Reflect the tap immediately, even when the note editor is open.
+    const row = [...notesList.querySelectorAll('.note-list-item[data-note-id]')]
+      .find(button => button.dataset.noteId === id);
+    if (row) {
+      row.classList.toggle('pinned-note', nextPinned);
+      const pin = row.querySelector('.note-list-pin');
+      if (pin) {
+        pin.classList.toggle('active', nextPinned);
+        pin.setAttribute('aria-pressed', String(nextPinned));
+      }
+    }
+
+    // Synchronize only after the new pin state exists in the local draft.
+    document.dispatchEvent(new CustomEvent('lexi-note-pin-ready', { detail: { id } }));
     localRefresh();
   }
 
@@ -309,6 +324,7 @@
         pin = document.createElement('span');
         pin.className = 'note-list-pin';
         pin.setAttribute('role', 'button');
+        pin.setAttribute('tabindex', '0');
         pin.setAttribute('aria-label', 'Pin note');
         pin.title = 'Pin note';
         pin.textContent = '📌';
@@ -316,13 +332,9 @@
       }
 
       pin.classList.toggle('active', isTrue(note.Pinned));
+      pin.setAttribute('aria-pressed', String(isTrue(note.Pinned)));
       pin.setAttribute('aria-label', isTrue(note.Pinned) ? 'Unpin note' : 'Pin note');
       pin.title = isTrue(note.Pinned) ? 'Unpin note' : 'Pin note';
-      pin.onclick = event => {
-        event.preventDefault();
-        event.stopPropagation();
-        togglePin(id);
-      };
     });
 
     const selected = noteById(currentSelectedId());
@@ -342,6 +354,26 @@
       }
     }
   }
+
+  // Stable capture handler: a pin tap must not activate the parent note row.
+  // Delegation also survives sidebar rerenders and rapid tapping.
+  function handlePinAction(event) {
+    const pin = event.target instanceof Element
+      ? event.target.closest('.note-list-pin') : null;
+    if (!pin || !notesList.contains(pin)) return false;
+    const id = pin.closest('.note-list-item[data-note-id]')?.dataset.noteId || '';
+    if (!id) return false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    togglePin(id);
+    return true;
+  }
+
+  notesList.addEventListener('click', handlePinAction, true);
+  notesList.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    handlePinAction(event);
+  }, true);
 
   const observer = new MutationObserver(decorateList);
   observer.observe(notesList, { childList: true, subtree: true });

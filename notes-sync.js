@@ -199,7 +199,11 @@
       if (syncedVersion(effectiveNote(id)) > version) return;
       const latestDraft = readDrafts()[id];
       if (!latestDraft?._localNew && Number(latestDraft?._syncedAt || 0) >= version) return;
-      if (isLocallyDeleted(id) || !await ensureWriteCapability()) return;
+      if (isLocallyDeleted(id)) return;
+      if (!await ensureWriteCapability()) {
+        if (noteSaveStatus) noteSaveStatus.textContent = 'Pin saved on this device · Sheets sync unavailable';
+        return;
+      }
       try {
         await postWrite('notePin', {
           id,
@@ -215,6 +219,7 @@
           };
           writeDrafts(drafts);
         }
+        if (noteSaveStatus) noteSaveStatus.textContent = 'Pin synced to Google Sheets';
       } catch (error) {
         writeCapability = null;
         if (noteSaveStatus) noteSaveStatus.textContent = `Pin saved locally · sync failed: ${error.message}`;
@@ -285,16 +290,10 @@
 
   window.lexiNotesRetryPendingWrites = retryPendingWrites;
 
-  document.addEventListener('click', event => {
-    const target = event.target instanceof Element ? event.target : null;
-    if (!target) return;
-
-    const pin = target.closest('.note-list-pin');
-    if (pin) {
-      const id = pin.closest('.note-list-item')?.dataset.noteId || '';
-      if (!isReadOnlyId(id)) setTimeout(() => syncPin(id), 0);
-    }
-  }, true);
+  document.addEventListener('lexi-note-pin-ready', event => {
+    const id = String(event.detail?.id || '');
+    if (id) syncPin(id);
+  });
 
   document.addEventListener('lexi-note-delete-ready', event => {
     const id = String(event.detail?.id || '');

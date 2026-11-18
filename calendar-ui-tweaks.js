@@ -10,7 +10,7 @@
 
   if (!paneHead || !summary || !paneDetails || !title || !location || !addBtn || !syncStatus || !paneActions) return;
 
-  const CATEGORY_OPTIONS = ['Appointment', 'Event', 'Holiday', 'Time Off', 'To Do'];
+  const CATEGORY_OPTIONS = ['Appointment', 'Event', 'Holiday', 'Time Off'];
   const ICONS = {
     add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
     edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>',
@@ -96,14 +96,14 @@
   editBtn.type = 'button';
   editBtn.id = 'calendarEditEventBtn';
   editBtn.className = 'calendar-top-action-btn';
-  setIcon(editBtn, 'edit', 'Edit event or to-do');
+  setIcon(editBtn, 'edit', 'Edit event');
   editBtn.hidden = true;
 
   const deleteBtn = document.createElement('button');
   deleteBtn.type = 'button';
   deleteBtn.id = 'calendarDeleteEventBtn';
   deleteBtn.className = 'calendar-top-action-btn danger';
-  setIcon(deleteBtn, 'delete', 'Delete event or to-do');
+  setIcon(deleteBtn, 'delete', 'Delete event');
   deleteBtn.hidden = true;
 
   topActions.append(addBtn, editBtn, deleteBtn);
@@ -113,19 +113,10 @@
   let choosingAction = '';
 
   function editableRows() {
-    return [...paneDetails.querySelectorAll(
-      '.pane-event[data-event-id], .pane-plan-todo[data-plan-id]'
-    )];
+    return [...paneDetails.querySelectorAll('.pane-event[data-event-id]')];
   }
 
   function editRow(row) {
-    const planId = row?.dataset?.planId || '';
-    if (planId) {
-      const planEdit = row.querySelector('.pane-event-edit');
-      if (planEdit instanceof HTMLElement) planEdit.click();
-      return;
-    }
-
     const id = row?.dataset?.eventId || '';
     if (id && typeof window.lexiCalendarEditEvent === 'function') {
       window.lexiCalendarEditEvent(id);
@@ -133,17 +124,9 @@
   }
 
   function deleteRow(row) {
-    const planId = row?.dataset?.planId || '';
     const eventId = row?.dataset?.eventId || '';
-
-    if (planId) {
-      const planEdit = row.querySelector('.pane-event-edit');
-      if (planEdit instanceof HTMLElement) planEdit.click();
-    } else if (eventId && typeof window.lexiCalendarEditEvent === 'function') {
-      window.lexiCalendarEditEvent(eventId);
-    } else {
-      return;
-    }
+    if (!eventId || typeof window.lexiCalendarEditEvent !== 'function') return;
+    window.lexiCalendarEditEvent(eventId);
 
     requestAnimationFrame(() => {
       const editor = paneDetails.querySelector('.calendar-event-editor');
@@ -170,8 +153,8 @@
     });
     editBtn.classList.remove('active');
     deleteBtn.classList.remove('active');
-    setIcon(editBtn, 'edit', 'Edit event or to-do');
-    setIcon(deleteBtn, 'delete', 'Delete event or to-do');
+    setIcon(editBtn, 'edit', 'Edit event');
+    setIcon(deleteBtn, 'delete', 'Delete event');
   }
 
   function chooseAction(action) {
@@ -229,7 +212,7 @@
     if (!choosingAction) return;
 
     const target = event.target instanceof Element ? event.target : null;
-    const row = target?.closest('.pane-event[data-event-id], .pane-plan-todo[data-plan-id]');
+    const row = target?.closest('.pane-event[data-event-id]');
     if (!row) return;
 
     const action = choosingAction;

@@ -162,25 +162,6 @@
     return index >= 0 ? index : items.length;
   }
 
-  function publicItem(item, month) {
-    return {
-      id: String(item?.id || ''),
-      month: String(month || ''),
-      text: String(item?.text || ''),
-      dueDate: normalizeDueDate(item?.dueDate),
-      done: Boolean(item?.done)
-    };
-  }
-
-  window.lexiPlanItemsForDate = dateKey => {
-    const date = String(dateKey || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
-    const month = date.slice(0, 7);
-    return sortedItems(itemsForMonth(month))
-      .filter(item => normalizeDueDate(item.dueDate) === date)
-      .map(item => publicItem(item, month));
-  };
-
   async function postAction(action, fields = {}) {
     const key = localStorage.getItem(KEY_STORAGE);
     if (!key) throw new Error('Not connected');

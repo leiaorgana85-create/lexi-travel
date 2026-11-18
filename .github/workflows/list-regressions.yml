@@ -23,6 +23,7 @@ jobs:
           node tests/recovery-regressions.cjs
           node tests/list-timeouts.cjs
           node tests/offline.cjs
+          node tests/shell-upgrade.cjs
           node tests/sync-regressions.cjs
           node tests/calendar-delete-race.cjs
       - name: Check cold loads, reopen, resume, cache restoration

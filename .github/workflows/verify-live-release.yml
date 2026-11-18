@@ -1,0 +1,37 @@
+name: Verify live Travel release
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - sw.js
+      - version.json
+      - .github/workflows/verify-live-release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-byte-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source version consistency
+        run: node scripts/check-version.cjs
+      - name: Verify deployed HTML and worker exactly match source
+        shell: bash
+        run: |
+          for attempt in {1..24}; do
+            if node scripts/check-version.cjs --live; then
+              exit 0
+            fi
+            echo "Published files not yet byte-identical; retrying"
+            sleep 10
+          done
+          echo "ERROR: deployed Travel HTML or worker did not match source"
+          exit 1

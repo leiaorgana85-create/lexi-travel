@@ -11,7 +11,7 @@ function storage(seed={}){let m=new Map(Object.entries(seed));return {getItem:k=
  await Promise.all([allMonth.window.lexiPlanRetryPendingWrites(),allMonth.window.lexiPlanRetryPendingWrites()]);assert.deepEqual(allMonthCalls,['2030-01','2030-02','2030-04']);out.push({test:'reconnect-all-dirty-months-and-deletes-single-flight',passed:true});
  // An authoritative empty response removes clean cached records.
  let saved=[{id:'previously-synced',text:'Removed in Sheet',_dirty:false}],uploads=[];
- const planCtx={refreshPromises:new Map(),localStorage:storage({key:'fixture'}),KEY_STORAGE:'key',setSyncState:()=>{},ensureSyncCapability:async()=>true,postAction:async()=>({ok:true,items:[]}),itemsForMonth:()=>saved,remoteItemToLocal:x=>x,readDeleted:()=>({}),writeMonth:(m,x)=>saved=x,syncUpsert:async(m,id)=>{uploads.push(id);return true},syncDelete:async()=>true};
+ const planCtx={refreshPromises:new Map(),localStorage:storage({key:'fixture'}),KEY_STORAGE:'key',setSyncState:()=>{},ensureSyncCapability:async()=>true,postAction:async()=>({ok:true,items:[]}),itemsForMonth:()=>saved,remoteItemToLocal:x=>x,readDeleted:()=>({}),readConfirmedDeletes:()=>({}),writeMonth:(m,x)=>saved=x,syncUpsert:async(m,id)=>{uploads.push(id);return true},syncDelete:async()=>true};
  vm.createContext(planCtx);vm.runInContext(func('plan-ui.js','refreshMonthFromSheets'),planCtx);await planCtx.refreshMonthFromSheets('2026-10');
  assert.equal(uploads.length,0);assert.equal(saved.length,0);out.push({test:'plan-remote-removal-stays-removed',passed:true,remoteItems:0,localDirty:false,upserted:uploads});
  // Unsaved offline tasks must remain retryable.

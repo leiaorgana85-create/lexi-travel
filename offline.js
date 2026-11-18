@@ -153,6 +153,45 @@
     // notes-ui already warms the complete Notes snapshot. A second full data
     // request here competes with first-screen reads without adding coverage.
     document.querySelector('.topbar')?.after(badge);updateStatus();retry();
-    if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'}).catch(()=>{badge.textContent='Offline setup needs another online visit';badge.hidden=false});
+    if ('serviceWorker' in navigator) {
+      // A new service worker controls future requests, but an already-open
+      // page keeps running its old JS until navigation. Apply upgrades safely.
+      const hadController = Boolean(navigator.serviceWorker.controller);
+      let handledUpgrade = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || handledUpgrade) return;
+        handledUpgrade = true;
+        const active = document.activeElement;
+        const editing = Boolean(
+          active?.matches?.('input, textarea, select, [contenteditable="true"]') ||
+          document.querySelector('.calendar-event-editor, #planAddRow:not([hidden]), .lexi-plain-editor, [contenteditable="true"]')
+        );
+        if (!editing) {
+          window.location.reload();
+          return;
+        }
+        // Never discard an open editor just to upgrade the app shell.
+        if (document.getElementById('lexiTravelUpdateReady')) return;
+        const notice = document.createElement('div');
+        notice.id = 'lexiTravelUpdateReady';
+        notice.setAttribute('role', 'status');
+        notice.style.cssText = 'padding:6px 12px;font-size:12px;text-align:center';
+        notice.append(document.createTextNode('Update ready. Finish editing, then '));
+        const apply = document.createElement('button');
+        apply.type = 'button';
+        apply.textContent = 'Apply update';
+        apply.addEventListener('click', () => window.location.reload());
+        notice.append(apply);
+        const topbar = document.querySelector('.topbar');
+        if (topbar) topbar.after(notice);
+        else document.body?.prepend(notice);
+      });
+      navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
+        .then(registration => registration.update().catch(() => {}))
+        .catch(() => {
+          badge.textContent = 'Offline setup needs another online visit';
+          badge.hidden = false;
+        });
+    }
   });
 })();

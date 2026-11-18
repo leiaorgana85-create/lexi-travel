@@ -10,7 +10,7 @@ const tokens=Object.getPrototypeOf(win.document.documentElement.classList);const
 const now=new Date(),m=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 const next=new Date(now.getFullYear(),now.getMonth()+1,1),nm=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
 const previous=new Date(now.getFullYear(),now.getMonth()-1,1),pm=`${previous.getFullYear()}-${String(previous.getMonth()+1).padStart(2,'0')}`;
-let events=[{ID:'event-old',Date:`${m}-24`,Title:'Ordinary fixture',Time:'9:00 AM',Category:'Appointment'},{ID:'evt_flight_fixture',Date:`${m}-24`,Title:'AAA→BBB',Time:'10:00 AM → 12:00 PM',Category:'Flight'}];
+let events=[{ID:'event-old',Date:`${m}-24`,Title:'Ordinary fixture',Time:'9:00 AM',Category:'Appointment'},{ID:'evt_flight_fixture',Date:`${m}-24`,Title:'AAA→BBB',Time:'10:00 AM → 12:00 PM',Category:'Flight'},{ID:'legacy_todo_fixture',Date:`${m}-24`,Title:'Legacy Calendar To Do',Time:'',Category:'To Do'}];
 let plan=[{ID:'todo1',Month:nm,Text:'Next month task','Due Date':`${nm}-10`,Completed:false},{ID:'overdue-dental',Month:pm,Text:'Dental Cleaning','Due Date':'',Completed:false},{ID:'done-last-month',Month:pm,Text:'Completed old task','Due Date':'',Completed:true}];
 let notes=[{ID:'fixture-note',Title:'Reference note',Category:'Checklist',Body:JSON.stringify({version:1,blocks:[{type:'paragraph',text:'## Fixture heading\n- Normal note body\n[ ] Fixture task'}]}),Archived:false},{ID:'fixture-projection',Title:'Derived reference',Category:'read-only',Body:JSON.stringify({version:1,blocks:[{type:'schedule',heading:'Source history',columns:['Date','A','B','C','D'],rows:[['1','2','3','4','5']]},{type:'schedule',heading:'Source timeline',columns:['Date','Detail'],rows:[['1','Example']]}]}),Archived:false}];
 win.localStorage.setItem('lexiTravelApiKey','fixture');
@@ -57,7 +57,11 @@ click('.note-list-item[data-note-id="fixture-projection"]');await wait(100);clic
 assert.equal(win.document.querySelector('.lexi-check-input').checked,true);
 win.document.querySelector('.lexi-check-input').click();await wait(1800);assert(notes.find(n=>n.ID==='fixture-note').Body.includes('[ ] Fixture task'));
 click('#noteEditBtn');await wait(40);const editor=win.document.querySelector('.lexi-plain-editor');assert(editor);editor.value='Updated fixture body';click('#noteSaveBtn');await wait(100);assert.equal(notes.find(n=>n.ID==='fixture-note').Body,'Updated fixture body');
-click('.tab[data-view="calendarView"]');await wait(100);click('#nextMonthBtn');await wait(150);
+click('.tab[data-view="calendarView"]');await wait(100);
+assert(![...win.document.querySelectorAll('.day-cell')].some(cell=>cell.textContent.includes('Legacy Calendar To Do')),'Legacy To Do events must not appear in calendar');
+click('.day-cell[aria-label="'+m+'-24"]');await wait(50);
+assert(!win.document.querySelector('#paneDayDetails').textContent.includes('Legacy Calendar To Do'),'Legacy To Do event must be hidden from calendar day details');
+click('#nextMonthBtn');await wait(150);
 assert(!win.document.querySelector('.day-plan-todo'),'Plan tasks must not appear on Calendar day cells');
 assert(!win.document.querySelector('.pane-plan-todo'),'Plan tasks must not appear in Calendar day details');
 assert(!win.document.querySelector('.day-cell[aria-label="'+nm+'-10"]').textContent.includes('Next month task'),'Dated Plan item must be Plan-only');
@@ -69,6 +73,7 @@ if (win.lexiRefreshCompactSelect && htmlRoot === root) {
  assert(win.document.querySelector('#visitListBody .shopping-item').classList.contains('visit-planned-tomorrow'));
  click('.tab[data-view="calendarView"]');click('.day-cell[aria-label="'+nm+'-10"]');await wait(50);click('#calendarAddEventBtn');await wait(100);
  const form=win.document.querySelector('.calendar-event-editor');assert(form);const category=form.querySelector('.lexi-select-button');assert(category);category.click();
+assert(![...win.document.querySelectorAll('.lexi-select-option')].some(option=>option.textContent.trim()==='To Do'),'Calendar editor must not offer Plan to-dos');
  [...win.document.querySelectorAll('.lexi-select-option')].find(e=>e.textContent==='Event').click();assert.equal(new win.FormData(form).get('category'),'Event');
  form.querySelector('[name="title"]').value='Dropdown save fixture';form.dispatchEvent(new win.Event('submit',{bubbles:true,cancelable:true}));await wait(100);
  assert(events.some(e=>e.Title==='Dropdown save fixture'&&e.Category==='Event'));assert(calls.some(c=>c.action==='eventupsert'));

@@ -1,6 +1,7 @@
 (() => {
   const STORAGE_KEY = 'lexiTravelMonthlyPlanV1';
   const DELETE_STORAGE_KEY = 'lexiTravelMonthlyPlanDeletedV1';
+  const CONFIRMED_DELETE_STORAGE_KEY = 'lexiTravelMonthlyPlanConfirmedDeletesV1';
   const CALENDAR_CACHE_STORAGE_KEY = 'lexiTravelCalendarCacheV1';
   const EVENT_DRAFT_STORAGE_KEY = 'lexiTravelEventDraftsV1';
   const planView = document.getElementById('countryView');
@@ -31,6 +32,7 @@
   const refreshPromises = new Map();
   const syncStateByMonth = new Map();
   let carryOverPromise = null;
+  const upsertsInFlight = new Map();
 
   function monthKey(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -113,6 +115,20 @@
 
   function writeDeleted(data) {
     writeObject(DELETE_STORAGE_KEY, data);
+  }
+
+  // Keep successful deletions locally as tombstones. An older planList response
+  // can arrive after deletion; removing its pending marker must not resurrect it.
+  function readConfirmedDeletes() {
+    return readObject(CONFIRMED_DELETE_STORAGE_KEY);
+  }
+
+  function writeConfirmedDeletes(data) {
+    writeObject(CONFIRMED_DELETE_STORAGE_KEY, data);
+  }
+
+  function isDeleted(id) {
+    return Boolean(readDeleted()[id] || readConfirmedDeletes()[id]);
   }
 
   function itemsForMonth(key) {
@@ -224,12 +240,27 @@
     };
   }
 
-  async function syncUpsert(month, id) {
+  function syncUpsert(month, id) {
+    // A delete must be sent after any earlier write for the same task.
+    const previous = upsertsInFlight.get(id) || Promise.resolve();
+    const work = previous.catch(() => {}).then(() => syncUpsertNow(month, id));
+    upsertsInFlight.set(id, work);
+    work.then(() => {
+      if (upsertsInFlight.get(id) === work) upsertsInFlight.delete(id);
+    }, () => {
+      if (upsertsInFlight.get(id) === work) upsertsInFlight.delete(id);
+    });
+    return work;
+  }
+
+  async function syncUpsertNow(month, id) {
+    if (isDeleted(id)) return true;
     if (!await ensureSyncCapability()) {
       setSyncState(month, 'write-error');
       return false;
     }
 
+    if (isDeleted(id)) return true;
     const items = itemsForMonth(month);
     const item = items.find(candidate => String(candidate.id) === String(id));
     if (!item) return false;
@@ -241,6 +272,7 @@
     };
 
     try {
+      if (isDeleted(id)) return true;
       await postAction('planUpsert', {
         id: item.id,
         month,
@@ -270,12 +302,18 @@
   }
 
   async function syncDelete(id) {
+    // An in-flight edit cannot be allowed to finish after the deletion.
+    const earlierWrite = upsertsInFlight.get(id);
+    if (earlierWrite) await earlierWrite.catch(() => {});
     if (!await ensureSyncCapability()) return false;
 
     try {
       await postAction('planDelete', { id });
       const deleted = readDeleted();
       if (deleted[id]) {
+        const confirmed = readConfirmedDeletes();
+        confirmed[id] = deleted[id];
+        writeConfirmedDeletes(confirmed);
         delete deleted[id];
         writeDeleted(deleted);
       }
@@ -308,7 +346,7 @@
         const localItems = itemsForMonth(month);
         const localById = new Map(localItems.map(item => [String(item.id), item]));
         const remoteIds = new Set(remoteItems.map(item => String(item.id)));
-        const deleted = readDeleted();
+        const deleted = { ...readConfirmedDeletes(), ...readDeleted() };
 
         const merged = remoteItems
           .map(remote => {
@@ -332,7 +370,7 @@
         writeMonth(month, merged);
         setSyncState(month, 'ok');
 
-        const pendingDeletes = Object.entries(deleted)
+        const pendingDeletes = Object.entries(readDeleted())
           .filter(([, deletedMonth]) => String(deletedMonth) === month)
           .map(([id]) => id);
 
@@ -383,7 +421,7 @@
         const cutoff = monthKey(cursor);
         const previousMonths = new Set([...Object.keys(stored), ...remoteByMonth.keys()]
           .filter(month => /^\d{4}-\d{2}$/.test(month) && month < cutoff));
-        const deleted = readDeleted();
+        const deleted = { ...readConfirmedDeletes(), ...readDeleted() };
 
         for (const month of previousMonths) {
           const remote = remoteByMonth.get(month) || [];
@@ -649,13 +687,14 @@
     const connected = Boolean(localStorage.getItem(KEY_STORAGE));
 
     monthLabel.textContent = monthTitle(cursor);
-    const deleted = readDeleted();
+    const deleted = { ...readConfirmedDeletes(), ...readDeleted() };
     const carried = Object.entries(readAll())
       .filter(([month]) => /^\d{4}-\d{2}$/.test(month) && month < currentMonth)
       .flatMap(([month, monthItems]) => (Array.isArray(monthItems) ? monthItems : [])
         .filter(item => !item.done && !deleted[item.id])
         .map(item => ({ ...item, sourceMonth: month, carried: true })));
     const current = sortedItems(itemsForCurrentMonth())
+      .filter(item => !deleted[item.id])
       .map(item => ({ ...item, sourceMonth: currentMonth, carried: false }));
     const items = [...sortedItems(carried), ...current];
     list.innerHTML = '';

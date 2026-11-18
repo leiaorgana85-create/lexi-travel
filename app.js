@@ -316,8 +316,13 @@ function locationForDate(dateKey) {
   });
 }
 
+// Calendar renders EVENTS only. Legacy events mislabeled as To Do remain
+// stored unchanged, but must not be presented as calendar appointments.
 function eventsForDate(dateKey) {
-  return appData.events.filter(event => normalizeDateString(event.Date) === dateKey);
+  return appData.events.filter(event =>
+    normalizeDateString(event.Date) === dateKey &&
+    !/^to[ -]?do$/i.test(String(event.Category || '').trim())
+  );
 }
 
 function normalizeDateString(value) {

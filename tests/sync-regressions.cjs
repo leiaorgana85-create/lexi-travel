@@ -11,11 +11,52 @@ function storage(seed={}){let m=new Map(Object.entries(seed));return {getItem:k=
  await Promise.all([allMonth.window.lexiPlanRetryPendingWrites(),allMonth.window.lexiPlanRetryPendingWrites()]);assert.deepEqual(allMonthCalls,['2030-01','2030-02','2030-04']);out.push({test:'reconnect-all-dirty-months-and-deletes-single-flight',passed:true});
  // An authoritative empty response removes clean cached records.
  let saved=[{id:'previously-synced',text:'Removed in Sheet',_dirty:false}],uploads=[];
- const planCtx={refreshPromises:new Map(),localStorage:storage({key:'fixture'}),KEY_STORAGE:'key',setSyncState:()=>{},ensureSyncCapability:async()=>true,postAction:async()=>({ok:true,items:[]}),itemsForMonth:()=>saved,remoteItemToLocal:x=>x,readDeleted:()=>({}),writeMonth:(m,x)=>saved=x,syncUpsert:async(m,id)=>{uploads.push(id);return true},syncDelete:async()=>true};
+ const planCtx={refreshPromises:new Map(),localStorage:storage({key:'fixture'}),KEY_STORAGE:'key',setSyncState:()=>{},ensureSyncCapability:async()=>true,postAction:async()=>({ok:true,items:[]}),itemsForMonth:()=>saved,remoteItemToLocal:x=>x,readDeleted:()=>({}),readConfirmedDeletes:()=>({}),writeMonth:(m,x)=>saved=x,syncUpsert:async(m,id)=>{uploads.push(id);return true},syncDelete:async()=>true};
  vm.createContext(planCtx);vm.runInContext(func('plan-ui.js','refreshMonthFromSheets'),planCtx);await planCtx.refreshMonthFromSheets('2026-10');
  assert.equal(uploads.length,0);assert.equal(saved.length,0);out.push({test:'plan-remote-removal-stays-removed',passed:true,remoteItems:0,localDirty:false,upserted:uploads});
  // Unsaved offline tasks must remain retryable.
  saved=[{id:'offline-new',text:'Unsent task',_dirty:true}];uploads=[];await planCtx.refreshMonthFromSheets('2026-10');assert.deepEqual(uploads,['offline-new']);assert.equal(saved.length,1);out.push({test:'dirty-offline-plan-is-preserved',passed:true});
+ // A confirmed Plan deletion must survive a stale pre-delete list response.
+ let pendingPlanDeletes={ghost:'2026-11'},confirmedPlanDeletes={},resolveEarlierWrite;
+ const earlierWrite=new Promise(resolve=>{resolveEarlierWrite=resolve});
+ const planDeleteCalls=[];
+ const deleteCtx={
+  upsertsInFlight:new Map([['ghost',earlierWrite]]),
+  ensureSyncCapability:async()=>true,
+  postAction:async(action,args)=>{planDeleteCalls.push({action,args});return {ok:true}},
+  readDeleted:()=>({...pendingPlanDeletes}),
+  writeDeleted:value=>{pendingPlanDeletes=value},
+  readConfirmedDeletes:()=>({...confirmedPlanDeletes}),
+  writeConfirmedDeletes:value=>{confirmedPlanDeletes=value},
+  syncCapability:true
+ };
+ vm.createContext(deleteCtx);vm.runInContext(func('plan-ui.js','syncDelete'),deleteCtx);
+ const deleting=deleteCtx.syncDelete('ghost');
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(planDeleteCalls.length,0,'Delete must await an earlier upsert');
+ resolveEarlierWrite();assert.equal(await deleting,true);
+ assert.equal(planDeleteCalls[0].action,'planDelete');
+ assert.equal(pendingPlanDeletes.ghost,undefined);
+ assert.equal(confirmedPlanDeletes.ghost,'2026-11');
+ out.push({test:'plan-deletion-after-inflight-upsert-leaves-confirmed-tombstone',passed:true});
+
+ let visibleGhost=[{id:'ghost',text:'Deleted task',_dirty:false}],ghostUpserts=[];
+ const staleCtx={
+  refreshPromises:new Map(),localStorage:storage({key:'fixture'}),KEY_STORAGE:'key',
+  setSyncState:()=>{},ensureSyncCapability:async()=>true,
+  postAction:async()=>({ok:true,items:[{id:'ghost',text:'Deleted task',_dirty:false}]}),
+  itemsForMonth:()=>visibleGhost,remoteItemToLocal:x=>x,
+  readDeleted:()=>({...pendingPlanDeletes}),readConfirmedDeletes:()=>({...confirmedPlanDeletes}),
+  writeMonth:(month,items)=>{visibleGhost=items},
+  syncUpsert:async(month,id)=>{ghostUpserts.push(id);return true},syncDelete:async()=>true
+ };
+ vm.createContext(staleCtx);vm.runInContext(func('plan-ui.js','refreshMonthFromSheets'),staleCtx);
+ await staleCtx.refreshMonthFromSheets('2026-11');
+ assert.equal(visibleGhost.length,0,'Stale list must not reinsert deleted item');
+ assert.equal(ghostUpserts.length,0,'Stale item must not be written back');
+ out.push({test:'stale-plan-list-does-not-resurrect-confirmed-delete',passed:true});
+ assert(!src('index.html').includes('<script src="plan-calendar.js'), 'Calendar must not load Plan to-do presentation');
+ out.push({test:'plan-to-dos-not-loaded-in-calendar',passed:true});
  // Acknowledged local edits must yield to the canonical response.
  const noteCtx={appData:{notes:[{ID:'note1',Title:'New from Sheet',Body:'Canonical new body'}]},readDrafts:()=>({note1:{Title:'Old local title',Body:'Old body',savedAt:1,_syncedAt:1,_confirmedAt:2}}),isReadOnlyNote:()=>false,writeDrafts:()=>{}};
  vm.createContext(noteCtx);vm.runInContext(func('notes-ui.js','mergeLocalState'),noteCtx);noteCtx.mergeLocalState(3);assert(noteCtx.appData.notes[0].Title==='New from Sheet');out.push({test:'synced-note-draft-yields-to-sheet',passed:true,renderedTitle:noteCtx.appData.notes[0].Title});

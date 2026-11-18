@@ -57,7 +57,10 @@ click('.note-list-item[data-note-id="fixture-projection"]');await wait(100);clic
 assert.equal(win.document.querySelector('.lexi-check-input').checked,true);
 win.document.querySelector('.lexi-check-input').click();await wait(1800);assert(notes.find(n=>n.ID==='fixture-note').Body.includes('[ ] Fixture task'));
 click('#noteEditBtn');await wait(40);const editor=win.document.querySelector('.lexi-plain-editor');assert(editor);editor.value='Updated fixture body';click('#noteSaveBtn');await wait(100);assert.equal(notes.find(n=>n.ID==='fixture-note').Body,'Updated fixture body');
-click('.tab[data-view="calendarView"]');await wait(100);click('#nextMonthBtn');await wait(150);assert(calls.some(c=>c.action==='planlist'&&c.month===nm));assert(win.document.querySelector('.day-cell[aria-label="'+nm+'-10"]').textContent.includes('Next month task'));
+click('.tab[data-view="calendarView"]');await wait(100);click('#nextMonthBtn');await wait(150);
+assert(!win.document.querySelector('.day-plan-todo'),'Plan tasks must not appear on Calendar day cells');
+assert(!win.document.querySelector('.pane-plan-todo'),'Plan tasks must not appear in Calendar day details');
+assert(!win.document.querySelector('.day-cell[aria-label="'+nm+'-10"]').textContent.includes('Next month task'),'Dated Plan item must be Plan-only');
 click('.tab[data-view="shoppingView"]');await wait(100);assert(win.document.querySelector('#shoppingListBody').textContent.includes('Item'));click('.tab[data-view="visitView"]');await wait(100);assert(win.document.querySelector('#visitListBody').textContent.includes('Place'));
 if (win.lexiRefreshCompactSelect && htmlRoot === root) {
  const visitButton=win.document.querySelector('#visitListBody .lexi-select-button');assert(visitButton);visitButton.click();

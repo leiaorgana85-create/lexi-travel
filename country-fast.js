@@ -101,7 +101,7 @@ setTimeout(() => {
 
   function formatStayDate(dateKey) {
     const [year, month, day] = String(dateKey).split('-').map(Number);
-    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
       .format(new Date(Date.UTC(year, month - 1, day)));
   }
 
@@ -185,102 +185,113 @@ setTimeout(() => {
   }
 
   function renderCountryDaysEnhanced(countries) {
-    const year = new Date().getFullYear();
+    const currentYear = new Date().getFullYear();
+    const enabledCountries = (countries || []).filter(country => enabled(country.Enabled));
+    const datesByCountry = new Map(
+      enabledCountries.map(country => [country, allCountryDates(country)])
+    );
+    const years = [...new Set([
+      currentYear,
+      ...[...datesByCountry.values()]
+        .flatMap(dates => dates.map(key => Number(key.slice(0, 4))))
+        .filter(year => Number.isInteger(year) && year >= currentYear)
+    ])].sort((a, b) => a - b);
     list.innerHTML = '';
 
-    for (const country of countries || []) {
-      if (!enabled(country.Enabled)) continue;
+    for (const year of years) {
+      for (const country of enabledCountries) {
+        const allDates = datesByCountry.get(country);
+        const yearDates = allDates.filter(key => key.startsWith(`${year}-`));
+        const ranges = countryStayRanges(country, year);
+        if (year > currentYear && !yearDates.length && !ranges.length) continue;
+        const used = yearDates.length;
+        const calendarLimit = Number(country['Calendar Year Limit'] || 0);
+        const calendarRemaining = calendarLimit ? calendarLimit - used : null;
+        const rollingLimit = Number(country['Rolling 12 Limit'] || 0);
+        const rollingUsed = rollingLimit ? rolling12Peak(allDates) : null;
+        const over = Boolean(
+          (calendarLimit && used > calendarLimit) ||
+          (rollingLimit && rollingUsed > rollingLimit)
+        );
 
-      const allDates = allCountryDates(country);
-      const yearDates = allDates.filter(key => key.startsWith(`${year}-`));
-      const ranges = countryStayRanges(country, year);
-      const used = yearDates.length;
-      const calendarLimit = Number(country['Calendar Year Limit'] || 0);
-      const calendarRemaining = calendarLimit ? calendarLimit - used : null;
-      const rollingLimit = Number(country['Rolling 12 Limit'] || 0);
-      const rollingUsed = rollingLimit ? rolling12Peak(allDates) : null;
-      const over = Boolean(
-        (calendarLimit && used > calendarLimit) ||
-        (rollingLimit && rollingUsed > rollingLimit)
-      );
+        const card = document.createElement('article');
+        card.className = 'country-card country-days-card';
 
-      const card = document.createElement('article');
-      card.className = 'country-card country-days-card';
+        const head = document.createElement('div');
+        head.className = 'country-days-head';
 
-      const head = document.createElement('div');
-      head.className = 'country-days-head';
+        const nameWrap = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'country-name';
+        name.textContent = country.Country || country.Code || 'Country';
+        const code = document.createElement('div');
+        code.className = 'country-code';
+        code.textContent = `${country.Code || ''} · ${year}`;
+        nameWrap.append(name, code);
 
-      const nameWrap = document.createElement('div');
-      const name = document.createElement('div');
-      name.className = 'country-name';
-      name.textContent = country.Country || country.Code || 'Country';
-      const code = document.createElement('div');
-      code.className = 'country-code';
-      code.textContent = `${country.Code || ''} · ${year}`;
-      nameWrap.append(name, code);
+        const total = document.createElement('div');
+        total.className = `country-days-total${over ? ' over' : ''}`;
 
-      const total = document.createElement('div');
-      total.className = `country-days-total${over ? ' over' : ''}`;
-
-      const calendarLine = document.createElement('div');
-      if (calendarLimit) {
-        calendarLine.textContent = calendarRemaining >= 0
-          ? `${used}/${calendarLimit} · ${calendarRemaining} left`
-          : `${used}/${calendarLimit} · ${Math.abs(calendarRemaining)} over`;
-      } else {
-        calendarLine.textContent = `${used} days`;
-      }
-      total.append(calendarLine);
-
-      if (rollingLimit) {
-        const rollingLine = document.createElement('div');
-        rollingLine.className = 'country-code';
-        rollingLine.textContent = `Rolling 12m peak ${rollingUsed}/${rollingLimit}`;
-        total.append(rollingLine);
-      }
-
-      head.append(nameWrap, total);
-      card.append(head);
-
-      const stays = document.createElement('div');
-      stays.className = 'country-stay-list';
-
-      if (!ranges.length) {
-        const empty = document.createElement('div');
-        empty.className = 'country-stay-row empty';
-        empty.textContent = `No stays in ${year}`;
-        stays.append(empty);
-      } else {
-        for (const range of ranges) {
-          const row = document.createElement('div');
-          row.className = 'country-stay-row';
-          const rangeDaysThisYear = yearDates.filter(key => key >= range.start && key <= range.end).length;
-          const crossesYear = !range.start.startsWith(`${year}-`) || !range.end.startsWith(`${year}-`);
-
-          if (range.start === range.end) {
-            row.textContent = `${formatStayDate(range.start)} · ${rangeDaysThisYear} day`;
-          } else if (crossesYear) {
-            row.textContent = `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDaysThisYear} days in ${year}`;
-          } else {
-            row.textContent = `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDaysThisYear} days`;
-          }
-          stays.append(row);
+        const calendarLine = document.createElement('div');
+        if (calendarLimit) {
+          calendarLine.textContent = calendarRemaining >= 0
+            ? `${used}/${calendarLimit} · ${calendarRemaining} left`
+            : `${used}/${calendarLimit} · ${Math.abs(calendarRemaining)} over`;
+        } else {
+          calendarLine.textContent = `${used} days`;
         }
-      }
-      card.append(stays);
+        total.append(calendarLine);
 
-      if (country['Rule Notes']) {
-        const rule = document.createElement('div');
-        rule.className = 'country-rule';
-        rule.textContent = country['Rule Notes'];
-        card.append(rule);
-      }
+        if (rollingLimit) {
+          const rollingLine = document.createElement('div');
+          rollingLine.className = 'country-code';
+          rollingLine.textContent = `Rolling 12m peak ${rollingUsed}/${rollingLimit}`;
+          total.append(rollingLine);
+        }
 
-      list.append(card);
+        head.append(nameWrap, total);
+        card.append(head);
+
+        const stays = document.createElement('div');
+        stays.className = 'country-stay-list';
+
+        if (!ranges.length) {
+          const empty = document.createElement('div');
+          empty.className = 'country-stay-row empty';
+          empty.textContent = `No stays in ${year}`;
+          stays.append(empty);
+        } else {
+          for (const range of ranges) {
+            const row = document.createElement('div');
+            row.className = 'country-stay-row';
+            const rangeDaysThisYear = yearDates.filter(key => key >= range.start && key <= range.end).length;
+            const crossesYear = !range.start.startsWith(`${year}-`) || !range.end.startsWith(`${year}-`);
+
+            if (range.start === range.end) {
+              row.textContent = `${formatStayDate(range.start)} · ${rangeDaysThisYear} day`;
+            } else if (crossesYear) {
+              row.textContent = `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDaysThisYear} days in ${year}`;
+            } else {
+              row.textContent = `${formatStayDate(range.start)}–${formatStayDate(range.end)} · ${rangeDaysThisYear} days`;
+            }
+            stays.append(row);
+          }
+        }
+        card.append(stays);
+
+        if (country['Rule Notes']) {
+          const rule = document.createElement('div');
+          rule.className = 'country-rule';
+          rule.textContent = country['Rule Notes'];
+          card.append(rule);
+        }
+
+        list.append(card);
+      }
     }
 
     requestAnimationFrame(() => {
-      status.textContent = `${year} · stayed + planned · rolling 12m peak where configured`;
+      status.textContent = `${years.join(' / ')} · stayed + planned · rolling 12m peak where configured`;
       status.classList.add('country-year-status');
     });
   }

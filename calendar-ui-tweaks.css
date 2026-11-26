@@ -1,0 +1,310 @@
+/* Calendar editor polish: compact aligned controls and right-handed day actions. */
+
+.day-pane-head {
+  align-items: center;
+}
+
+.day-pane-summary {
+  align-items: center;
+  gap: 3px 6px;
+}
+
+.calendar-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.calendar-top-actions[hidden] {
+  display: none !important;
+}
+
+.calendar-top-action-btn,
+.day-pane-summary .calendar-add-btn.calendar-top-action-btn {
+  flex: 0 0 auto;
+  width: 25px;
+  height: 25px;
+  min-width: 25px;
+  min-height: 25px;
+  margin: 0;
+  padding: 4px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--blue);
+  line-height: 1;
+}
+
+.calendar-top-action-btn svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.calendar-top-action-btn.danger {
+  color: #9b3d3d;
+}
+
+.calendar-top-action-btn.active {
+  background: #f4f7ff;
+  box-shadow: inset 0 0 0 1px #cbd7e6;
+}
+
+.calendar-top-action-btn[hidden] {
+  display: none !important;
+}
+
+.calendar-pane-actions {
+  margin-left: auto;
+}
+
+.calendar-pane-actions[hidden] {
+  display: none !important;
+}
+
+.calendar-sync-status {
+  max-width: 170px;
+  font-size: 8.5px;
+}
+
+/* Keep every editor cell allowed to shrink inside the phone-width grid. */
+.calendar-editor-field,
+.calendar-editor-pair {
+  min-width: 0;
+}
+
+.calendar-editor-field {
+  overflow: hidden;
+  gap: 1px;
+  font-size: 8.5px;
+}
+
+.calendar-editor-field input,
+.calendar-editor-field select,
+.calendar-editor-field textarea {
+  display: block;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  border-radius: 5px;
+  padding: 3px 5px;
+  font-size: 10.5px;
+  line-height: 1.1;
+}
+
+/* Use a neutral focus state; iOS was drawing a distracting blue ring. */
+.calendar-editor-field input:focus,
+.calendar-editor-field select:focus,
+.calendar-editor-field textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: #bfc7d2 !important;
+}
+
+.calendar-editor-field input,
+.calendar-editor-field select {
+  height: 29px;
+  min-height: 29px;
+}
+
+.calendar-editor-field textarea {
+  min-height: 44px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* iOS gives date inputs a stubborn intrinsic width. Give Date more room,
+   force the native control to obey the grid, and clip any internal overflow. */
+.calendar-editor-pair:has(input[type="date"]) {
+  grid-template-columns: minmax(0, 1.22fr) minmax(0, 0.78fr);
+  gap: 4px;
+  overflow: hidden;
+}
+
+.calendar-editor-pair:has(input[type="date"]) .calendar-editor-field {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.calendar-editor-field input[type="date"] {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden;
+  text-overflow: clip;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 0;
+}
+
+.calendar-editor-pair {
+  align-items: start;
+  gap: 4px;
+}
+
+.calendar-event-editor {
+  gap: 4px;
+}
+
+/* Make the edit affordance available to the top action layer without adding visual weight. */
+.pane-event-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pane-event-summary-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pane-event-edit {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  padding: 1px 2px;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 650;
+}
+
+.pane-event.calendar-flight-readonly {
+  cursor: default;
+}
+
+/* Keep iPhone from auto-zooming focused controls while making the controls
+   look like ~13.8px text / ~29px-high fields. The computed text remains 16px. */
+@supports (-webkit-touch-callout: none) {
+  .calendar-editor-field input,
+  .calendar-editor-field select,
+  .calendar-editor-field textarea {
+    width: 116.28% !important;
+    max-width: none !important;
+    font-size: 16px !important;
+    line-height: 1.1;
+    transform: scale(0.86);
+    transform-origin: left top;
+  }
+
+  .calendar-editor-field input,
+  .calendar-editor-field select {
+    height: 34px;
+    min-height: 34px;
+    margin-bottom: -5px;
+    padding: 3px 6px;
+  }
+
+  .calendar-editor-field textarea {
+    min-height: 53px;
+    margin-bottom: -7px;
+    padding: 5px 6px;
+  }
+
+  .calendar-editor-field input[type="date"] {
+    width: 116.28% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 34px;
+    min-height: 34px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    line-height: 34px;
+  }
+}
+
+/* Standard Calendar event editor only: make the popup noticeably more compact.
+   Leave the Plan/To Do editor sizing unchanged. */
+.calendar-event-editor:not(.calendar-plan-editor) {
+  gap: 2px;
+  padding: 0 1px 4px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-title {
+  margin-bottom: 0;
+  font-size: 11px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field {
+  gap: 0;
+  font-size: 8px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input,
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field select {
+  height: 26px;
+  min-height: 26px;
+  padding: 2px 4px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field textarea {
+  min-height: 36px;
+  padding: 3px 4px;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-actions {
+  margin-top: 0;
+}
+
+.calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-btn {
+  min-height: 23px;
+  padding: 2px 6px;
+  font-size: 9.5px;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field select,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field textarea {
+    width: 121.95% !important;
+    max-width: none !important;
+    font-size: 16px !important;
+    transform: scale(0.82);
+    transform-origin: left top;
+  }
+
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field select,
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input[type="date"] {
+    height: 32px;
+    min-height: 32px;
+    margin-bottom: -6px;
+    padding: 2px 5px;
+  }
+
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field textarea {
+    min-height: 46px;
+    margin-bottom: -8px;
+    padding: 4px 5px;
+  }
+
+  .calendar-event-editor:not(.calendar-plan-editor) .calendar-editor-field input[type="date"]::-webkit-date-and-time-value {
+    height: 32px;
+    line-height: 32px;
+  }
+}

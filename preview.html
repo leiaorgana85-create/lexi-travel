@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LEXI Travel · iPhone Preview</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #eef1f5;
+      color: #111827;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #eef1f5;
+    }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+    }
+
+    .preview-shell {
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .preview-toolbar {
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #d8dee7;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 1px 8px rgba(15,23,42,.05);
+      z-index: 5;
+    }
+
+    .preview-title {
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .preview-toolbar label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #4b5563;
+    }
+
+    .preview-toolbar select,
+    .preview-toolbar button,
+    .preview-toolbar a {
+      min-height: 34px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .preview-toolbar select {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #111827;
+      padding: 0 9px;
+    }
+
+    .preview-toolbar button,
+    .preview-toolbar a {
+      border: 0;
+      background: #e8eefc;
+      color: #1746a2;
+      padding: 0 10px;
+      font-weight: 750;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .preview-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    .data-state {
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #eef2f7;
+      color: #4b5563;
+      font-weight: 700;
+    }
+
+    .data-state.connected {
+      background: #eaf8ef;
+      color: #19733a;
+    }
+
+    .data-state.missing {
+      background: #fff4df;
+      color: #8a5a00;
+    }
+
+    .stage {
+      position: relative;
+      overflow: auto;
+      display: grid;
+      place-items: start center;
+      padding: 18px;
+    }
+
+    .phone-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .phone-frame {
+      position: absolute;
+      top: 0;
+      left: 0;
+      border: 10px solid #111318;
+      border-radius: 38px;
+      background: #111318;
+      box-shadow: 0 20px 55px rgba(15,23,42,.24);
+      overflow: hidden;
+      transform-origin: top left;
+    }
+
+    .phone-frame::before {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      top: 8px;
+      left: 50%;
+      width: 92px;
+      height: 23px;
+      transform: translateX(-50%);
+      border-radius: 14px;
+      background: #111318;
+      pointer-events: none;
+    }
+
+    #appPreview {
+      display: block;
+      border: 0;
+      background: #fff;
+    }
+
+    @media (max-width: 900px) {
+      .preview-title { display: none; }
+      .preview-toolbar { padding-inline: 8px; gap: 6px; }
+      .preview-status { width: 100%; margin-left: 0; justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-shell">
+    <header class="preview-toolbar">
+      <div class="preview-title">LEXI Travel · iPhone Preview</div>
+
+      <label for="devicePreset">Device</label>
+      <select id="devicePreset">
+        <option value="390x844">iPhone 13 / 14 / 15 · 390×844</option>
+        <option value="393x852">iPhone 14 Pro / 15 Pro · 393×852</option>
+        <option value="430x932">iPhone 14/15 Pro Max · 430×932</option>
+        <option value="375x812" selected>iPhone 13 mini · 375×812 · your phone</option>
+        <option value="375x667">iPhone SE · 375×667</option>
+      </select>
+
+      <label for="zoomPreset">Preview size</label>
+      <select id="zoomPreset">
+        <option value="fit">Fit window</option>
+        <option value="1" selected>100% · true CSS size</option>
+        <option value="1.1">110%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5">150%</option>
+      </select>
+
+      <button id="reloadBtn" type="button">Reload</button>
+      <a href="./" target="_blank" rel="noopener">Open app</a>
+
+      <div class="preview-status">
+        <span id="dataState" class="data-state">Checking data…</span>
+        <span id="viewportReadout">375 × 812 · 100%</span>
+      </div>
+    </header>
+
+    <main id="stage" class="stage">
+      <div id="phoneWrap" class="phone-wrap">
+        <div id="phoneFrame" class="phone-frame">
+          <iframe id="appPreview" title="LEXI Travel iPhone preview" src="./"></iframe>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const KEY_STORAGE = 'lexiTravelApiKey';
+    const stage = document.getElementById('stage');
+    const phoneWrap = document.getElementById('phoneWrap');
+    const frame = document.getElementById('phoneFrame');
+    const preview = document.getElementById('appPreview');
+    const devicePreset = document.getElementById('devicePreset');
+    const zoomPreset = document.getElementById('zoomPreset');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const readout = document.getElementById('viewportReadout');
+    const dataState = document.getElementById('dataState');
+
+    let viewportWidth = 375;
+    let viewportHeight = 812;
+    let currentScale = 1;
+
+    function fitScale() {
+      const chrome = 20;
+      const availableWidth = Math.max(220, stage.clientWidth - 36);
+      const availableHeight = Math.max(320, stage.clientHeight - 36);
+      return Math.min(
+        1,
+        availableWidth / (viewportWidth + chrome),
+        availableHeight / (viewportHeight + chrome)
+      );
+    }
+
+    function selectedScale() {
+      return zoomPreset.value === 'fit' ? fitScale() : Number(zoomPreset.value);
+    }
+
+    function applyScale() {
+      const chrome = 20;
+      const fullWidth = viewportWidth + chrome;
+      const fullHeight = viewportHeight + chrome;
+      currentScale = selectedScale();
+
+      frame.style.width = `${fullWidth}px`;
+      frame.style.height = `${fullHeight}px`;
+      frame.style.transform = `scale(${currentScale})`;
+
+      phoneWrap.style.width = `${Math.ceil(fullWidth * currentScale)}px`;
+      phoneWrap.style.height = `${Math.ceil(fullHeight * currentScale)}px`;
+
+      const percent = Math.round(currentScale * 100);
+      readout.textContent = `${viewportWidth} × ${viewportHeight} · ${percent}%`;
+    }
+
+    function setViewport(value) {
+      const [width, height] = value.split('x').map(Number);
+      viewportWidth = width;
+      viewportHeight = height;
+      preview.style.width = `${width}px`;
+      preview.style.height = `${height}px`;
+      applyScale();
+    }
+
+    function refreshDataState() {
+      const connected = Boolean(localStorage.getItem(KEY_STORAGE));
+      dataState.textContent = connected
+        ? 'Chrome data connected'
+        : 'No Chrome API key · Open app once';
+      dataState.className = `data-state ${connected ? 'connected' : 'missing'}`;
+    }
+
+    function applyIPhoneFontCalibration() {
+      try {
+        const doc = preview.contentDocument;
+        if (!doc || !doc.head) return;
+
+        const oldStyle = doc.getElementById('lexi-preview-iphone-calibration');
+        if (oldStyle) oldStyle.remove();
+
+        const style = doc.createElement('style');
+        style.id = 'lexi-preview-iphone-calibration';
+        style.textContent = `
+          /* Preview-only compensation for Windows Segoe UI vs iPhone San Francisco. */
+          .day-number,
+          .day-location-code { font-weight: 700 !important; }
+          .day-event-flight-line,
+          .day-event-generic-line { font-weight: 600 !important; }
+
+          /* Keep the travel route fully visible; only tighten its second (time) line
+             to match the effective width seen in iPhone Safari. */
+          .day-event.travel-route .day-event-flight-line:nth-child(2) {
+            width: calc(100% - 9px) !important;
+            margin-inline: auto !important;
+          }
+
+          /* Safari's SF text is slightly wider than Segoe UI in the compact Notes table.
+             Nudge only the preview metrics so line wrapping matches the iPhone more closely. */
+          .note-table { font-size: 11.65px !important; }
+          .note-table th { font-size: 10.65px !important; }
+          .note-table th,
+          .note-table td { letter-spacing: 0.06px !important; }
+        `;
+        doc.head.append(style);
+      } catch (error) {
+        // Same-origin preview should allow this; ignore if the frame is still loading.
+      }
+    }
+
+    devicePreset.addEventListener('change', () => setViewport(devicePreset.value));
+    zoomPreset.addEventListener('change', applyScale);
+    reloadBtn.addEventListener('click', () => {
+      refreshDataState();
+      preview.contentWindow.location.reload();
+    });
+    preview.addEventListener('load', () => {
+      applyIPhoneFontCalibration();
+    });
+    window.addEventListener('resize', () => {
+      if (zoomPreset.value === 'fit') applyScale();
+    });
+    window.addEventListener('storage', refreshDataState);
+
+    refreshDataState();
+    setViewport(devicePreset.value);
+  </script>
+</body>
+</html>

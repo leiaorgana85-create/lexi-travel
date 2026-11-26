@@ -1,0 +1,134 @@
+.day-pane-head {
+  gap: 6px;
+}
+
+.calendar-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.calendar-sync-status {
+  max-width: 118px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #667085;
+  font-size: 8.5px;
+  line-height: 1.1;
+  text-align: right;
+}
+
+.calendar-add-btn {
+  width: 27px;
+  height: 25px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--blue);
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 650;
+}
+
+.pane-event[data-event-id] {
+  cursor: pointer;
+}
+
+.calendar-event-editor {
+  display: grid;
+  gap: 5px;
+  padding: 2px 1px 7px;
+  color: #111;
+}
+
+.calendar-editor-title {
+  margin-bottom: 1px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.calendar-editor-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  color: #111;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.calendar-editor-field input,
+.calendar-editor-field textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #d7dde5;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  padding: 5px 6px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 450;
+  line-height: 1.25;
+}
+
+.calendar-editor-field textarea {
+  min-height: 50px;
+  resize: vertical;
+}
+
+.calendar-editor-field input:focus,
+.calendar-editor-field textarea:focus {
+  outline: 1px solid var(--blue);
+  outline-offset: 0;
+}
+
+.calendar-editor-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5px;
+}
+
+.calendar-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+}
+
+.calendar-editor-spacer {
+  flex: 1 1 auto;
+}
+
+.calendar-editor-btn {
+  min-height: 25px;
+  border: 1px solid #d7dde5;
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  padding: 3px 7px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.calendar-editor-btn.primary {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.calendar-editor-btn.danger {
+  color: #9b3d3d;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .calendar-editor-field input,
+  .calendar-editor-field textarea {
+    font-size: 16px !important;
+    line-height: 1.25;
+  }
+}

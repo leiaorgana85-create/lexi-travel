@@ -1,0 +1,18 @@
+{
+  "id": "/lexi-travel/",
+  "name": "LEXI Travel",
+  "short_name": "LEXI Travel",
+  "description": "Personal travel calendar, notes, plans and country-day tracking.",
+  "start_url": "/lexi-travel/",
+  "scope": "/lexi-travel/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/lexi-assets/travel-logo.png?v=3",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

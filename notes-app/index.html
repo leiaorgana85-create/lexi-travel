@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090b0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lexi Notes">
+  <title>Lexi Notes</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="https://leiaorgana85-create.github.io/lexi-assets/travel-logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header id="topbar" class="topbar">
+      <div class="brand-row">
+        <h1>Lexi Notes</h1>
+        <button id="refreshBtn" class="icon-btn" type="button" aria-label="Refresh" title="Refresh">↻</button>
+      </div>
+      <label class="search-wrap" aria-label="Search all notes">
+        <span class="search-icon">⌕</span>
+        <input id="searchInput" type="search" placeholder="Search all notes" autocomplete="off" spellcheck="false">
+        <button id="clearSearchBtn" class="clear-search" type="button" aria-label="Clear search" hidden>×</button>
+      </label>
+      <div id="syncStatus" class="status" aria-live="polite"></div>
+    </header>
+
+    <main>
+      <section id="connectView" class="card connect-card" hidden>
+        <h2>Connect Lexi Notes</h2>
+        <p>Enter the private API key for the Lexi Notes backend. It stays on this device.</p>
+        <input id="apiKeyInput" type="password" autocomplete="off" placeholder="API key">
+        <button id="connectBtn" class="primary-btn" type="button">Connect</button>
+        <div id="connectError" class="error-text" aria-live="polite"></div>
+      </section>
+
+      <section id="listView">
+        <div id="emptyState" class="empty-state" hidden>No notes yet.</div>
+        <div id="notesList" class="notes-list"></div>
+      </section>
+
+      <section id="noteView" class="note-view" hidden>
+        <div class="note-toolbar">
+          <button id="backBtn" class="text-btn" type="button">‹ Notes</button>
+          <div class="note-actions">
+            <button id="pinBtn" class="icon-btn" type="button" aria-label="Pin" title="Pin">☆</button>
+            <button id="lockBtn" class="icon-btn" type="button" aria-label="Lock" title="Lock">🔓</button>
+            <button id="emailBtn" class="icon-btn" type="button" aria-label="Email" title="Email">✉</button>
+            <button id="shareBtn" class="icon-btn" type="button" aria-label="Share" title="Share">↗</button>
+            <button id="editBtn" class="icon-btn" type="button" aria-label="Edit" title="Edit">✎</button>
+            <button id="deleteBtn" class="icon-btn danger" type="button" aria-label="Delete" title="Delete">⌫</button>
+          </div>
+        </div>
+
+        <div id="lockedGate" class="locked-gate" hidden>
+          <div class="lock-symbol">🔒</div>
+          <div class="locked-title">Locked note</div>
+          <button id="unlockBtn" class="primary-btn compact" type="button">Unlock</button>
+        </div>
+
+        <div id="noteContent">
+          <div id="readMode">
+            <h2 id="readTitle" class="read-title"></h2>
+            <div id="readBody" class="read-body"></div>
+          </div>
+
+          <div id="editMode" hidden>
+            <input id="titleInput" class="title-input" type="text" placeholder="Title" autocomplete="off">
+            <div id="formatBar" class="format-bar" aria-label="Note formatting">
+              <button type="button" data-tool="bullet" aria-label="Bullet list" title="Bullet list">• ≡</button>
+              <button type="button" data-tool="number" aria-label="Numbered list" title="Numbered list">1. ≡</button>
+              <button type="button" data-tool="check" aria-label="Checklist" title="Checklist">☐</button>
+              <button type="button" data-tool="indent" aria-label="Indent" title="Indent">→</button>
+              <button type="button" data-tool="outdent" aria-label="Outdent" title="Outdent">←</button>
+              <button type="button" data-tool="undo" aria-label="Undo" title="Undo">↶</button>
+              <button type="button" data-tool="redo" aria-label="Redo" title="Redo">↷</button>
+              <button type="button" data-tool="date" aria-label="Insert date" title="Insert date">◫</button>
+            </div>
+            <textarea id="bodyInput" class="body-input" placeholder="Write a note…" spellcheck="true"></textarea>
+            <div class="edit-footer">
+              <span id="saveStatus" class="status" aria-live="polite"></span>
+              <button id="doneBtn" class="primary-btn compact" type="button">Done</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <button id="newNoteBtn" class="fab" type="button" aria-label="New note" title="New note">+</button>
+  </div>
+
+  <dialog id="pinDialog" class="pin-dialog">
+    <form method="dialog" id="pinForm">
+      <h2 id="pinDialogTitle">Unlock note</h2>
+      <p id="pinDialogText">Enter your Lexi Notes PIN.</p>
+      <input id="pinInput" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" maxlength="12">
+      <input id="pinConfirmInput" type="password" inputmode="numeric" autocomplete="off" placeholder="Confirm PIN" maxlength="12" hidden>
+      <div id="pinError" class="error-text" aria-live="polite"></div>
+      <div class="dialog-actions">
+        <button id="pinCancelBtn" class="secondary-btn" type="button">Cancel</button>
+        <button id="pinSubmitBtn" class="primary-btn compact" type="submit">Unlock</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

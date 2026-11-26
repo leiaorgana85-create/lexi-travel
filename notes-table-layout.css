@@ -1,0 +1,37 @@
+/* Column-count-aware sizing for structured note tables. */
+
+/* Two-column tables: compact date + flexible details. */
+.note-table tr > :first-child:nth-last-child(2) {
+  width: 28%;
+}
+
+.note-table tr > :nth-child(2):last-child {
+  width: 72%;
+}
+
+/* Five-column tables: fit the full table inside the Notes pane. */
+.note-table tr > :first-child:nth-last-child(5) {
+  width: 24%;
+}
+
+.note-table tr > :nth-child(2):nth-last-child(4) {
+  width: 16%;
+}
+
+.note-table tr > :nth-child(3):nth-last-child(3) {
+  width: 18%;
+}
+
+.note-table tr > :nth-child(4):nth-last-child(2) {
+  width: 26%;
+}
+
+.note-table tr > :nth-child(5):last-child {
+  width: 16%;
+}
+
+.note-table tr > :first-child:nth-last-child(5),
+.note-table tr > :first-child:nth-last-child(5) ~ * {
+  padding-left: 2px;
+  padding-right: 2px;
+}

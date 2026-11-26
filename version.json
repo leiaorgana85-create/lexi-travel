@@ -1,0 +1,7 @@
+{
+  "version": "v1.07",
+  "repository": "leiaorgana85-create/lexi-travel",
+  "url": "https://leiaorgana85-create.github.io/lexi-travel/",
+  "html": "index.html",
+  "worker": "sw.js"
+}

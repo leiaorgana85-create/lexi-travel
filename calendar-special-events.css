@@ -1,0 +1,54 @@
+/* Reserve the bottom calendar line for untimed Holiday/Event markers. */
+.day-cell.has-special-event {
+  padding-bottom: 13px;
+}
+
+.day-special-event {
+  position: absolute !important;
+  z-index: 3;
+  left: 1px;
+  right: 1px;
+  bottom: 2px !important;
+  height: 10px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  line-height: 8px;
+  font-weight: 700;
+  letter-spacing: -0.08px;
+  text-align: left;
+  pointer-events: none;
+}
+
+.day-special-event.holiday {
+  background: #fde2e7;
+  color: #8b1e2d;
+}
+
+.day-special-event.event {
+  background: #e8e2ff;
+  color: #4e3a8a;
+}
+
+.day-cell.other-month .day-special-event {
+  background: #f4f5f7;
+  color: #aab1bc;
+}
+
+@media (min-width: 700px) {
+  .day-cell.has-special-event {
+    padding-bottom: 15px;
+  }
+
+  .day-special-event {
+    left: 4px;
+    right: 4px;
+    bottom: 3px !important;
+    height: 11px;
+    font-size: 9px;
+    line-height: 9px;
+  }
+}

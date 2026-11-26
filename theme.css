@@ -1,0 +1,295 @@
+/* Settings appearance control */
+.settings-section {
+  margin-bottom: 14px;
+}
+
+.settings-section-title {
+  margin: 0 0 7px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.settings-divider {
+  height: 1px;
+  margin: 14px 0;
+  background: var(--line);
+}
+
+.theme-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+
+.theme-option {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.theme-option.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
+}
+
+/* Dark theme */
+html[data-theme="dark"] {
+  --bg: #0d1015;
+  --surface: #141820;
+  --text: #f2f4f7;
+  --muted: #9aa4b2;
+  --line: #2a303b;
+  --blue: #79a8ff;
+  --blue-soft: #1b2a44;
+  --green-soft: #183126;
+  --yellow-soft: #3a321d;
+  --red-soft: #3a2228;
+  --danger: #ff8f8f;
+  --shadow: 0 12px 28px rgba(0, 0, 0, .44);
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] .app-shell {
+  background: var(--bg);
+  color: var(--text);
+}
+
+html[data-theme="dark"] .app-shell {
+  background: var(--surface);
+}
+
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .weekday-row,
+html[data-theme="dark"] .calendar-grid,
+html[data-theme="dark"] .day-cell,
+html[data-theme="dark"] .notes-sidebar,
+html[data-theme="dark"] .note-toolbar,
+html[data-theme="dark"] .country-card,
+html[data-theme="dark"] .plan-card,
+html[data-theme="dark"] .day-pane,
+html[data-theme="dark"] .day-details,
+html[data-theme="dark"] .pane-event,
+html[data-theme="dark"] .pane-location-note,
+html[data-theme="dark"] .pane-empty {
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .day-cell {
+  background: #151a22;
+  color: var(--text);
+}
+
+html[data-theme="dark"] .day-cell.other-month {
+  background: #11151b;
+  color: #636d7b;
+}
+
+html[data-theme="dark"] .day-cell.selected-day {
+  background: #18243a;
+}
+
+html[data-theme="dark"] .day-cell.other-month.selected-day {
+  background: #171c24;
+}
+
+html[data-theme="dark"] .day-location-code.city-pus {
+  color: #8fb4dc;
+}
+
+html[data-theme="dark"] .day-location-code.city-bkk {
+  color: #d6a879;
+}
+
+html[data-theme="dark"] .day-location-code.city-other {
+  color: #a5afbd;
+}
+
+html[data-theme="dark"] .day-cell.other-month .day-number,
+html[data-theme="dark"] .day-cell.other-month .day-location-code,
+html[data-theme="dark"] .day-cell.other-month .day-event {
+  color: #626d7a !important;
+}
+
+html[data-theme="dark"] .day-cell.other-month .day-event {
+  background: #1a1f27;
+}
+
+html[data-theme="dark"] .day-pane {
+  background: #11161d;
+  color: var(--text);
+}
+
+html[data-theme="dark"] .day-pane-summary,
+html[data-theme="dark"] .day-pane-title,
+html[data-theme="dark"] .day-pane-location,
+html[data-theme="dark"] .day-pane-details,
+html[data-theme="dark"] .pane-event,
+html[data-theme="dark"] .pane-event-summary,
+html[data-theme="dark"] .pane-event-details,
+html[data-theme="dark"] .pane-location-note,
+html[data-theme="dark"] .pane-empty,
+html[data-theme="dark"] .pane-location-note a {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .pane-event.calendar-edit-choice {
+  background: #1a263b;
+  box-shadow: inset 0 0 0 1px #40516b;
+}
+
+html[data-theme="dark"] .calendar-sync-status {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .calendar-event-editor,
+html[data-theme="dark"] .calendar-editor-field {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .calendar-editor-field input,
+html[data-theme="dark"] .calendar-editor-field textarea,
+html[data-theme="dark"] .calendar-editor-btn,
+html[data-theme="dark"] .note-title-input,
+html[data-theme="dark"] .lexi-plain-editor,
+html[data-theme="dark"] .note-format-btn,
+html[data-theme="dark"] .plan-add-input,
+html[data-theme="dark"] .settings-card input {
+  border-color: #3a4350;
+  background: #0f1319;
+  color: var(--text);
+}
+
+html[data-theme="dark"] .calendar-editor-field input:focus,
+html[data-theme="dark"] .calendar-editor-field textarea:focus {
+  border-color: #566275 !important;
+}
+
+html[data-theme="dark"] .calendar-editor-btn.danger,
+html[data-theme="dark"] .note-delete-btn {
+  color: #ff9a9a;
+}
+
+html[data-theme="dark"] .notes-sidebar {
+  background: rgba(20, 24, 32, .99);
+  box-shadow: 10px 0 24px rgba(0, 0, 0, .35);
+}
+
+html[data-theme="dark"] .note-list-item {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .note-list-item.active {
+  background: #1b2a44;
+  color: #b7d0ff;
+}
+
+html[data-theme="dark"] .note-table-wrap {
+  border-color: #353d49;
+  background: #11161d;
+}
+
+html[data-theme="dark"] .note-table th,
+html[data-theme="dark"] .note-table td {
+  border-color: #303744;
+}
+
+html[data-theme="dark"] .note-table th {
+  background: #1b2028;
+}
+
+html[data-theme="dark"] .note-editable[contenteditable="true"],
+html[data-theme="dark"] .note-edit-cell[contenteditable="true"] {
+  background: #152033;
+  outline-color: #40516b;
+}
+
+html[data-theme="dark"] .plan-card {
+  background: #11161d;
+}
+
+html[data-theme="dark"] .plan-check-row {
+  border-bottom-color: #2a303b;
+}
+
+html[data-theme="dark"] .plan-check-text {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .plan-check-row.done .plan-check-text {
+  color: #778190;
+}
+
+html[data-theme="dark"] .plan-add-wrap,
+html[data-theme="dark"] .plan-country-section {
+  border-color: #2a303b;
+}
+
+html[data-theme="dark"] .plan-add-cancel {
+  background: #252b34;
+  color: #c4cad3;
+}
+
+html[data-theme="dark"] .country-card {
+  background: #11161d;
+}
+
+html[data-theme="dark"] .status-card,
+html[data-theme="dark"] .placeholder {
+  border-color: var(--line);
+  background: #11161d;
+}
+
+html[data-theme="dark"] .tabbar {
+  border-top-color: var(--line);
+  background: rgba(20, 24, 32, .96);
+}
+
+html[data-theme="dark"] #settingsDialog,
+html[data-theme="dark"] .day-dialog,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .day-sheet {
+  background: #171b22;
+  color: var(--text);
+}
+
+html[data-theme="dark"] #settingsDialog::backdrop,
+html[data-theme="dark"] .day-dialog::backdrop {
+  background: rgba(0, 0, 0, .62);
+}
+
+html[data-theme="dark"] .theme-toggle {
+  border-color: #363d48;
+  background: #0f1319;
+}
+
+html[data-theme="dark"] .theme-option.active {
+  background: #252b34;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .45);
+}
+
+html[data-theme="dark"] .day-special-event.holiday {
+  background: #4a2530;
+  color: #ffbdc7;
+}
+
+html[data-theme="dark"] .day-special-event.event {
+  background: #30264f;
+  color: #d1c3ff;
+}
+
+html[data-theme="dark"] .day-cell.other-month .day-special-event {
+  background: #1a1f27;
+  color: #687382;
+}

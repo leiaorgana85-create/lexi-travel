@@ -1,0 +1,52 @@
+.note-format-bar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.note-format-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.lexi-note-tool {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+}
+
+.lexi-note-tool svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lexi-note-link {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.lexi-note-divider-row {
+  display: block;
+  min-height: 12px;
+  padding: 5px 0;
+}
+
+.lexi-note-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #dfe4ea;
+}
